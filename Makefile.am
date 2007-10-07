@@ -1,0 +1,2 @@
+SUBDIRS = libfprint
+EXTRA_DIST = THANKS
