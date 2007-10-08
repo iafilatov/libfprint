@@ -118,6 +118,11 @@ API_EXPORTED void fp_dscv_devs_free(struct fp_dscv_dev **devs)
 	g_free(devs);
 }
 
+API_EXPORTED const struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev)
+{
+	return dev->drv;
+}
+
 API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 {
 	struct fp_dev *dev;
@@ -150,6 +155,21 @@ API_EXPORTED void fp_dev_close(struct fp_dev *dev)
 		dev->drv->exit(dev);
 	usb_close(dev->udev);
 	g_free(dev);
+}
+
+API_EXPORTED const struct fp_driver *fp_dev_get_driver(struct fp_dev *dev)
+{
+	return dev->drv;
+}
+
+API_EXPORTED const char *fp_driver_get_name(const struct fp_driver *drv)
+{
+	return drv->name;
+}
+
+API_EXPORTED const char *fp_driver_get_full_name(const struct fp_driver *drv)
+{
+	return drv->full_name;
 }
 
 API_EXPORTED int fp_init(void)
