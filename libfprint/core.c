@@ -162,6 +162,11 @@ API_EXPORTED const struct fp_driver *fp_dev_get_driver(struct fp_dev *dev)
 	return dev->drv;
 }
 
+API_EXPORTED int fp_dev_get_nr_enroll_stages(struct fp_dev *dev)
+{
+	return dev->nr_enroll_stages;
+}
+
 API_EXPORTED const char *fp_driver_get_name(const struct fp_driver *drv)
 {
 	return drv->name;
@@ -172,10 +177,21 @@ API_EXPORTED const char *fp_driver_get_full_name(const struct fp_driver *drv)
 	return drv->full_name;
 }
 
+API_EXPORTED enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
+	struct fp_print_data **print_data)
+{
+	const struct fp_driver *drv = dev->drv;
+	if (!dev->nr_enroll_stages || !drv->enroll)
+		return FP_ENROLL_FAIL;
+
+	return drv->enroll(dev, print_data);
+}
+
 API_EXPORTED int fp_init(void)
 {
 	usb_init();
 	register_drivers();
 	return 0;
 }
+
 

@@ -35,10 +35,22 @@ const struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev);
 struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev);
 void fp_dev_close(struct fp_dev *dev);
 const struct fp_driver *fp_dev_get_driver(struct fp_dev *dev);
+int fp_dev_get_nr_enroll_stages(struct fp_dev *dev);
 
 /* Drivers */
 const char *fp_driver_get_name(const struct fp_driver *drv);
 const char *fp_driver_get_full_name(const struct fp_driver *drv);
+
+/* Enrolment */
+enum fp_enroll_status {
+	FP_ENROLL_COMPLETE,
+	FP_ENROLL_FAIL,
+	FP_ENROLL_PASS,
+	FP_ENROLL_RETRY,
+};
+
+enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
+	struct fp_print_data **print_data);
 
 /* Data handling */
 void fp_print_data_free(struct fp_print_data *data);

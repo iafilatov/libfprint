@@ -1,14 +1,14 @@
 LIBRARY
 =======
-fingerprint data representation
+debugging messages
+fingerprint data classifcation by device or device type
 storage mechanism
-enrollment
 verification
 imaging support
 external imaging APIs
 identification
 external API documentation
-test suite against NISTIR
+test suite against NFIQ compliance set
 
 DRIVERS
 =======

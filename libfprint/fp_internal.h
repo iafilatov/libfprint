@@ -32,6 +32,8 @@ struct fp_dev {
 	const struct fp_driver *drv;
 	usb_dev_handle *udev;
 	void *priv;
+
+	int nr_enroll_stages;
 };
 
 struct usb_id {
@@ -48,6 +50,8 @@ struct fp_driver {
 	/* Device operations */
 	int (*init)(struct fp_dev *dev);
 	void (*exit)(struct fp_dev *dev);
+	enum fp_enroll_status (*enroll)(struct fp_dev *dev,
+		struct fp_print_data **print_data);
 };
 
 extern const struct fp_driver upekts_driver;
