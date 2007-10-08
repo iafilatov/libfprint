@@ -20,6 +20,13 @@
 #ifndef __FPRINT_H__
 #define __FPRINT_H__
 
+/* structs that applications are not allowed to peek into */
+struct fp_dscv_dev;
+
+/* Device discovery */
+struct fp_dscv_dev **fp_discover_devs(void);
+void fp_dscv_devs_free(struct fp_dscv_dev **devs);
+
 int fp_init(void);
 
 #endif

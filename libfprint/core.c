@@ -20,6 +20,7 @@
 #include <config.h>
 
 #include <glib.h>
+#include <usb.h>
 
 #include "fp_internal.h"
 
@@ -42,8 +43,85 @@ static void register_drivers(void)
 		register_driver(drivers[i]);
 }
 
+static const struct fp_driver *find_supporting_driver(struct usb_device *udev)
+{
+	GList *elem = registered_drivers;
+	
+	do {
+		const struct fp_driver *drv = elem->data;
+		const struct usb_id *id;
+
+		for (id = drv->id_table; id->vendor; id++)
+			if (udev->descriptor.idVendor == id->vendor &&
+					udev->descriptor.idProduct == id->product)
+				return drv;
+	} while (elem = g_list_next(elem));
+	return NULL;
+}
+
+API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
+{
+	GList *tmplist = NULL;
+	struct fp_dscv_dev **list;
+	struct usb_device *udev;
+	struct usb_bus *bus;
+	int dscv_count = 0;
+
+	if (registered_drivers == NULL)
+		return NULL;
+
+	usb_find_busses();
+	usb_find_devices();
+
+	/* Check each device against each driver, temporarily storing successfully
+	 * discovered devices in a GList.
+	 *
+	 * Quite inefficient but excusable as we'll only be dealing with small
+	 * sets of drivers against small sets of USB devices */
+	for (bus = usb_get_busses(); bus; bus = bus->next)
+		for (udev = bus->devices; udev; udev = udev->next) {
+			const struct fp_driver *drv = find_supporting_driver(udev);
+			struct fp_dscv_dev *ddev;
+			if (!drv)
+				continue;
+			ddev = g_malloc0(sizeof(*ddev));
+			ddev->drv = drv;
+			ddev->udev = udev;
+			tmplist = g_list_prepend(tmplist, (gpointer) ddev);
+			dscv_count++;
+		}
+
+	/* Convert our temporary GList into a standard NULL-terminated pointer
+	 * array. */
+	list = g_malloc(sizeof(*list) * (dscv_count + 1));
+	if (dscv_count > 0) {
+		GList *elem = tmplist;
+		int i = 0;
+		do {
+			list[i++] = elem->data;
+		} while (elem = g_list_next(elem));
+	}
+	list[dscv_count] = NULL; /* NULL-terminate */
+
+	g_list_free(tmplist);
+	return list;
+}
+
+API_EXPORTED void fp_dscv_devs_free(struct fp_dscv_dev **devs)
+{
+	int i;
+	if (!devs)
+		return;
+
+	for (i = 0; devs[i]; i++)
+		g_free(devs[i]);
+	g_free(devs);
+}
+
 API_EXPORTED int fp_init(void)
 {
+	usb_init();
 	register_drivers();
 	return 0;
 }
+

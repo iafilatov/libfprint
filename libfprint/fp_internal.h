@@ -22,6 +22,10 @@
 
 #include <stdint.h>
 
+#include <usb.h>
+
+#include <fprint.h>
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
 
 struct usb_id {
@@ -37,6 +41,11 @@ struct fp_driver {
 };
 
 extern const struct fp_driver upekts_driver;
+
+struct fp_dscv_dev {
+	struct usb_device *udev;
+	const struct fp_driver *drv;
+};
 
 #endif
 
