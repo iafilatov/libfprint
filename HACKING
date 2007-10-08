@@ -1,0 +1,34 @@
+USB
+===
+
+At the time of development, there are no known consumer fingerprint readers
+which do not operate over the USB bus. Therefore the library is designed around
+the fact that each driver drivers USB devices, and each device is a USB device.
+If we were to ever support a non-USB device, some rearchitecting would be
+needed, but this would not be a substantial task.
+
+
+GLib
+====
+
+Although the library uses GLib internally, libfprint is designed to provide
+a completely neutral interface to it's application users. So, the public
+APIs should never return GLib data types or anything like that.
+
+
+Two-faced-ness
+==============
+
+Like any decent library, this one is designed to provide a stable and
+documented API to it's users: applications. Clear distinction is made between
+data available internally in the library, and data/functions available to
+the applications.
+
+This library is confused a little by the fact that there is another 'interface'
+at hand: the internal interface provided to drivers. So, we effectively end
+up with 2 APIs:
+
+ 1. The external-facing API for applications
+ 2. The internal API for fingerprint drivers
+
+

@@ -1,0 +1,29 @@
+LIBRARY
+=======
+fingerprint data representation
+storage mechanism
+enrollment
+verification
+imaging support
+external imaging APIs
+identification
+external API documentation
+test suite against NISTIR
+
+DRIVERS
+=======
+UPEK TouchStrip driver
+Sunplus 895 driver
+AES3501 driver
+AES4000 driver
+ID Mouse driver
+DigitalPersona U.are.U 4000/4000B driver
+Support for 2nd generation MS devices
+Support for 2nd generation UPEK devices
+
+MISC
+====
+upekts/thinkfinger relicensing (GPL --> LGPL)
+make library optionally asynchronous and maybe thread-safe
+pkg-config file
+
