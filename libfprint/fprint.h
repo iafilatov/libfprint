@@ -22,10 +22,15 @@
 
 /* structs that applications are not allowed to peek into */
 struct fp_dscv_dev;
+struct fp_dev;
 
 /* Device discovery */
 struct fp_dscv_dev **fp_discover_devs(void);
 void fp_dscv_devs_free(struct fp_dscv_dev **devs);
+
+/* Device handling */
+struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev);
+void fp_dev_close(struct fp_dev *dev);
 
 int fp_init(void);
 

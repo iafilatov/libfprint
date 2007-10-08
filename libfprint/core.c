@@ -118,6 +118,40 @@ API_EXPORTED void fp_dscv_devs_free(struct fp_dscv_dev **devs)
 	g_free(devs);
 }
 
+API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
+{
+	struct fp_dev *dev;
+	const struct fp_driver *drv = ddev->drv;
+	int r;
+
+	usb_dev_handle *udevh = usb_open(ddev->udev);
+	if (!udevh)
+		return NULL;
+	
+	dev = g_malloc0(sizeof(*dev));
+	dev->drv = drv;
+	dev->udev = udevh;
+
+	if (drv->init) {
+		r = drv->init(dev);
+		if (r) {
+			usb_close(udevh);
+			g_free(dev);
+			return NULL;
+		}
+	}
+
+	return dev;
+}
+
+API_EXPORTED void fp_dev_close(struct fp_dev *dev)
+{
+	if (dev->drv->exit)
+		dev->drv->exit(dev);
+	usb_close(dev->udev);
+	g_free(dev);
+}
+
 API_EXPORTED int fp_init(void)
 {
 	usb_init();

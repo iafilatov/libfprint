@@ -28,6 +28,12 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
 
+struct fp_dev {
+	const struct fp_driver *drv;
+	usb_dev_handle *udev;
+	void *priv;
+};
+
 struct usb_id {
 	uint16_t vendor;
 	uint16_t product;
@@ -38,6 +44,10 @@ struct fp_driver {
 	const char *name;
 	const char *full_name;
 	const struct usb_id * const id_table;
+
+	/* Device operations */
+	int (*init)(struct fp_dev *dev);
+	void (*exit)(struct fp_dev *dev);
 };
 
 extern const struct fp_driver upekts_driver;
