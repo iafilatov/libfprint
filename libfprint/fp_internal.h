@@ -57,5 +57,15 @@ struct fp_dscv_dev {
 	const struct fp_driver *drv;
 };
 
+struct fp_print_data {
+	const char *driver_name;
+	size_t length;
+	unsigned char buffer[0];
+};
+
+struct fp_print_data *fpi_print_data_new(struct fp_driver *drv, size_t length);
+unsigned char *fpi_print_data_get_buffer(struct fp_print_data *data);
+int fpi_print_data_compatible(struct fp_dev *dev, struct fp_print_data *data);
+
 #endif
 

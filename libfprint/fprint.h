@@ -24,6 +24,7 @@
 struct fp_dscv_dev;
 struct fp_dev;
 struct fp_driver;
+struct fp_print_data;
 
 /* Device discovery */
 struct fp_dscv_dev **fp_discover_devs(void);
@@ -39,6 +40,10 @@ const struct fp_driver *fp_dev_get_driver(struct fp_dev *dev);
 const char *fp_driver_get_name(const struct fp_driver *drv);
 const char *fp_driver_get_full_name(const struct fp_driver *drv);
 
+/* Data handling */
+void fp_print_data_free(struct fp_print_data *data);
+
+/* Library */
 int fp_init(void);
 
 #endif
