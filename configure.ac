@@ -24,8 +24,15 @@ PKG_CHECK_MODULES(GLIB, "glib-2.0")
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
+# Examples build
+AC_ARG_ENABLE([examples-build], [AS_HELP_STRING([--enable-examples-build],
+	[build example applications (default n)])],
+	[build_examples=$enableval],
+	[build_examples='no'])
+AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$build_examples" != "xno"])
+
 AC_DEFINE([API_EXPORTED], [__attribute__((visibility("default")))], [Default visibility])
 
-AC_CONFIG_FILES([Makefile] [libfprint/Makefile])
+AC_CONFIG_FILES([Makefile] [libfprint/Makefile] [examples/Makefile])
 AC_OUTPUT
 
