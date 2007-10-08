@@ -1,5 +1,5 @@
 /*
- * Core functions for libfprint
+ * Internal/private definitions for libfprint
  * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
  *
  * This library is free software; you can redistribute it and/or
@@ -17,33 +17,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <config.h>
+#ifndef __FPRINT_INTERNAL_H__
+#define __FPRINT_INTERNAL_H__
 
-#include <glib.h>
+#include <stdint.h>
 
-#include "fp_internal.h"
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
 
-static GList *registered_drivers = NULL;
-
-static void register_driver(const struct fp_driver *drv)
-{
-	registered_drivers = g_list_prepend(registered_drivers, (gpointer) drv);
-}
-
-static const struct fp_driver * const drivers[] = {
-	&upekts_driver,
+struct usb_id {
+	uint16_t vendor;
+	uint16_t product;
+	unsigned long driver_data;
 };
 
-static void register_drivers(void)
-{
-	int i;
+struct fp_driver {
+	const char *name;
+	const char *full_name;
+	const struct usb_id * const id_table;
+};
 
-	for (i = 0; i < ARRAY_SIZE(drivers); i++)
-		register_driver(drivers[i]);
-}
+extern const struct fp_driver upekts_driver;
 
-API_EXPORTED int fp_init(void)
-{
-	register_drivers();
-	return 0;
-}
+#endif
+
