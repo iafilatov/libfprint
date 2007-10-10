@@ -21,14 +21,51 @@
 
 #include <glib.h>
 #include <usb.h>
+#include <stdio.h>
 
 #include "fp_internal.h"
 
 static GList *registered_drivers = NULL;
 
+void fpi_log(enum fpi_log_level level, const char *component,
+	const char *function, const char *format, ...)
+{
+	va_list args;
+	FILE *stream = stdout;
+	const char *prefix;
+
+	switch (level) {
+	case LOG_LEVEL_INFO:
+		prefix = "info";
+		break;
+	case LOG_LEVEL_WARNING:
+		stream = stderr;
+		prefix = "warning";
+		break;
+	case LOG_LEVEL_ERROR:
+		stream = stderr;
+		prefix = "error";
+		break;
+	case LOG_LEVEL_DEBUG:
+		stream = stderr;
+		prefix = "debug";
+		break;
+	}
+
+	fprintf(stream, "%s:%s [%s] ", component ? component : "fp", prefix,
+		function);
+
+	va_start (args, format);
+	vfprintf(stream, format, args);
+	va_end (args);
+
+	fprintf(stream, "\n");
+}
+
 static void register_driver(const struct fp_driver *drv)
 {
 	registered_drivers = g_list_prepend(registered_drivers, (gpointer) drv);
+	fp_dbg("registered driver %s", drv->name);
 }
 
 static const struct fp_driver * const drivers[] = {
@@ -53,8 +90,11 @@ static const struct fp_driver *find_supporting_driver(struct usb_device *udev)
 
 		for (id = drv->id_table; id->vendor; id++)
 			if (udev->descriptor.idVendor == id->vendor &&
-					udev->descriptor.idProduct == id->product)
+					udev->descriptor.idProduct == id->product) {
+				fp_dbg("driver %s supports USB device %04x:%04x",
+					drv->name, id->vendor, id->product);
 				return drv;
+			}
 	} while (elem = g_list_next(elem));
 	return NULL;
 }
@@ -130,8 +170,10 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	int r;
 
 	usb_dev_handle *udevh = usb_open(ddev->udev);
-	if (!udevh)
+	if (!udevh) {
+		fp_err("usb_open failed");
 		return NULL;
+	}
 	
 	dev = g_malloc0(sizeof(*dev));
 	dev->drv = drv;
@@ -140,17 +182,20 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	if (drv->init) {
 		r = drv->init(dev);
 		if (r) {
+			fp_err("device initialisation failed, driver=%s", drv->name);
 			usb_close(udevh);
 			g_free(dev);
 			return NULL;
 		}
 	}
 
+	fp_dbg("");
 	return dev;
 }
 
 API_EXPORTED void fp_dev_close(struct fp_dev *dev)
 {
+	fp_dbg("");
 	if (dev->drv->exit)
 		dev->drv->exit(dev);
 	usb_close(dev->udev);
@@ -181,14 +226,18 @@ API_EXPORTED enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
 	struct fp_print_data **print_data)
 {
 	const struct fp_driver *drv = dev->drv;
-	if (!dev->nr_enroll_stages || !drv->enroll)
+	if (!dev->nr_enroll_stages || !drv->enroll) {
+		fp_err("driver %s has 0 enroll stages or no enroll func",
+			dev->drv->name);
 		return FP_ENROLL_FAIL;
+	}
 
 	return drv->enroll(dev, print_data);
 }
 
 API_EXPORTED int fp_init(void)
 {
+	fp_dbg("");
 	usb_init();
 	register_drivers();
 	return 0;

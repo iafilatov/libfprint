@@ -27,6 +27,7 @@
 struct fp_print_data *fpi_print_data_new(struct fp_driver *drv, size_t length)
 {
 	struct fp_print_data *data = g_malloc(sizeof(*data) + length);
+	fp_dbg("length=%z", length);
 	data->driver_name = drv->name;
 	data->length = length;
 }

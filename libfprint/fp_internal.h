@@ -28,6 +28,27 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
 
+enum fpi_log_level {
+	LOG_LEVEL_DEBUG,
+	LOG_LEVEL_INFO,
+	LOG_LEVEL_WARNING,
+	LOG_LEVEL_ERROR,
+};
+
+void fpi_log(enum fpi_log_level, const char *component, const char *function,
+	const char *format, ...);
+
+#ifndef FP_COMPONENT
+#define FP_COMPONENT NULL
+#endif
+
+#define _fpi_log(level, fmt...) fpi_log(level, FP_COMPONENT, __FUNCTION__, fmt)
+
+#define fp_dbg(fmt...) _fpi_log(LOG_LEVEL_DEBUG, fmt)
+#define fp_info(fmt...) _fpi_log(LOG_LEVEL_INFO, fmt)
+#define fp_warn(fmt...) _fpi_log(LOG_LEVEL_WARNING, fmt)
+#define fp_err(fmt...) _fpi_log(LOG_LEVEL_ERROR, fmt)
+
 struct fp_dev {
 	const struct fp_driver *drv;
 	usb_dev_handle *udev;
