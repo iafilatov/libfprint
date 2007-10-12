@@ -24,6 +24,16 @@
 
 #include <usb.h>
 
+#ifdef __DARWIN_NULL
+/* Darwin does endianness slightly differently */
+#include <machine/endian.h>
+#define __BYTE_ORDER BYTE_ORDER
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#define __BIG_ENDIAN BIG_ENDIAN
+#else /* Linux */
+#include <endian.h>
+#endif
+
 #include <fprint.h>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
@@ -91,6 +101,21 @@ struct fp_print_data {
 struct fp_print_data *fpi_print_data_new(struct fp_driver *drv, size_t length);
 unsigned char *fpi_print_data_get_buffer(struct fp_print_data *data);
 int fpi_print_data_compatible(struct fp_dev *dev, struct fp_print_data *data);
+
+#define bswap16(x) (((x & 0xff) << 8) | (x >> 8))
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define cpu_to_le16(x) (x)
+#define le16_to_cpu(x) (x)
+#define cpu_to_be16(x) bswap16(x)
+#define be16_to_cpu(x) bswap16(x)
+#elif __BYTE_ORDER == __BIG_ENDIAN
+#define cpu_to_le16(x) bswap16(x)
+#define le16_to_cpu(x) bswap16(x)
+#define cpu_to_be16(x) (x)
+#define be16_to_cpu(x) (x)
+#else
+#error "Unrecognized endianness"
+#endif
 
 #endif
 
