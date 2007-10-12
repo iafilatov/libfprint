@@ -60,6 +60,13 @@ struct fp_print_data *enroll(struct fp_dev *dev) {
 		case FP_ENROLL_RETRY:
 			printf("Didn't quite catch that. Please try again.\n");
 			break;
+		case FP_ENROLL_RETRY_TOO_SHORT:
+			printf("Your swipe was too short, please try again.\n");
+			break;
+		case FP_ENROLL_RETRY_CENTER_FINGER:
+			printf("Didn't catch that, please center your finger on the "
+				"sensor and try again.\n");
+			break;
 		}
 	} while (status != FP_ENROLL_COMPLETE);
 
@@ -103,6 +110,7 @@ int main(void)
 	fp_dscv_devs_free(discovered_devs);
 	if (!dev) {
 		fprintf(stderr, "Could not open device.\n");
+		exit(1);
 	}
 
 	printf("Opened device. It's now time to enroll your finger.\n\n");

@@ -43,10 +43,12 @@ const char *fp_driver_get_full_name(const struct fp_driver *drv);
 
 /* Enrolment */
 enum fp_enroll_status {
-	FP_ENROLL_COMPLETE,
+	FP_ENROLL_COMPLETE = 1,
 	FP_ENROLL_FAIL,
 	FP_ENROLL_PASS,
 	FP_ENROLL_RETRY,
+	FP_ENROLL_RETRY_TOO_SHORT,
+	FP_ENROLL_RETRY_CENTER_FINGER,
 };
 
 enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,

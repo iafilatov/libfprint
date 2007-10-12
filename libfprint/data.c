@@ -24,12 +24,13 @@
 
 #include "fp_internal.h"
 
-struct fp_print_data *fpi_print_data_new(struct fp_driver *drv, size_t length)
+struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length)
 {
 	struct fp_print_data *data = g_malloc(sizeof(*data) + length);
-	fp_dbg("length=%z", length);
-	data->driver_name = drv->name;
+	fp_dbg("length=%zd", length);
+	data->driver_name = dev->drv->name;
 	data->length = length;
+	return data;
 }
 
 unsigned char *fpi_print_data_get_buffer(struct fp_print_data *data)

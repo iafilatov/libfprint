@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 
+#include <glib.h>
 #include <usb.h>
 
 #ifdef __DARWIN_NULL
@@ -65,6 +66,9 @@ struct fp_dev {
 	void *priv;
 
 	int nr_enroll_stages;
+
+	/* drivers should not mess with these */
+	int __enroll_stage;
 };
 
 struct usb_id {
@@ -81,8 +85,8 @@ struct fp_driver {
 	/* Device operations */
 	int (*init)(struct fp_dev *dev);
 	void (*exit)(struct fp_dev *dev);
-	enum fp_enroll_status (*enroll)(struct fp_dev *dev,
-		struct fp_print_data **print_data);
+	enum fp_enroll_status (*enroll)(struct fp_dev *dev, gboolean initial,
+		int stage, struct fp_print_data **print_data);
 };
 
 extern const struct fp_driver upekts_driver;
@@ -98,7 +102,7 @@ struct fp_print_data {
 	unsigned char buffer[0];
 };
 
-struct fp_print_data *fpi_print_data_new(struct fp_driver *drv, size_t length);
+struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length);
 unsigned char *fpi_print_data_get_buffer(struct fp_print_data *data);
 int fpi_print_data_compatible(struct fp_dev *dev, struct fp_print_data *data);
 

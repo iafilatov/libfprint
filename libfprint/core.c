@@ -178,6 +178,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	dev = g_malloc0(sizeof(*dev));
 	dev->drv = drv;
 	dev->udev = udevh;
+	dev->__enroll_stage = -1;
 
 	if (drv->init) {
 		r = drv->init(dev);
@@ -226,13 +227,58 @@ API_EXPORTED enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
 	struct fp_print_data **print_data)
 {
 	const struct fp_driver *drv = dev->drv;
+	enum fp_enroll_status ret;
+	int stage = dev->__enroll_stage;
+	gboolean initial = FALSE;
+
 	if (!dev->nr_enroll_stages || !drv->enroll) {
 		fp_err("driver %s has 0 enroll stages or no enroll func",
 			dev->drv->name);
 		return FP_ENROLL_FAIL;
 	}
 
-	return drv->enroll(dev, print_data);
+	if (stage == -1) {
+		initial = TRUE;
+		dev->__enroll_stage = ++stage;
+	}
+
+	if (stage >= dev->nr_enroll_stages) {
+		fp_err("exceeding number of enroll stages for device claimed by "
+			"driver %s (%d stages)", dev->drv->name, dev->nr_enroll_stages);
+		return FP_ENROLL_FAIL;
+	}
+	fp_dbg("%s will handle enroll stage %d/%d%s", drv->name, stage,
+		dev->nr_enroll_stages - 1, initial ? " (initial)" : "");
+
+	ret = drv->enroll(dev, initial, stage, print_data);
+	switch (ret) {
+	case FP_ENROLL_PASS:
+		fp_dbg("enroll stage passed");
+		dev->__enroll_stage = stage + 1;
+		break;
+	case FP_ENROLL_COMPLETE:
+		fp_dbg("enroll complete");
+		dev->__enroll_stage = -1;
+		break;
+	case FP_ENROLL_RETRY:
+		fp_dbg("enroll should retry");
+		break;
+	case FP_ENROLL_RETRY_TOO_SHORT:
+		fp_dbg("swipe was too short, enroll should retry");
+		break;
+	case FP_ENROLL_RETRY_CENTER_FINGER:
+		fp_dbg("finger was not centered, enroll should retry");
+		break;
+	case FP_ENROLL_FAIL:
+		fp_err("enroll failed");
+		dev->__enroll_stage = -1;
+		break;
+	default:
+		fp_err("unrecognised return code %d", ret);
+		dev->__enroll_stage = -1;
+		return FP_ENROLL_FAIL;
+	}
+	return ret;
 }
 
 API_EXPORTED int fp_init(void)
