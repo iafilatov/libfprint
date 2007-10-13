@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <libfprint/fprint.h>
 
@@ -39,15 +40,20 @@ struct fp_dscv_dev *discover_device(struct fp_dscv_dev **discovered_devs)
 
 struct fp_print_data *enroll(struct fp_dev *dev) {
 	struct fp_print_data *enrolled_print = NULL;
-	enum fp_enroll_status status;
+	int r;
 
 	printf("You will need to successfully scan your finger %d times to "
 		"complete the process.\n", fp_dev_get_nr_enroll_stages(dev));
 
 	do {
-		printf("Scan your finger now.\n");
-		status = fp_enroll_finger(dev, &enrolled_print);
-		switch (status) {
+		sleep(1);
+		printf("\nScan your finger now.\n");
+		r = fp_enroll_finger(dev, &enrolled_print);
+		if (r < 0) {
+			printf("Enroll failed with error %d\n", r);
+			return NULL;
+		}
+		switch (r) {
 		case FP_ENROLL_COMPLETE:
 			printf("Enroll complete!\n");
 			break;
@@ -67,15 +73,19 @@ struct fp_print_data *enroll(struct fp_dev *dev) {
 			printf("Didn't catch that, please center your finger on the "
 				"sensor and try again.\n");
 			break;
+		case FP_ENROLL_RETRY_REMOVE_FINGER:
+			printf("Scan failed, please remove your finger and then try "
+				"again.\n");
+			break;
 		}
-	} while (status != FP_ENROLL_COMPLETE);
+	} while (r != FP_ENROLL_COMPLETE);
 
 	if (!enrolled_print) {
 		fprintf(stderr, "Enroll complete but no print?\n");
 		return NULL;
 	}
 
-	printf("got a print!\n");
+	printf("Enrollment completed!\n");
 	return enrolled_print;
 }
 

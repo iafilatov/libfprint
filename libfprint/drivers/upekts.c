@@ -461,7 +461,6 @@ static int dev_init(struct fp_dev *dev)
 		goto err;
 	}
 
-	seq = 0;
 	dummy = 0x04;
 	r = send_cmd28(dev, 0x06, &dummy, 1);
 	if (r < 0)
@@ -523,7 +522,7 @@ static const unsigned char scan_comp[] = {
 	0x12, 0xff, 0xff, 0xff, 0xff /* scan completion, prefixes print data */
 };
 
-static enum fp_enroll_status enroll(struct fp_dev *dev, gboolean initial,
+static int enroll(struct fp_dev *dev, gboolean initial,
 	int stage, struct fp_print_data **_data)
 {
 	unsigned char poll_data[] = { 0x30, 0x01 };
@@ -537,11 +536,11 @@ static enum fp_enroll_status enroll(struct fp_dev *dev, gboolean initial,
 		r = send_cmd28(dev, 0x02, (unsigned char *) enroll_init,
 			sizeof(enroll_init));
 		if (r < 0)
-			return FP_ENROLL_FAIL;
+			return r;
 		/* FIXME: protocol misunderstanding here. device receives response
 		 * to subcmd 0 after submitting subcmd 2? */
 		if (read_msg28(dev, 0x00, NULL, NULL) < 0)
-			return FP_ENROLL_FAIL;
+			return -EPROTO;
 	}
 
 	while (!result) {
@@ -551,12 +550,12 @@ static enum fp_enroll_status enroll(struct fp_dev *dev, gboolean initial,
 		if (r < 0)
 			return r;
 		if (read_msg28(dev, 0x00, &data, &data_len) < 0)
-			return FP_ENROLL_FAIL;
+			return -EPROTO;
 
 		if (data_len != 14) {
 			fp_err("received 3001 poll response of %d bytes?", data_len);
 			g_free(data);
-			return FP_ENROLL_FAIL;
+			return -EPROTO;
 		}
 
 		status = data[5];
@@ -573,8 +572,10 @@ static enum fp_enroll_status enroll(struct fp_dev *dev, gboolean initial,
 				result = FP_ENROLL_PASS;
 			break;
 		case 0x1c: /* FIXME what does this one mean? */
-		case 0x0f: /* scan taking too long, remove finger and try again */
 			result = FP_ENROLL_RETRY;
+			break;
+		case 0x0f: /* scan taking too long, remove finger and try again */
+			result = FP_ENROLL_RETRY_REMOVE_FINGER;
 			break;
 		case 0x1e: /* swipe too short */
 			result = FP_ENROLL_RETRY_TOO_SHORT;
@@ -583,6 +584,9 @@ static enum fp_enroll_status enroll(struct fp_dev *dev, gboolean initial,
 			result = FP_ENROLL_RETRY_CENTER_FINGER;
 			break;
 		case 0x20:
+			/* finger scanned successfully */
+			/* don't break out immediately, need to look at the next
+			 * value to determine if enrollment is complete or not */
 			passed = 1;
 			break;
 		case 0x00:
@@ -591,12 +595,10 @@ static enum fp_enroll_status enroll(struct fp_dev *dev, gboolean initial,
 			break;
 		default:
 			fp_err("unrecognised scan status code %02x", status);
-			result = FP_ENROLL_FAIL;
+			result = -EPROTO;
 			break;
 		}
-
-		if (result != FP_ENROLL_COMPLETE)
-			g_free(data);
+		g_free(data);
 	}
 
 	/* FIXME: need to extend protocol research to handle the case when
@@ -612,26 +614,30 @@ static enum fp_enroll_status enroll(struct fp_dev *dev, gboolean initial,
 		/* FIXME: protocol misunderstanding here. device receives response
 		 * to subcmd 0 after submitting subcmd 2? */
 		if (read_msg28(dev, 0x02, &data, &data_len) < 0)
-			return FP_ENROLL_FAIL;
+			return -EPROTO;
 
 		if (data_len < sizeof(scan_comp)) {
 			fp_err("fingerprint data too short (%d bytes)", data_len);
-			return FP_ENROLL_FAIL;
+			result = -EPROTO;
+			goto comp_out;
 		}
 		if (memcmp(data, scan_comp, sizeof(scan_comp)) != 0) {
 			fp_err("unrecognised data prefix %x %x %x %x %x",
 				data[0], data[1], data[2], data[3], data[4]);
-			return FP_ENROLL_FAIL;
+			result = -EPROTO;
+			goto comp_out;
 		}
 		if (!_data) {
 			fp_err("complete but no data storage!");
-			return FP_ENROLL_COMPLETE;
+			result = FP_ENROLL_COMPLETE;
+			goto comp_out;
 		}
 
 		fdata = fpi_print_data_new(dev, data_len - sizeof(scan_comp));
 		buf = fpi_print_data_get_buffer(fdata);
 		memcpy(buf, data + sizeof(scan_comp), data_len - sizeof(scan_comp));
 		*_data = fdata;
+comp_out:
 		g_free(data);
 	}
 

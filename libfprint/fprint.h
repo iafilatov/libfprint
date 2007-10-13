@@ -41,18 +41,18 @@ int fp_dev_get_nr_enroll_stages(struct fp_dev *dev);
 const char *fp_driver_get_name(const struct fp_driver *drv);
 const char *fp_driver_get_full_name(const struct fp_driver *drv);
 
-/* Enrolment */
-enum fp_enroll_status {
+/* Enrollment */
+enum fp_enroll_result {
 	FP_ENROLL_COMPLETE = 1,
 	FP_ENROLL_FAIL,
 	FP_ENROLL_PASS,
-	FP_ENROLL_RETRY,
+	FP_ENROLL_RETRY = 100,
 	FP_ENROLL_RETRY_TOO_SHORT,
 	FP_ENROLL_RETRY_CENTER_FINGER,
+	FP_ENROLL_RETRY_REMOVE_FINGER,
 };
 
-enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
-	struct fp_print_data **print_data);
+int fp_enroll_finger(struct fp_dev *dev, struct fp_print_data **print_data);
 
 /* Data handling */
 void fp_print_data_free(struct fp_print_data *data);

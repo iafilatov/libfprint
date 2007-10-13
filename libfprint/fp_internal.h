@@ -96,8 +96,8 @@ struct fp_driver {
 	/* Device operations */
 	int (*init)(struct fp_dev *dev);
 	void (*exit)(struct fp_dev *dev);
-	enum fp_enroll_status (*enroll)(struct fp_dev *dev, gboolean initial,
-		int stage, struct fp_print_data **print_data);
+	int (*enroll)(struct fp_dev *dev, gboolean initial, int stage,
+		struct fp_print_data **print_data);
 };
 
 extern const struct fp_driver upekts_driver;

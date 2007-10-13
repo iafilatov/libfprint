@@ -18,10 +18,11 @@
  */
 
 #include <config.h>
+#include <errno.h>
+#include <stdio.h>
 
 #include <glib.h>
 #include <usb.h>
-#include <stdio.h>
 
 #include "fp_internal.h"
 
@@ -227,18 +228,18 @@ API_EXPORTED const char *fp_driver_get_full_name(const struct fp_driver *drv)
 	return drv->full_name;
 }
 
-API_EXPORTED enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
+API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
 	struct fp_print_data **print_data)
 {
 	const struct fp_driver *drv = dev->drv;
-	enum fp_enroll_status ret;
+	int ret;
 	int stage = dev->__enroll_stage;
 	gboolean initial = FALSE;
 
 	if (!dev->nr_enroll_stages || !drv->enroll) {
 		fp_err("driver %s has 0 enroll stages or no enroll func",
-			dev->drv->name);
-		return FP_ENROLL_FAIL;
+			drv->name);
+		return -ENOTSUP;
 	}
 
 	if (stage == -1) {
@@ -248,13 +249,19 @@ API_EXPORTED enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
 
 	if (stage >= dev->nr_enroll_stages) {
 		fp_err("exceeding number of enroll stages for device claimed by "
-			"driver %s (%d stages)", dev->drv->name, dev->nr_enroll_stages);
-		return FP_ENROLL_FAIL;
+			"driver %s (%d stages)", drv->name, dev->nr_enroll_stages);
+		dev->__enroll_stage = -1;
+		return -EINVAL;
 	}
 	fp_dbg("%s will handle enroll stage %d/%d%s", drv->name, stage,
 		dev->nr_enroll_stages - 1, initial ? " (initial)" : "");
 
 	ret = drv->enroll(dev, initial, stage, print_data);
+	if (ret < 0) {
+		fp_err("enroll failed with code %d", ret);
+		dev->__enroll_stage = -1;
+		return ret;
+	}
 	switch (ret) {
 	case FP_ENROLL_PASS:
 		fp_dbg("enroll stage passed");
@@ -273,6 +280,9 @@ API_EXPORTED enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
 	case FP_ENROLL_RETRY_CENTER_FINGER:
 		fp_dbg("finger was not centered, enroll should retry");
 		break;
+	case FP_ENROLL_RETRY_REMOVE_FINGER:
+		fp_dbg("scan failed, remove finger and retry");
+		break;
 	case FP_ENROLL_FAIL:
 		fp_err("enroll failed");
 		dev->__enroll_stage = -1;
@@ -280,7 +290,7 @@ API_EXPORTED enum fp_enroll_status fp_enroll_finger(struct fp_dev *dev,
 	default:
 		fp_err("unrecognised return code %d", ret);
 		dev->__enroll_stage = -1;
-		return FP_ENROLL_FAIL;
+		return -EINVAL;
 	}
 	return ret;
 }
