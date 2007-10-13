@@ -20,6 +20,8 @@
 #ifndef __FPRINT_INTERNAL_H__
 #define __FPRINT_INTERNAL_H__
 
+#include <config.h>
+
 #include <stdint.h>
 
 #include <glib.h>
@@ -53,9 +55,18 @@ void fpi_log(enum fpi_log_level, const char *component, const char *function,
 #define FP_COMPONENT NULL
 #endif
 
+#ifdef ENABLE_LOGGING
 #define _fpi_log(level, fmt...) fpi_log(level, FP_COMPONENT, __FUNCTION__, fmt)
+#else
+#define _fpi_log(level, fmt...)
+#endif
 
+#ifdef ENABLE_DEBUG_LOGGING
 #define fp_dbg(fmt...) _fpi_log(LOG_LEVEL_DEBUG, fmt)
+#else
+#define fp_dbg(fmt...)
+#endif
+
 #define fp_info(fmt...) _fpi_log(LOG_LEVEL_INFO, fmt)
 #define fp_warn(fmt...) _fpi_log(LOG_LEVEL_WARNING, fmt)
 #define fp_err(fmt...) _fpi_log(LOG_LEVEL_ERROR, fmt)

@@ -31,7 +31,26 @@ AC_ARG_ENABLE([examples-build], [AS_HELP_STRING([--enable-examples-build],
 	[build_examples='no'])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$build_examples" != "xno"])
 
+# Message logging
+AC_ARG_ENABLE([log], [AS_HELP_STRING([--disable-log], [disable all logging])],
+	[log_enabled=$enableval],
+	[log_enabled='yes'])
+if test "x$log_enabled" != "xno"; then
+	AC_DEFINE([ENABLE_LOGGING], 1, [Message logging])
+fi
+
+AC_ARG_ENABLE([debug-log], [AS_HELP_STRING([--enable-debug-log],
+	[enable debug logging (default n)])],
+	[debug_log_enabled=$enableval],
+	[debug_log_enabled='no'])
+if test "x$debug_log_enabled" != "xno"; then
+	AC_DEFINE([ENABLE_DEBUG_LOGGING], 1, [Debug message logging])
+fi
+
+
 AC_DEFINE([API_EXPORTED], [__attribute__((visibility("default")))], [Default visibility])
+AM_CFLAGS="-Werror-implicit-function-declaration -Wimplicit-int -Wunreachable-code -Wunused-function -Wunused-label -Wunused-value -Wunused-variable -Wnonnull -Wreturn-type -Wextra -Wshadow"
+AC_SUBST(AM_CFLAGS)
 
 AC_CONFIG_FILES([Makefile] [libfprint/Makefile] [examples/Makefile])
 AC_OUTPUT

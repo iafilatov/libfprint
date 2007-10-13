@@ -50,6 +50,10 @@ void fpi_log(enum fpi_log_level level, const char *component,
 		stream = stderr;
 		prefix = "debug";
 		break;
+	default:
+		stream = stderr;
+		prefix = "unknown";
+		break;
 	}
 
 	fprintf(stream, "%s:%s [%s] ", component ? component : "fp", prefix,
@@ -74,7 +78,7 @@ static const struct fp_driver * const drivers[] = {
 
 static void register_drivers(void)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(drivers); i++)
 		register_driver(drivers[i]);
