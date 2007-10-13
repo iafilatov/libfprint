@@ -1,0 +1,11 @@
+libfprint
+http://www.reactivated.net/fprint
+
+libfprint is primarily licensed under the GNU LGPL. HOWEVER, THIS PRERELEASE
+VERSION INCLUDES GPL CODE FROM LIBTHINKFINGER, therefore distribution is
+subject to both the terms of the LGPL (see COPYING) *and* the GPL
+(see COPYING.GPL).
+
+At release time, I will contact libthinkfinger authors and see if they will
+be happy to relicense. I expect they will.
+

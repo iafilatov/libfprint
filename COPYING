@@ -1,3 +1,13 @@
+NOTE: This prerelease version of libfprint is mostly LGPL-licensed (as in the
+text below) but also includes code from libthinkfinger which is licensed under
+the GPL.
+This libfprint release is therefore licensed under the LGPL *and* the GPL.
+The GPL terms can be found in the COPYING.GPL file.
+
+At release time, I will contact libthinkfinger authors and see if they will
+be happy to relicense. I expect they will.
+
+
 		  GNU LESSER GENERAL PUBLIC LICENSE
 		       Version 2.1, February 1999
 
