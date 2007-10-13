@@ -98,6 +98,7 @@ struct fp_driver {
 	void (*exit)(struct fp_dev *dev);
 	int (*enroll)(struct fp_dev *dev, gboolean initial, int stage,
 		struct fp_print_data **print_data);
+	int (*verify)(struct fp_dev *dev, struct fp_print_data *data);
 };
 
 extern const struct fp_driver upekts_driver;

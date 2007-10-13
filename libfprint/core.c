@@ -295,6 +295,39 @@ API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
 	return ret;
 }
 
+API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
+	struct fp_print_data *enrolled_print)
+{
+	const struct fp_driver *drv = dev->drv;
+	int r;
+
+	if (!enrolled_print) {
+		fp_err("no print given");
+		return -EINVAL;
+	}
+
+	if (!drv->verify) {
+		fp_err("driver %s has no verify func", drv->name);
+		return -EINVAL;
+	}
+
+	if (!fpi_print_data_compatible(dev, enrolled_print)) {
+		fp_err("print is not compatible with device");
+		return -EINVAL;
+	}
+
+	fp_dbg("to be handled by %s", drv->name);
+	r = drv->verify(dev, enrolled_print);
+	if (r < 0)
+		fp_dbg("verify error %d", r);
+	else if (r == 0)
+		fp_dbg("result: no match");
+	else
+		fp_dbg("result: match");
+
+	return r;
+}
+
 API_EXPORTED int fp_init(void)
 {
 	fp_dbg("");

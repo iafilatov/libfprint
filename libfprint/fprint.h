@@ -54,6 +54,18 @@ enum fp_enroll_result {
 
 int fp_enroll_finger(struct fp_dev *dev, struct fp_print_data **print_data);
 
+/* Verification */
+enum fp_verify_result {
+	FP_VERIFY_NO_MATCH = 0,
+	FP_VERIFY_MATCH = 1,
+	FP_VERIFY_RETRY = FP_ENROLL_RETRY,
+	FP_VERIFY_RETRY_TOO_SHORT = FP_ENROLL_RETRY_TOO_SHORT,
+	FP_VERIFY_RETRY_CENTER_FINGER = FP_ENROLL_RETRY_CENTER_FINGER,
+	FP_VERIFY_RETRY_REMOVE_FINGER = FP_ENROLL_RETRY_REMOVE_FINGER,
+};
+
+int fp_verify_finger(struct fp_dev *dev, struct fp_print_data *enrolled_print);
+
 /* Data handling */
 void fp_print_data_free(struct fp_print_data *data);
 
