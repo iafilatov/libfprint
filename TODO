@@ -1,9 +1,7 @@
 LIBRARY
 =======
-debugging messages
 fingerprint data classifcation by device or device type
 storage mechanism
-verification
 imaging support
 external imaging APIs
 identification
@@ -12,7 +10,6 @@ test suite against NFIQ compliance set
 
 DRIVERS
 =======
-UPEK TouchStrip driver
 Sunplus 895 driver
 AES3501 driver
 AES4000 driver

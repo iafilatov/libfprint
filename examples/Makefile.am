@@ -1,6 +1,6 @@
 INCLUDES = -I$(top_srcdir)
-noinst_PROGRAMS = verify
+noinst_PROGRAMS = verify_live
 
-verify_SOURCES = verify.c
-verify_LDADD = ../libfprint/libfprint.la -lfprint
+verify_live_SOURCES = verify_live.c
+verify_live_LDADD = ../libfprint/libfprint.la -lfprint
 
