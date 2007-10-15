@@ -33,11 +33,6 @@ struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length)
 	return data;
 }
 
-unsigned char *fpi_print_data_get_buffer(struct fp_print_data *data)
-{
-	return data->buffer;
-}
-
 API_EXPORTED void fp_print_data_free(struct fp_print_data *data)
 {
 	g_free(data);

@@ -606,7 +606,6 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 
 	if (result == FP_ENROLL_COMPLETE) {
 		struct fp_print_data *fdata;
-		unsigned char *buf;
 
 		r = send_cmd28(dev, 0x00, poll_data, sizeof(poll_data));
 		if (r < 0)
@@ -634,8 +633,7 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 		}
 
 		fdata = fpi_print_data_new(dev, data_len - sizeof(scan_comp));
-		buf = fpi_print_data_get_buffer(fdata);
-		memcpy(buf, data + sizeof(scan_comp), data_len - sizeof(scan_comp));
+		memcpy(fdata->buffer, data + sizeof(scan_comp), data_len - sizeof(scan_comp));
 		*_data = fdata;
 comp_out:
 		g_free(data);
