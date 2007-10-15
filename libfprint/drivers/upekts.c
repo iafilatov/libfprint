@@ -522,10 +522,12 @@ static const unsigned char scan_comp[] = {
 	0x12, 0xff, 0xff, 0xff, 0xff /* scan completion, prefixes print data */
 };
 
+/* used for enrollment and verification */
+static const unsigned char poll_data[] = { 0x30, 0x01 };
+
 static int enroll(struct fp_dev *dev, gboolean initial,
 	int stage, struct fp_print_data **_data)
 {
-	unsigned char poll_data[] = { 0x30, 0x01 };
 	unsigned char *data;
 	size_t data_len;
 	int r;
@@ -539,6 +541,8 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 			return r;
 		/* FIXME: protocol misunderstanding here. device receives response
 		 * to subcmd 0 after submitting subcmd 2? */
+		/* actually this is probably a poll response? does the above cmd
+		 * include a 30 01 poll somewhere? */
 		if (read_msg28(dev, 0x00, NULL, NULL) < 0)
 			return -EPROTO;
 	}
@@ -546,7 +550,8 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 	while (!result) {
 		unsigned char status;
 
-		r = send_cmd28(dev,  0x00, poll_data, sizeof(poll_data));
+		r = send_cmd28(dev, 0x00, (unsigned char *) poll_data,
+			sizeof(poll_data));
 		if (r < 0)
 			return r;
 		if (read_msg28(dev, 0x00, &data, &data_len) < 0)
@@ -607,7 +612,8 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 	if (result == FP_ENROLL_COMPLETE) {
 		struct fp_print_data *fdata;
 
-		r = send_cmd28(dev, 0x00, poll_data, sizeof(poll_data));
+		r = send_cmd28(dev, 0x00, (unsigned char *) poll_data,
+			sizeof(poll_data));
 		if (r < 0)
 			return r;
 		/* FIXME: protocol misunderstanding here. device receives response
@@ -642,6 +648,121 @@ comp_out:
 	return result;
 }
 
+static const unsigned char verify_hdr[] = {
+	0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0xc0, 0xd4, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
+	0x00
+};
+
+static int verify(struct fp_dev *dev, struct fp_print_data *print)
+{
+	size_t data_len = sizeof(verify_hdr) + print->length;
+	unsigned char *data;
+	int r;
+	unsigned char status;
+	gboolean need_poll = FALSE;
+	gboolean done = FALSE;
+
+	if (data_len > 255) {
+		fp_err("file too long!\n");
+		return -EINVAL;
+	}
+
+	data = g_malloc(data_len);
+	memcpy(data, verify_hdr, sizeof(verify_hdr));
+	memcpy(data + sizeof(verify_hdr), print->buffer, print->length);
+
+	r = send_cmd28(dev, 0x03, data, data_len);
+	if (r < 0)
+		return r;
+	g_free(data);
+
+	while (!done) {
+		if (need_poll) {
+			r = send_cmd28(dev, 0x00, (unsigned char *) poll_data,
+				sizeof(poll_data));
+			if (r < 0)
+				return r;
+		} else {
+			need_poll = TRUE;
+		}
+		if (read_msg28(dev, 0x00, &data, &data_len) < 0)
+			return -EPROTO;
+
+		if (data_len != 14) {
+			fp_err("received 3001 poll response of %d bytes?", data_len);
+			r = -EPROTO;
+			goto out;
+		}
+
+		status = data[5];
+		fp_dbg("poll result = %02x", status);
+
+		/* These codes indicate that we're waiting for a finger scan, so poll
+		 * again */
+		switch (status) {
+		case 0x0c: /* no news, poll again */
+			break;
+		case 0x20:
+			fp_dbg("processing scan for verification");
+			break;
+		case 0x00:
+			fp_dbg("good image");
+			done = TRUE;
+			break;
+		case 0x1c: /* FIXME what does this one mean? */
+			r = FP_VERIFY_RETRY;
+			goto out;
+		case 0x0f: /* scan taking too long, remove finger and try again */
+			r = FP_VERIFY_RETRY_REMOVE_FINGER;
+			goto out;
+		case 0x1e: /* swipe too short */
+			r = FP_VERIFY_RETRY_TOO_SHORT;
+			goto out;
+		case 0x24: /* finger not centered */
+			r = FP_VERIFY_RETRY_CENTER_FINGER;
+			goto out;
+		default:
+			fp_err("unrecognised verify status code %02x", status);
+			r = -EPROTO;
+			goto out;
+		}
+		g_free(data);
+	}
+
+	if (status == 0x00) {
+		/* poll again for verify result */
+		r = send_cmd28(dev, 0x00, (unsigned char *) poll_data,
+			sizeof(poll_data));
+		if (r < 0)
+			return r;
+		if (read_msg28(dev, 0x03, &data, &data_len) < 0)
+			return -EPROTO;
+		if (data_len < 2) {
+			fp_err("verify result abnormally short!");
+			r = -EPROTO;
+			goto out;
+		}
+		if (data[0] != 0x12) {
+			fp_err("unexpected verify header byte %02x", data[0]);
+			r = -EPROTO;
+			goto out;
+		}
+		if (data[1] == 0x00) {
+			r = FP_VERIFY_NO_MATCH;
+		} else if (data[1] == 0x01) {
+			r = FP_VERIFY_MATCH;
+		} else {
+			fp_err("unrecognised verify result %02x", data[1]);
+			r = -EPROTO;
+			goto out;
+		}
+	}
+
+out:
+	g_free(data);
+	return r;
+}
 
 static const struct usb_id id_table[] = {
 	{ .vendor = 0x0483, .product = 0x2016 },
@@ -655,5 +776,6 @@ const struct fp_driver upekts_driver = {
 	.init = dev_init,
 	.exit = dev_exit,
 	.enroll = enroll,
+	.verify = verify,
 };
 
