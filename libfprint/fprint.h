@@ -26,6 +26,20 @@ struct fp_dev;
 struct fp_driver;
 struct fp_print_data;
 
+/* misc/general stuff */
+enum fp_finger {
+	LEFT_THUMB = 1,
+	LEFT_INDEX,
+	LEFT_MIDDLE,
+	LEFT_RING,
+	LEFT_LITTLE,
+	RIGHT_THUMB,
+	RIGHT_INDEX,
+	RIGHT_MIDDLE,
+	RIGHT_RING,
+	RIGHT_LITTLE,
+};
+
 /* Device discovery */
 struct fp_dscv_dev **fp_discover_devs(void);
 void fp_dscv_devs_free(struct fp_dscv_dev **devs);
@@ -67,6 +81,9 @@ enum fp_verify_result {
 int fp_verify_finger(struct fp_dev *dev, struct fp_print_data *enrolled_print);
 
 /* Data handling */
+int fp_print_data_load(struct fp_dev *dev, enum fp_finger finger,
+	struct fp_print_data **data);
+int fp_print_data_save(struct fp_print_data *data, enum fp_finger finger);
 void fp_print_data_free(struct fp_print_data *data);
 
 /* Library */

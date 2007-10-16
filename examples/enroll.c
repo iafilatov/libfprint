@@ -1,5 +1,6 @@
 /*
- * Example fingerprint verification program
+ * Example fingerprint enrollment program
+ * Enrolls your right index finger and saves the print to disk
  * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
  *
  * This library is free software; you can redistribute it and/or
@@ -89,41 +90,6 @@ struct fp_print_data *enroll(struct fp_dev *dev) {
 	return enrolled_print;
 }
 
-int verify(struct fp_dev *dev, struct fp_print_data *data)
-{
-	int r;
-
-	do {
-		sleep(1);
-		printf("\nScan your finger now.\n");
-		r = fp_verify_finger(dev, data);
-		if (r < 0) {
-			printf("verification failed with error %d :(\n", r);
-			return r;
-		}
-		switch (r) {
-		case FP_VERIFY_NO_MATCH:
-			printf("NO MATCH!\n");
-			return 0;
-		case FP_VERIFY_MATCH:
-			printf("MATCH!\n");
-			return 0;
-		case FP_VERIFY_RETRY:
-			printf("Scan didn't quite work. Please try again.\n");
-			break;
-		case FP_VERIFY_RETRY_TOO_SHORT:
-			printf("Swipe was too short, please try again.\n");
-			break;
-		case FP_VERIFY_RETRY_CENTER_FINGER:
-			printf("Please center your finger on the sensor and try again.\n");
-			break;
-		case FP_VERIFY_RETRY_REMOVE_FINGER:
-			printf("Please remove finger from the sensor and try again.\n");
-			break;
-		}
-	} while (1);
-}
-
 int main(void)
 {
 	int r;
@@ -131,6 +97,12 @@ int main(void)
 	struct fp_dscv_dev **discovered_devs;
 	struct fp_dev *dev;
 	struct fp_print_data *data;
+
+	printf("This program will enroll your right index finger, "
+		"unconditionally overwriting any right-index print that was enrolled "
+		"previously. If you want to continue, press enter, otherwise hit "
+		"Ctrl+C\n");
+	getchar();
 
 	r = fp_init();
 	if (r < 0) {
@@ -162,21 +134,9 @@ int main(void)
 	if (!data)
 		goto out_close;
 
-
-	printf("Normally we'd save that print to disk, and recall it at some "
-		"point later when we want to authenticate the user who just "
-		"enrolled. In the interests of demonstration, we'll authenticate "
-		"that user immediately.\n");
-
-	do {
-		char buffer[20];
-
-		verify(dev, data);
-		printf("Verify again? [Y/n]? ");
-		fgets(buffer, sizeof(buffer), stdin);
-		if (buffer[0] != '\n' && buffer[0] != 'y' && buffer[0] != 'Y')
-			break;
-	} while (1);
+	r = fp_print_data_save(data, RIGHT_INDEX);
+	if (r < 0)
+		fprintf(stderr, "Data save failed, code %d\n", r);
 
 	fp_print_data_free(data);
 out_close:
