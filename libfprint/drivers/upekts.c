@@ -95,9 +95,10 @@ static uint16_t udf_crc(unsigned char *buffer, size_t size)
  * Byte-wise:
  * 		'C' 'i' 'a' 'o' A B L <DATA> C1 C2
  *
- * Ciao prefixes all messages. L is the length of the data, <DATA> is L bytes
- * long. C1 and C2 are the UDF-CRC16 for the whole message minus the Ciao
- * prefix.
+ * Ciao prefixes all messages. The rightmost 4 bits of B become the uppermost
+ * 4 bits of L, and when combined with the lower 8 bits listed as 'L', L is
+ * the length of the data, <DATA> is L bytes long. C1 and C2 are the
+ * UDF-CRC16 for the whole message minus the Ciao prefix.
  *
  * When the device wants to command the driver to do something, it sends
  * a message where B=0 and A!=0. The A value indicates the type of command.
@@ -114,11 +115,11 @@ static uint16_t udf_crc(unsigned char *buffer, size_t size)
  * When the driver is sending commands as above, and when the device is
  * responding, the <DATA> seems to follow this structure:
  *
- * 		28 L 0 0 0 S <INNERDATA>
+ * 		28 L1 L2 0 0 S <INNERDATA>
  *
  * Where the length of <INNERDATA> is L-3, and S is some kind of subcommand
- * code. In the device's response to a command, the subcommand code will be
- * unchanged.
+ * code. L1 is the least significant bits of L, L2 is the most significant. In
+ * the device's response to a command, the subcommand code will be unchanged.
  *
  * After deducing and documenting the above, I found a few places where the
  * above doesn't hold true. Those are marked with FIXME's below.
@@ -127,13 +128,13 @@ static uint16_t udf_crc(unsigned char *buffer, size_t size)
 #define CMD_SEQ_INCREMENT 0x10
 
 static int send_cmd(struct fp_dev *dev, unsigned char seq_a,
-	unsigned char seq_b, unsigned char *data, uint8_t len)
+	unsigned char seq_b, unsigned char *data, uint16_t len)
 {
 	int r;
 	uint16_t crc;
 
-	/* 9 bytes extra for: 4 byte 'Ciao', 1 byte A, 1 byte B, 1 byte length,
-	 * 2 byte CRC */
+	/* 9 bytes extra for: 4 byte 'Ciao', 1 byte A, 1 byte B | lenHI,
+	 * 1 byte lenLO, 2 byte CRC */
 	size_t urblen = len + 9;
 	unsigned char *buf;
 
@@ -146,9 +147,10 @@ static int send_cmd(struct fp_dev *dev, unsigned char seq_a,
 
 	/* Write header */
 	strncpy(buf, "Ciao", 4);
+	len = cpu_to_le16(len);
 	buf[4] = seq_a;
-	buf[5] = seq_b;
-	buf[6] = len;
+	buf[5] = seq_b | ((len & 0xf00) >> 8);
+	buf[6] = len & 0x00ff;
 
 	/* Copy data */
 	if (data)
@@ -173,7 +175,7 @@ static int send_cmd(struct fp_dev *dev, unsigned char seq_a,
 }
 
 static int send_cmd28(struct fp_dev *dev, unsigned char subcmd,
-	unsigned char *data, uint8_t innerlen)
+	unsigned char *data, uint16_t innerlen)
 {
 	size_t len = innerlen + 6;
 	unsigned char *buf = g_malloc0(len);
@@ -183,8 +185,10 @@ static int send_cmd28(struct fp_dev *dev, unsigned char subcmd,
 
 	fp_dbg("seq=%02x subcmd=%02x with %d bytes of data", seq, subcmd, innerlen);
 
+	innerlen = cpu_to_le16(innerlen + 3);
 	buf[0] = 0x28;
-	buf[1] = innerlen + 3;
+	buf[1] = innerlen & 0x00ff;
+	buf[2] = (innerlen & 0xff00) >> 8;
 	buf[5] = subcmd;
 	memcpy(buf + 6, data, innerlen);
 
@@ -210,7 +214,7 @@ static unsigned char *__read_msg(struct fp_dev *dev, size_t *data_len)
 	unsigned char *buf = g_malloc(MSG_READ_BUF_SIZE);
 	size_t buf_size = MSG_READ_BUF_SIZE;
 	uint16_t computed_crc, msg_crc;
-	uint8_t len;
+	uint16_t len;
 	int r;
 
 	r = usb_bulk_read(dev->udev, EP_IN, buf, buf_size, TIMEOUT);
@@ -227,7 +231,7 @@ static unsigned char *__read_msg(struct fp_dev *dev, size_t *data_len)
 		goto err;
 	}
 
-	len = buf[6];
+	len = le16_to_cpu(((buf[5] & 0xf) << 8) | buf[6]);
 
 	if (r != MSG_READ_BUF_SIZE && (len + 9) < r) {
 		/* Check that the length claimed inside the message is in line with
@@ -285,7 +289,7 @@ static enum read_msg_status read_msg(struct fp_dev *dev, uint8_t *seq,
 	size_t buf_size;
 	unsigned char code_a;
 	unsigned char code_b;
-	uint8_t len;
+	uint16_t len;
 	enum read_msg_status ret = READ_MSG_ERROR;
 
 retry:
@@ -294,8 +298,8 @@ retry:
 		return READ_MSG_ERROR;
 
 	code_a = buf[4];
-	code_b = buf[5];
-	len = buf[6];
+	code_b = buf[5] & 0xf0;
+	len = le16_to_cpu(((buf[5] & 0xf) << 8) | buf[6]);
 	fp_dbg("A=%02x B=%02x len=%d", code_a, code_b, len);
 
 	if (code_a && !code_b) {
@@ -324,7 +328,7 @@ retry:
 		/* device sends response to a previously executed command */
 		unsigned char *innerbuf = buf + 7;
 		unsigned char _subcmd;
-		uint8_t innerlen;
+		uint16_t innerlen;
 
 		if (len < 6) {
 			fp_err("cmd response too short (%d)", len);
@@ -334,12 +338,13 @@ retry:
 			fp_err("cmd response without 28 byte?");
 			goto out;
 		}
-		if (innerbuf[2] || innerbuf[3] || innerbuf[4]) {
+		if (innerbuf[3] || innerbuf[4]) {
 			fp_err("non-zero bytes in cmd response");
 			goto out;
 		}
 
-		innerlen = innerbuf[1] - 3;
+		innerlen = innerbuf[1] | (innerbuf[2] << 8);
+		innerlen = le16_to_cpu(innerlen) - 3;
 		_subcmd = innerbuf[5];
 		fp_dbg("device responds to subcmd %x with %d bytes", _subcmd, innerlen);
 		if (seq)
@@ -577,6 +582,8 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 				result = FP_ENROLL_PASS;
 			break;
 		case 0x1c: /* FIXME what does this one mean? */
+		case 0x0b: /* FIXME what does this one mean? */
+		case 0x23: /* FIXME what does this one mean? */
 			result = FP_ENROLL_RETRY;
 			break;
 		case 0x0f: /* scan taking too long, remove finger and try again */
@@ -663,11 +670,6 @@ static int verify(struct fp_dev *dev, struct fp_print_data *print)
 	gboolean need_poll = FALSE;
 	gboolean done = FALSE;
 
-	if (data_len > 255) {
-		fp_err("file too long!\n");
-		return -EINVAL;
-	}
-
 	data = g_malloc(data_len);
 	memcpy(data, verify_hdr, sizeof(verify_hdr));
 	memcpy(data + sizeof(verify_hdr), print->buffer, print->length);
@@ -711,6 +713,8 @@ static int verify(struct fp_dev *dev, struct fp_print_data *print)
 			done = TRUE;
 			break;
 		case 0x1c: /* FIXME what does this one mean? */
+		case 0x0b: /* FIXME what does this one mean? */
+		case 0x23: /* FIXME what does this one mean? */
 			r = FP_VERIFY_RETRY;
 			goto out;
 		case 0x0f: /* scan taking too long, remove finger and try again */
