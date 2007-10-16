@@ -318,12 +318,34 @@ API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
 
 	fp_dbg("to be handled by %s", drv->name);
 	r = drv->verify(dev, enrolled_print);
-	if (r < 0)
+	if (r < 0) {
 		fp_dbg("verify error %d", r);
-	else if (r == 0)
+		return r;
+	}
+
+	switch (r) {
+	case FP_VERIFY_NO_MATCH:
 		fp_dbg("result: no match");
-	else
+		break;
+	case FP_VERIFY_MATCH:
 		fp_dbg("result: match");
+		break;
+	case FP_VERIFY_RETRY:
+		fp_dbg("verify should retry");
+		break;
+	case FP_VERIFY_RETRY_TOO_SHORT:
+		fp_dbg("swipe was too short, verify should retry");
+		break;
+	case FP_VERIFY_RETRY_CENTER_FINGER:
+		fp_dbg("finger was not centered, verify should retry");
+		break;
+	case FP_VERIFY_RETRY_REMOVE_FINGER:
+		fp_dbg("scan failed, remove finger and retry");
+		break;
+	default:
+		fp_err("unrecognised return code %d", r);
+		return -EINVAL;
+	}
 
 	return r;
 }
