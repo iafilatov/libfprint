@@ -177,6 +177,7 @@ static int send_cmd(struct fp_dev *dev, unsigned char seq_a,
 static int send_cmd28(struct fp_dev *dev, unsigned char subcmd,
 	unsigned char *data, uint16_t innerlen)
 {
+	uint16_t _innerlen = innerlen;
 	size_t len = innerlen + 6;
 	unsigned char *buf = g_malloc0(len);
 	struct upekts_dev *upekdev = dev->priv;
@@ -185,10 +186,10 @@ static int send_cmd28(struct fp_dev *dev, unsigned char subcmd,
 
 	fp_dbg("seq=%02x subcmd=%02x with %d bytes of data", seq, subcmd, innerlen);
 
-	innerlen = cpu_to_le16(innerlen + 3);
+	_innerlen = cpu_to_le16(innerlen + 3);
 	buf[0] = 0x28;
-	buf[1] = innerlen & 0x00ff;
-	buf[2] = (innerlen & 0xff00) >> 8;
+	buf[1] = _innerlen & 0x00ff;
+	buf[2] = (_innerlen & 0xff00) >> 8;
 	buf[5] = subcmd;
 	memcpy(buf + 6, data, innerlen);
 
