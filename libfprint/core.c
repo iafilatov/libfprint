@@ -67,30 +67,40 @@ void fpi_log(enum fpi_log_level level, const char *component,
 	fprintf(stream, "\n");
 }
 
-static void register_driver(const struct fp_driver *drv)
+static void register_driver(struct fp_driver *drv)
 {
 	registered_drivers = g_list_prepend(registered_drivers, (gpointer) drv);
 	fp_dbg("registered driver %s", drv->name);
 }
 
-static const struct fp_driver * const drivers[] = {
+static struct fp_driver * const primitive_drivers[] = {
 	&upekts_driver,
+};
+
+static struct fp_img_driver * const img_drivers[] = {
+	&uru4000_driver,
 };
 
 static void register_drivers(void)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(drivers); i++)
-		register_driver(drivers[i]);
+	for (i = 0; i < ARRAY_SIZE(primitive_drivers); i++)
+		register_driver(primitive_drivers[i]);
+
+	for (i = 0; i < ARRAY_SIZE(img_drivers); i++) {
+		struct fp_img_driver *imgdriver = img_drivers[i];
+		fpi_img_driver_setup(imgdriver);
+		register_driver(&imgdriver->driver);
+	}
 }
 
-static const struct fp_driver *find_supporting_driver(struct usb_device *udev)
+static struct fp_driver *find_supporting_driver(struct usb_device *udev)
 {
 	GList *elem = registered_drivers;
 	
 	do {
-		const struct fp_driver *drv = elem->data;
+		struct fp_driver *drv = elem->data;
 		const struct usb_id *id;
 
 		for (id = drv->id_table; id->vendor; id++)
@@ -125,7 +135,7 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 	 * sets of drivers against small sets of USB devices */
 	for (bus = usb_get_busses(); bus; bus = bus->next)
 		for (udev = bus->devices; udev; udev = udev->next) {
-			const struct fp_driver *drv = find_supporting_driver(udev);
+			struct fp_driver *drv = find_supporting_driver(udev);
 			struct fp_dscv_dev *ddev;
 			if (!drv)
 				continue;
@@ -163,7 +173,7 @@ API_EXPORTED void fp_dscv_devs_free(struct fp_dscv_dev **devs)
 	g_free(devs);
 }
 
-API_EXPORTED const struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev)
+API_EXPORTED struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev)
 {
 	return dev->drv;
 }
@@ -171,7 +181,7 @@ API_EXPORTED const struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *
 API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 {
 	struct fp_dev *dev;
-	const struct fp_driver *drv = ddev->drv;
+	struct fp_driver *drv = ddev->drv;
 	int r;
 
 	usb_dev_handle *udevh = usb_open(ddev->udev);
@@ -208,7 +218,7 @@ API_EXPORTED void fp_dev_close(struct fp_dev *dev)
 	g_free(dev);
 }
 
-API_EXPORTED const struct fp_driver *fp_dev_get_driver(struct fp_dev *dev)
+API_EXPORTED struct fp_driver *fp_dev_get_driver(struct fp_dev *dev)
 {
 	return dev->drv;
 }
@@ -218,12 +228,12 @@ API_EXPORTED int fp_dev_get_nr_enroll_stages(struct fp_dev *dev)
 	return dev->nr_enroll_stages;
 }
 
-API_EXPORTED const char *fp_driver_get_name(const struct fp_driver *drv)
+API_EXPORTED const char *fp_driver_get_name(struct fp_driver *drv)
 {
 	return drv->name;
 }
 
-API_EXPORTED const char *fp_driver_get_full_name(const struct fp_driver *drv)
+API_EXPORTED const char *fp_driver_get_full_name(struct fp_driver *drv)
 {
 	return drv->full_name;
 }
@@ -231,7 +241,7 @@ API_EXPORTED const char *fp_driver_get_full_name(const struct fp_driver *drv)
 API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
 	struct fp_print_data **print_data)
 {
-	const struct fp_driver *drv = dev->drv;
+	struct fp_driver *drv = dev->drv;
 	int ret;
 	int stage = dev->__enroll_stage;
 	gboolean initial = FALSE;
@@ -298,7 +308,7 @@ API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
 API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
 	struct fp_print_data *enrolled_print)
 {
-	const struct fp_driver *drv = dev->drv;
+	struct fp_driver *drv = dev->drv;
 	int r;
 
 	if (!enrolled_print) {

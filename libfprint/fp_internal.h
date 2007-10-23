@@ -72,7 +72,7 @@ void fpi_log(enum fpi_log_level, const char *component, const char *function,
 #define fp_err(fmt...) _fpi_log(LOG_LEVEL_ERROR, fmt)
 
 struct fp_dev {
-	const struct fp_driver *drv;
+	struct fp_driver *drv;
 	usb_dev_handle *udev;
 	void *priv;
 
@@ -88,10 +88,18 @@ struct usb_id {
 	unsigned long driver_data;
 };
 
+enum fp_driver_type {
+	DRIVER_PRIMITIVE = 0,
+	DRIVER_IMAGING = 1,
+};
+
 struct fp_driver {
 	const char *name;
 	const char *full_name;
 	const struct usb_id * const id_table;
+	enum fp_driver_type type;
+
+	void *priv;
 
 	/* Device operations */
 	int (*init)(struct fp_dev *dev);
@@ -101,11 +109,20 @@ struct fp_driver {
 	int (*verify)(struct fp_dev *dev, struct fp_print_data *data);
 };
 
-extern const struct fp_driver upekts_driver;
+struct fp_img_driver {
+	struct fp_driver driver;
+
+	/* Device operations */
+};
+
+extern struct fp_driver upekts_driver;
+extern struct fp_img_driver uru4000_driver;
+
+void fpi_img_driver_setup(struct fp_img_driver *idriver);
 
 struct fp_dscv_dev {
 	struct usb_device *udev;
-	const struct fp_driver *drv;
+	struct fp_driver *drv;
 };
 
 struct fp_print_data {
