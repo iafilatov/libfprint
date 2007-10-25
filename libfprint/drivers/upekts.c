@@ -32,6 +32,7 @@
 #include <string.h>
 
 #include <glib.h>
+#include <usb.h>
 
 #include <fp_internal.h>
 
@@ -422,7 +423,7 @@ static const unsigned char init28_0b[] = {
 
 static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 {
-	struct upekts_dev *upekdev;
+	struct upekts_dev *upekdev = NULL;
 	unsigned char dummy = 0x10;
 	enum read_msg_status msgstat;
 	uint8_t seq;
@@ -434,8 +435,10 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 
 	r = usb_control_msg(dev->udev, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		0x0c, 0x100, 0x400, &dummy, sizeof(dummy), TIMEOUT);
-	if (r < 0)
-		return r;
+	if (r < 0) {
+		fp_dbg("control write failed\n");
+		goto err;
+	}
 
 	upekdev = g_malloc(sizeof(*upekdev));
 	upekdev->seq = 0xf0; /* incremented to 0x00 before first cmd */
@@ -504,7 +507,9 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 
 	return 0;
 err:
+	usb_release_interface(dev->udev, 0);
 	g_free(upekdev);
+
 	return -EPROTO;
 }
 
@@ -518,6 +523,7 @@ static void dev_exit(struct fp_dev *dev)
 	
 	// FIXME should read msg A=01
 
+	usb_release_interface(dev->udev, 0);
 	g_free(dev->priv);
 }
 
