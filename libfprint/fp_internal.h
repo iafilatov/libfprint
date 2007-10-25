@@ -102,7 +102,7 @@ struct fp_driver {
 	void *priv;
 
 	/* Device operations */
-	int (*init)(struct fp_dev *dev);
+	int (*init)(struct fp_dev *dev, unsigned long driver_data);
 	void (*exit)(struct fp_dev *dev);
 	int (*enroll)(struct fp_dev *dev, gboolean initial, int stage,
 		struct fp_print_data **print_data);
@@ -123,6 +123,7 @@ void fpi_img_driver_setup(struct fp_img_driver *idriver);
 struct fp_dscv_dev {
 	struct usb_device *udev;
 	struct fp_driver *drv;
+	unsigned long driver_data;
 };
 
 struct fp_print_data {

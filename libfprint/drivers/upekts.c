@@ -420,7 +420,7 @@ static const unsigned char init28_0b[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00
 };
 
-static int dev_init(struct fp_dev *dev)
+static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 {
 	struct upekts_dev *upekdev;
 	unsigned char dummy = 0x10;

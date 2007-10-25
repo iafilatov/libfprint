@@ -95,7 +95,8 @@ static void register_drivers(void)
 	}
 }
 
-static struct fp_driver *find_supporting_driver(struct usb_device *udev)
+static struct fp_driver *find_supporting_driver(struct usb_device *udev,
+	unsigned long *driver_data)
 {
 	GList *elem = registered_drivers;
 	
@@ -108,6 +109,7 @@ static struct fp_driver *find_supporting_driver(struct usb_device *udev)
 					udev->descriptor.idProduct == id->product) {
 				fp_dbg("driver %s supports USB device %04x:%04x",
 					drv->name, id->vendor, id->product);
+				*driver_data = id->driver_data;
 				return drv;
 			}
 	} while (elem = g_list_next(elem));
@@ -135,13 +137,15 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 	 * sets of drivers against small sets of USB devices */
 	for (bus = usb_get_busses(); bus; bus = bus->next)
 		for (udev = bus->devices; udev; udev = udev->next) {
-			struct fp_driver *drv = find_supporting_driver(udev);
+			unsigned long driver_data;
+			struct fp_driver *drv = find_supporting_driver(udev, &driver_data);
 			struct fp_dscv_dev *ddev;
 			if (!drv)
 				continue;
 			ddev = g_malloc0(sizeof(*ddev));
 			ddev->drv = drv;
 			ddev->udev = udev;
+			ddev->driver_data = driver_data;
 			tmplist = g_list_prepend(tmplist, (gpointer) ddev);
 			dscv_count++;
 		}
@@ -196,7 +200,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	dev->__enroll_stage = -1;
 
 	if (drv->init) {
-		r = drv->init(dev);
+		r = drv->init(dev, ddev->driver_data);
 		if (r) {
 			fp_err("device initialisation failed, driver=%s", drv->name);
 			usb_close(udevh);
