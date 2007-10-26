@@ -70,6 +70,7 @@ static const char *finger_code_to_str(enum fp_finger finger)
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length)
 {
 	struct fp_print_data *data = g_malloc(sizeof(*data) + length);
+	memset(data, 0, sizeof(*data));
 	fp_dbg("length=%zd", length);
 	data->driver_name = dev->drv->name;
 	data->length = length;
@@ -139,6 +140,7 @@ API_EXPORTED int fp_print_data_load(struct fp_dev *dev,
 		int r = err->code;
 		fp_err("%s load failed: %s", fingerstr, err->message);
 		g_error_free(err);
+		/* FIXME interpret more error codes */
 		if (r == G_FILE_ERROR_NOENT)
 			return -ENOENT;
 		else
