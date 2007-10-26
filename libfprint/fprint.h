@@ -25,6 +25,7 @@ struct fp_dscv_dev;
 struct fp_dev;
 struct fp_driver;
 struct fp_print_data;
+struct fp_img;
 
 /* misc/general stuff */
 enum fp_finger {
@@ -50,6 +51,7 @@ struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev);
 void fp_dev_close(struct fp_dev *dev);
 struct fp_driver *fp_dev_get_driver(struct fp_dev *dev);
 int fp_dev_get_nr_enroll_stages(struct fp_dev *dev);
+struct fp_img_dev *fp_dev_to_img_dev(struct fp_dev *dev);
 
 /* Drivers */
 const char *fp_driver_get_name(struct fp_driver *drv);
@@ -85,6 +87,16 @@ int fp_print_data_load(struct fp_dev *dev, enum fp_finger finger,
 	struct fp_print_data **data);
 int fp_print_data_save(struct fp_print_data *data, enum fp_finger finger);
 void fp_print_data_free(struct fp_print_data *data);
+
+/* Imaging devices */
+int fp_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
+	struct fp_img **image);
+
+/* Image handling */
+int fp_img_get_height(struct fp_img *img);
+int fp_img_get_width(struct fp_img *img);
+unsigned char *fp_img_get_data(struct fp_img *img);
+int fp_img_save_to_file(struct fp_img *img, char *path);
 
 /* Library */
 int fp_init(void);

@@ -193,7 +193,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 		fp_err("usb_open failed");
 		return NULL;
 	}
-	
+
 	dev = g_malloc0(sizeof(*dev));
 	dev->drv = drv;
 	dev->udev = udevh;
@@ -240,6 +240,13 @@ API_EXPORTED const char *fp_driver_get_name(struct fp_driver *drv)
 API_EXPORTED const char *fp_driver_get_full_name(struct fp_driver *drv)
 {
 	return drv->full_name;
+}
+
+API_EXPORTED struct fp_img_dev *fp_dev_to_img_dev(struct fp_dev *dev)
+{
+	if (dev->drv->type != DRIVER_IMAGING)
+		return NULL;
+	return dev->priv;
 }
 
 API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,

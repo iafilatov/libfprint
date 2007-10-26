@@ -11,6 +11,7 @@ libfprint_la_LIBADD = $(LIBUSB_LIBS) $(GLIB_LIBS)
 libfprint_la_SOURCES =	\
 	core.c		\
 	data.c		\
+	img.c		\
 	imgdev.c	\
 	$(DRIVER_SRC)
 

@@ -41,6 +41,10 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
 
+#define container_of(ptr, type, member) ({                      \
+        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+        (type *)( (char *)__mptr - offsetof(type,member) );})
+
 enum fpi_log_level {
 	LOG_LEVEL_DEBUG,
 	LOG_LEVEL_INFO,
@@ -82,6 +86,12 @@ struct fp_dev {
 	int __enroll_stage;
 };
 
+struct fp_img_dev {
+	struct fp_dev *dev;
+	usb_dev_handle *udev;
+	void *priv;
+};
+
 struct usb_id {
 	uint16_t vendor;
 	uint16_t product;
@@ -109,10 +119,20 @@ struct fp_driver {
 	int (*verify)(struct fp_dev *dev, struct fp_print_data *data);
 };
 
+/* flags for fp_img_driver.flags */
+#define FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE (1 << 0)
+
 struct fp_img_driver {
 	struct fp_driver driver;
+	uint16_t flags;
 
 	/* Device operations */
+	int (*init)(struct fp_img_dev *dev, unsigned long driver_data);
+	void (*exit)(struct fp_img_dev *dev);
+	int (*await_finger_on)(struct fp_img_dev *dev);
+	int (*await_finger_off)(struct fp_img_dev *dev);
+	int (*capture)(struct fp_img_dev *dev, gboolean unconditional,
+		struct fp_img **image);
 };
 
 extern struct fp_driver upekts_driver;
@@ -133,8 +153,19 @@ struct fp_print_data {
 };
 
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length);
-unsigned char *fpi_print_data_get_buffer(struct fp_print_data *data);
 int fpi_print_data_compatible(struct fp_dev *dev, struct fp_print_data *data);
+
+struct fp_img {
+	int width;
+	int height;
+	size_t length;
+	unsigned char data[0];
+};
+
+struct fp_img *fpi_img_new(size_t length);
+struct fp_img *fpi_img_new_dims(int width, int height);
+struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
+gboolean fpi_img_is_sane(struct fp_img *img);
 
 #define bswap16(x) (((x & 0xff) << 8) | (x >> 8))
 #if __BYTE_ORDER == __LITTLE_ENDIAN

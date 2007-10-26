@@ -1,9 +1,6 @@
 LIBRARY
 =======
 fingerprint data classifcation by device or device type
-storage mechanism
-imaging support
-external imaging APIs
 identification
 external API documentation
 test suite against NFIQ compliance set
