@@ -1,8 +1,9 @@
 lib_LTLIBRARIES = libfprint.la
 
 UPEKTS_SRC = drivers/upekts.c
+URU4000_SRC = drivers/uru4000.c
 
-DRIVER_SRC = $(UPEKTS_SRC)
+DRIVER_SRC = $(UPEKTS_SRC) $(URU4000_SRC)
 
 libfprint_la_CFLAGS = -fvisibility=hidden $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(AM_CFLAGS)
 libfprint_la_LDFLAGS = -version-info @lt_major@:@lt_revision@:@lt_age@
