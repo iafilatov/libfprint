@@ -139,6 +139,7 @@ struct fp_img_driver {
 
 extern struct fp_driver upekts_driver;
 extern struct fp_img_driver uru4000_driver;
+extern struct fp_img_driver aes4000_driver;
 
 void fpi_img_driver_setup(struct fp_img_driver *idriver);
 
