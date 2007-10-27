@@ -138,10 +138,43 @@ API_EXPORTED int fp_imgdev_capture(struct fp_img_dev *imgdev,
 	return r;
 }
 
+#define MIN_ACCEPTABLE_MINUTIAE 5
+
+int img_dev_enroll(struct fp_dev *dev, gboolean initial, int stage,
+	struct fp_print_data **ret)
+{
+	struct fp_img *img;
+	struct fp_img_dev *imgdev = dev->priv;
+	struct fp_print_data *print;
+	int r;
+
+	/* FIXME: convert to 3-stage enroll mechanism, where we scan 3 prints,
+	 * use NFIQ to pick the best one, and discard the others */
+
+	r = fp_imgdev_capture(imgdev, 0, &img);
+	if (r)
+		return r;
+
+	fp_img_standardize(img);
+	r = fpi_img_detect_minutiae(imgdev, img, &print);
+	fp_img_free(img);
+	if (r < 0)
+		return r;
+	if (r < MIN_ACCEPTABLE_MINUTIAE) {
+		fp_dbg("not enough minutiae, %d/%d", r, MIN_ACCEPTABLE_MINUTIAE);
+		fp_print_data_free(print);
+		return FP_ENROLL_RETRY;
+	}
+
+	*ret = print;
+	return FP_ENROLL_COMPLETE;
+}
+
 void fpi_img_driver_setup(struct fp_img_driver *idriver)
 {
 	idriver->driver.type = DRIVER_IMAGING;
 	idriver->driver.init = img_dev_init;
 	idriver->driver.exit = img_dev_exit;
+	idriver->driver.enroll = img_dev_enroll;
 }
 

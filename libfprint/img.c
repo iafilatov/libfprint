@@ -25,6 +25,8 @@
 #include <glib.h>
 
 #include "fp_internal.h"
+#include "nbis/include/bozorth.h"
+#include "nbis/include/lfs.h"
 
 struct fp_img *fpi_img_new(size_t length)
 {
@@ -171,4 +173,107 @@ API_EXPORTED void fp_img_standardize(struct fp_img *img)
 		invert_colors(img);
 		img->flags &= ~FP_IMG_COLORS_INVERTED;
 	}
+}
+
+static int sort_x_y(const void *a, const void *b)
+{
+	struct minutiae_struct *af = (struct minutiae_struct *) a;
+	struct minutiae_struct *bf = (struct minutiae_struct *) b;
+
+	if (af->col[0] < bf->col[0])
+		return -1;
+	if (af->col[0] > bf->col[0])
+		return 1;
+
+	if (af->col[1] < bf->col[1])
+		return -1;
+	if (af->col[1] > bf->col[1])
+		return 1;
+
+	return 0;
+}
+
+/* Based on write_minutiae_XYTQ and bz_load */
+static void minutiae_to_xyt(MINUTIAE *minutiae, int bwidth,
+	int bheight, unsigned char *buf)
+{
+	int i;
+	MINUTIA *minutia;
+	struct minutiae_struct c[MAX_FILE_MINUTIAE];
+	struct xyt_struct *xyt = (struct xyt_struct *) buf;
+
+	/* FIXME: only considers first 150 minutiae (MAX_FILE_MINUTIAE) */
+	/* nist does weird stuff with 150 vs 1000 limits */
+	int nmin = min(minutiae->num, MAX_FILE_MINUTIAE);
+
+	for (i = 0; i < nmin; i++){
+		minutia = minutiae->list[i];
+
+		lfs2nist_minutia_XYT(&c[i].col[0], &c[i].col[1], &c[i].col[2],
+				minutia, bwidth, bheight);
+		c[i].col[3] = sround(minutia->reliability * 100.0);
+
+		if (c[i].col[2] > 180)
+			c[i].col[2] -= 360;
+	}
+
+	qsort((void *) &c, (size_t) nmin, sizeof(struct minutiae_struct),
+			sort_x_y);
+
+	for (i = 0; i < nmin; i++) {
+		xyt->xcol[i]     = c[i].col[0];
+		xyt->ycol[i]     = c[i].col[1];
+		xyt->thetacol[i] = c[i].col[2];
+	}
+	xyt->nrows = nmin;
+}
+
+int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
+	struct fp_print_data **ret)
+{
+	MINUTIAE *minutiae;
+	int r;
+	int *direction_map, *low_contrast_map, *low_flow_map;
+	int *high_curve_map, *quality_map;
+	int map_w, map_h;
+	unsigned char *bdata;
+	int bw, bh, bd;
+	struct fp_print_data *print;
+	GTimer *timer;
+
+	/* 25.4 mm per inch */
+	timer = g_timer_new();
+	r = get_minutiae(&minutiae, &quality_map, &direction_map,
+                         &low_contrast_map, &low_flow_map, &high_curve_map,
+                         &map_w, &map_h, &bdata, &bw, &bh, &bd,
+                         img->data, img->width, img->height, 8,
+						 DEFAULT_PPI / (double)25.4, &lfsparms_V2);
+	g_timer_stop(timer);
+	fp_dbg("minutiae scan completed in %f secs", g_timer_elapsed(timer, NULL));
+	g_timer_destroy(timer);
+	if (r) {
+		fp_err("get minutiae failed, code %d", r);
+		return r;
+	}
+	fp_dbg("detected %d minutiae", minutiae->num);
+	r = minutiae->num;
+
+	/* FIXME: space is wasted if we dont hit the max minutiae count. would
+	 * be good to make this dynamic. */
+	print = fpi_print_data_new(imgdev->dev, sizeof(struct xyt_struct));
+	minutiae_to_xyt(minutiae, bw, bh, print->buffer);
+	/* FIXME: the print buffer at this point is endian-specific, and will
+	 * only work when loaded onto machines with identical endianness. not good!
+	 * data format should be platform-independant. */
+	*ret = print;
+
+	free_minutiae(minutiae);
+	free(quality_map);
+	free(direction_map);
+	free(low_contrast_map);
+	free(low_flow_map);
+	free(high_curve_map);
+	free(bdata);
+
+	return r;
 }
