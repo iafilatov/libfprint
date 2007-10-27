@@ -35,8 +35,11 @@ struct fp_img *fpi_img_new(size_t length)
 	return img;
 }
 
-struct fp_img *fpi_img_new_dims(int width, int height)
+struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *imgdev)
 {
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(imgdev->dev->drv);
+	int width = imgdrv->img_width;
+	int height = imgdrv->img_height;
 	struct fp_img *img = fpi_img_new(width * height);
 	img->width = width;
 	img->height = height;

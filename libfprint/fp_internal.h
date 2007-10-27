@@ -142,6 +142,9 @@ extern struct fp_img_driver uru4000_driver;
 
 void fpi_img_driver_setup(struct fp_img_driver *idriver);
 
+#define fpi_driver_to_img_driver(drv) \
+	container_of((drv), struct fp_img_driver, driver)
+
 struct fp_dscv_dev {
 	struct usb_device *udev;
 	struct fp_driver *drv;
@@ -171,7 +174,7 @@ struct fp_img {
 };
 
 struct fp_img *fpi_img_new(size_t length);
-struct fp_img *fpi_img_new_dims(int width, int height);
+struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *dev);
 struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
 gboolean fpi_img_is_sane(struct fp_img *img);
 

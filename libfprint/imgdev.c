@@ -22,13 +22,10 @@
 
 #include "fp_internal.h"
 
-#define driver_to_img_driver(drv) \
-	container_of((drv), struct fp_img_driver, driver)
-
 static int img_dev_init(struct fp_dev *dev, unsigned long driver_data)
 {
 	struct fp_img_dev *imgdev = g_malloc0(sizeof(*imgdev));
-	struct fp_img_driver *imgdrv = driver_to_img_driver(dev->drv);
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(dev->drv);
 	int r = 0;
 
 	imgdev->dev = dev;
@@ -53,7 +50,7 @@ err:
 static void img_dev_exit(struct fp_dev *dev)
 {
 	struct fp_img_dev *imgdev = dev->priv;
-	struct fp_img_driver *imgdrv = driver_to_img_driver(dev->drv);
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(dev->drv);
 
 	if (imgdrv->exit)
 		imgdrv->exit(imgdev);
@@ -64,14 +61,14 @@ static void img_dev_exit(struct fp_dev *dev)
 API_EXPORTED int fp_imgdev_get_img_width(struct fp_img_dev *imgdev)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
-	struct fp_img_driver *imgdrv = driver_to_img_driver(drv);
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
 	return imgdrv->img_width;
 }
 
 API_EXPORTED int fp_imgdev_get_img_height(struct fp_img_dev *imgdev)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
-	struct fp_img_driver *imgdrv = driver_to_img_driver(drv);
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
 	return imgdrv->img_height;
 }
 
@@ -79,7 +76,7 @@ API_EXPORTED int fp_imgdev_capture(struct fp_img_dev *imgdev,
 	int unconditional, struct fp_img **image)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
-	struct fp_img_driver *imgdrv = driver_to_img_driver(drv);
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
 	int r;
 
 	if (!image) {
