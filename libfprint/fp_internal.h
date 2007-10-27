@@ -125,6 +125,8 @@ struct fp_driver {
 struct fp_img_driver {
 	struct fp_driver driver;
 	uint16_t flags;
+	int img_width;
+	int img_height;
 
 	/* Device operations */
 	int (*init)(struct fp_img_dev *dev, unsigned long driver_data);

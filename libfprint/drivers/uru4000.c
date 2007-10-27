@@ -39,8 +39,6 @@
 #define DATABLK2_EXPECT	0xb1c0
 #define CAPTURE_HDRLEN	64
 #define IRQ_LENGTH		64
-#define IMG_WIDTH		384
-#define IMG_HEIGHT		289
 
 enum {
 	IRQDATA_SCANPWR_ON = 0x56aa,
@@ -292,8 +290,6 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	/* remove header and shrink allocation */
 	g_memmove(img->data, img->data + CAPTURE_HDRLEN, image_size);
 	img = fpi_img_resize(img, image_size);
-	img->width = IMG_WIDTH;
-	img->height = IMG_HEIGHT;
 	img->flags = FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED | FP_IMG_COLORS_INVERTED;
 
 	*ret = img;
@@ -498,6 +494,9 @@ struct fp_img_driver uru4000_driver = {
 		.id_table = id_table,
 	},
 	.flags = FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE,
+	.img_height = 289,
+	.img_width = 384,
+
 	.init = dev_init,
 	.exit = dev_exit,
 	.await_finger_on = await_finger_on,

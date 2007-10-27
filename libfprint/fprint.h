@@ -91,6 +91,8 @@ void fp_print_data_free(struct fp_print_data *data);
 /* Imaging devices */
 int fp_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
 	struct fp_img **image);
+int fp_imgdev_get_img_width(struct fp_img_dev *imgdev);
+int fp_imgdev_get_img_height(struct fp_img_dev *imgdev);
 
 /* Image handling */
 int fp_img_get_height(struct fp_img *img);

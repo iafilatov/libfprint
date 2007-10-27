@@ -61,6 +61,20 @@ static void img_dev_exit(struct fp_dev *dev)
 	g_free(imgdev);
 }
 
+API_EXPORTED int fp_imgdev_get_img_width(struct fp_img_dev *imgdev)
+{
+	struct fp_driver *drv = imgdev->dev->drv;
+	struct fp_img_driver *imgdrv = driver_to_img_driver(drv);
+	return imgdrv->img_width;
+}
+
+API_EXPORTED int fp_imgdev_get_img_height(struct fp_img_dev *imgdev)
+{
+	struct fp_driver *drv = imgdev->dev->drv;
+	struct fp_img_driver *imgdrv = driver_to_img_driver(drv);
+	return imgdrv->img_height;
+}
+
 API_EXPORTED int fp_imgdev_capture(struct fp_img_dev *imgdev,
 	int unconditional, struct fp_img **image)
 {
@@ -111,11 +125,14 @@ API_EXPORTED int fp_imgdev_capture(struct fp_img_dev *imgdev,
 	}
 
 	if (r == 0) {
-		if (*image == NULL) {
+		struct fp_img *img = *image;
+		if (img == NULL) {
 			fp_err("capture succeeded but no image returned?");
 			return -ENODATA;
 		}
-		if (!fpi_img_is_sane(*image)) {
+		img->width = imgdrv->img_width;
+		img->height = imgdrv->img_height;
+		if (!fpi_img_is_sane(img)) {
 			fp_err("image is not sane!");
 			return -EIO;
 		}
