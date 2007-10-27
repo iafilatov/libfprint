@@ -294,6 +294,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	img = fpi_img_resize(img, image_size);
 	img->width = IMG_WIDTH;
 	img->height = IMG_HEIGHT;
+	img->flags = FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED | FP_IMG_COLORS_INVERTED;
 
 	*ret = img;
 	return 0;

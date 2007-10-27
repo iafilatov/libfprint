@@ -97,6 +97,7 @@ int fp_img_get_height(struct fp_img *img);
 int fp_img_get_width(struct fp_img *img);
 unsigned char *fp_img_get_data(struct fp_img *img);
 int fp_img_save_to_file(struct fp_img *img, char *path);
+void fp_img_standardize(struct fp_img *img);
 
 /* Library */
 int fp_init(void);

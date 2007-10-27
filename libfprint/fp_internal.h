@@ -155,10 +155,16 @@ struct fp_print_data {
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length);
 int fpi_print_data_compatible(struct fp_dev *dev, struct fp_print_data *data);
 
+/* bit values for fp_img.flags */
+#define FP_IMG_V_FLIPPED 		(1<<0)
+#define FP_IMG_H_FLIPPED 		(1<<1)
+#define FP_IMG_COLORS_INVERTED	(1<<2)
+
 struct fp_img {
 	int width;
 	int height;
 	size_t length;
+	uint16_t flags;
 	unsigned char data[0];
 };
 

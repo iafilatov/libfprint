@@ -104,3 +104,63 @@ API_EXPORTED int fp_img_save_to_file(struct fp_img *img, char *path)
 	return 0;
 }
 
+static void vflip(struct fp_img *img)
+{
+	int width = img->width;
+	int data_len = img->width * img->height;
+	unsigned char rowbuf[width];
+	int i;
+
+	for (i = 0; i < img->height / 2; i++) {
+		int offset = i * width;
+		int swap_offset = data_len - (width * (i + 1));
+
+		/* copy top row into buffer */
+		memcpy(rowbuf, img->data + offset, width);
+
+		/* copy lower row over upper row */
+		memcpy(img->data + offset, img->data + swap_offset, width);
+
+		/* copy buffer over lower row */
+		memcpy(img->data + swap_offset, rowbuf, width);
+	}
+}
+
+static void hflip(struct fp_img *img)
+{
+	int width = img->width;
+	unsigned char rowbuf[width];
+	int i, j;
+
+	for (i = 0; i < img->height; i++) {
+		int offset = i * width;
+
+		memcpy(rowbuf, img->data + offset, width);
+		for (j = 0; j < width; j++)
+			img->data[offset + j] = rowbuf[width - j - 1];
+	}
+}
+
+static void invert_colors(struct fp_img *img)
+{
+	int data_len = img->width * img->height;
+	int i;
+	for (i = 0; i < data_len; i++)
+		img->data[i] = 0xff - img->data[i];
+}
+
+API_EXPORTED void fp_img_standardize(struct fp_img *img)
+{
+	if (img->flags & FP_IMG_V_FLIPPED) {
+		vflip(img);
+		img->flags &= ~FP_IMG_V_FLIPPED;
+	}
+	if (img->flags & FP_IMG_H_FLIPPED) {
+		hflip(img);
+		img->flags &= ~FP_IMG_H_FLIPPED;
+	}
+	if (img->flags & FP_IMG_COLORS_INVERTED) {
+		invert_colors(img);
+		img->flags &= ~FP_IMG_COLORS_INVERTED;
+	}
+}

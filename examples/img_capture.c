@@ -92,6 +92,13 @@ int main(void)
 		goto out_close;
 	}
 
+	fp_img_standardize(img);
+	r = fp_img_save_to_file(img, "finger_standardized.pgm");
+	if (r) {
+		fprintf(stderr, "standardized img save failed, code %d\n", r);
+		goto out_close;
+	}
+
 	r = 0;
 out_close:
 	fp_dev_close(dev);
