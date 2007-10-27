@@ -7,6 +7,7 @@ AC_PREREQ([2.61])
 AC_PROG_CC
 AC_PROG_LIBTOOL
 AC_C_INLINE
+AM_PROG_CC_C_O
 
 # Library versioning
 lt_major="0"
@@ -30,6 +31,38 @@ AC_ARG_ENABLE([examples-build], [AS_HELP_STRING([--enable-examples-build],
 	[build_examples=$enableval],
 	[build_examples='no'])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$build_examples" != "xno"])
+
+# Examples build
+AC_ARG_ENABLE([x11-examples-build], [AS_HELP_STRING([--enable-x11-examples-build],
+	[build X11 example applications (default n)])],
+	[build_x11_examples=$enableval],
+	[build_x11_examples='no'])
+AM_CONDITIONAL([BUILD_X11_EXAMPLES], [test "x$build_x11_examples" != "xno"])
+
+
+if test "x$build_x11_examples" != "xno"; then
+	# check for Xv extensions
+	# imported from Coriander
+	AC_DEFUN([AC_CHECK_XV],[
+		AC_SUBST(XV_CFLAGS)
+		AC_SUBST(XV_LIBS)
+		AC_MSG_CHECKING(for Xv extensions)
+		AC_TRY_COMPILE([
+		#include <X11/Xlib.h>
+	 	#include <X11/extensions/Xvlib.h>],[
+		int main(void) { (void) XvGetPortAttribute(0, 0, 0, 0); return 0; }
+		],xv=yes,xv=no);
+		AC_MSG_RESULT($xv)
+	 	if test x$xv = xyes; then
+    	       XV_LIBS="-lXv -lXext"
+        	   XV_CFLAGS=""
+		   AC_DEFINE(HAVE_XV,1,[defined if XV video overlay is available])
+		else
+			AC_MSG_ERROR([XV is required for X11 examples])
+ 		fi
+	])
+	AC_CHECK_XV
+fi
 
 # Message logging
 AC_ARG_ENABLE([log], [AS_HELP_STRING([--disable-log], [disable all logging])],

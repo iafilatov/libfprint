@@ -13,3 +13,11 @@ verify_LDADD = ../libfprint/libfprint.la -lfprint
 img_capture_SOURCES = img_capture.c
 img_capture_LDADD = ../libfprint/libfprint.la -lfprint
 
+if BUILD_X11_EXAMPLES
+noinst_PROGRAMS += img_capture_continuous
+
+img_capture_continuous_CFLAGS = $(X_CFLAGS) $(XV_CFLAGS)
+img_capture_continuous_SOURCES = img_capture_continuous.c
+img_capture_continuous_LDADD = ../libfprint/libfprint.la -lfprint $(X_LIBS) $(X_PRE_LIBS) $(XV_LIBS) -lX11 $(X_EXTRA_LIBS);
+endif
+
