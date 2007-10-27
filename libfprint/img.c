@@ -61,6 +61,11 @@ struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize)
 	return g_realloc(img, sizeof(*img) + newsize);
 }
 
+API_EXPORTED void fp_img_free(struct fp_img *img)
+{
+	g_free(img);
+}
+
 API_EXPORTED int fp_img_get_height(struct fp_img *img)
 {
 	return img->height;

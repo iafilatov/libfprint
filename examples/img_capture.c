@@ -94,6 +94,7 @@ int main(void)
 
 	fp_img_standardize(img);
 	r = fp_img_save_to_file(img, "finger_standardized.pgm");
+	fp_img_free(img);
 	if (r) {
 		fprintf(stderr, "standardized img save failed, code %d\n", r);
 		goto out_close;
