@@ -7,6 +7,12 @@ AES4000_SRC = drivers/aes4000.c
 DRIVER_SRC = $(UPEKTS_SRC) $(URU4000_SRC) $(AES4000_SRC)
 
 NBIS_SRC = \
+	nbis/bozorth3/bozorth3.c \
+	nbis/bozorth3/bz_alloc.c \
+	nbis/bozorth3/bz_drvrs.c \
+	nbis/bozorth3/bz_gbls.c \
+	nbis/bozorth3/bz_io.c \
+	nbis/bozorth3/bz_sort.c \
 	nbis/mindtct/binar.c \
 	nbis/mindtct/block.c \
 	nbis/mindtct/chaincod.c \

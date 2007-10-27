@@ -13,6 +13,11 @@ ID Mouse driver
 Support for 2nd generation MS devices
 Support for 2nd generation UPEK devices
 
+IMAGING
+=======
+aes4000 doesn't work very well, maybe due to small minutia count?
+PPMM parameter to get_minutiae seems to have no effect
+
 MISC
 ====
 upekts/thinkfinger relicensing (GPL --> LGPL)

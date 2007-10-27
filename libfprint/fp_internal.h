@@ -180,6 +180,8 @@ struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
 gboolean fpi_img_is_sane(struct fp_img *img);
 int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
 	struct fp_print_data **ret);
+int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
+	struct fp_print_data *new_print);
 
 #define bswap16(x) (((x & 0xff) << 8) | (x >> 8))
 #if __BYTE_ORDER == __LITTLE_ENDIAN

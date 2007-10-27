@@ -186,15 +186,7 @@ struct xyt_struct {
 /* In: SRC/BIN/BOZORTH3/BOZORTH3.C */
 /**************************************************************************/
 /* Globals supporting command line options */
-extern int m1_xyt;
-extern int max_minutiae;
-extern int min_computable_minutiae;
-extern int verbose_main;
-extern int verbose_load;
-extern int verbose_bozorth;
 extern int verbose_threshold;
-/* Global supporting error reporting */
-extern FILE *errorfp;
 
 /**************************************************************************/
 /* In: BZ_GBLS.C */
@@ -258,6 +250,7 @@ extern struct xyt_struct *bz_load(const char *);
 extern int fd_readable(int);
 /* In: BZ_SORT.C */
 extern int sort_quality_decreasing(const void *, const void *);
+extern int sort_x_y(const void *, const void *);
 extern int sort_order_decreasing(int [], int, int []);
 
 #endif /* !_BOZORTH_H */

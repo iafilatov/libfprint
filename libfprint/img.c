@@ -175,24 +175,6 @@ API_EXPORTED void fp_img_standardize(struct fp_img *img)
 	}
 }
 
-static int sort_x_y(const void *a, const void *b)
-{
-	struct minutiae_struct *af = (struct minutiae_struct *) a;
-	struct minutiae_struct *bf = (struct minutiae_struct *) b;
-
-	if (af->col[0] < bf->col[0])
-		return -1;
-	if (af->col[0] > bf->col[0])
-		return 1;
-
-	if (af->col[1] < bf->col[1])
-		return -1;
-	if (af->col[1] > bf->col[1])
-		return 1;
-
-	return 0;
-}
-
 /* Based on write_minutiae_XYTQ and bz_load */
 static void minutiae_to_xyt(MINUTIAE *minutiae, int bwidth,
 	int bheight, unsigned char *buf)
@@ -274,6 +256,24 @@ int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
 	free(low_flow_map);
 	free(high_curve_map);
 	free(bdata);
+
+	return r;
+}
+
+int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
+	struct fp_print_data *new_print)
+{
+	struct xyt_struct *gstruct = (struct xyt_struct *) enrolled_print->buffer;
+	struct xyt_struct *pstruct = (struct xyt_struct *) new_print->buffer;
+	GTimer *timer;
+	int r;
+
+	timer = g_timer_new();
+	r = bozorth_main(pstruct, gstruct);
+	g_timer_stop(timer);
+	fp_dbg("bozorth processing took %f seconds, score=%d",
+		g_timer_elapsed(timer, NULL), r);
+	g_timer_destroy(timer);
 
 	return r;
 }
