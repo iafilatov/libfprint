@@ -195,6 +195,8 @@ static int img_dev_verify(struct fp_dev *dev,
 
 	r = fpi_img_compare_print_data(enrolled_print, print);
 	fp_print_data_free(print);
+	if (r < 0)
+		return r;
 	if (r >= 40)
 		return FP_VERIFY_MATCH;
 	else

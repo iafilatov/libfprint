@@ -653,7 +653,7 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 		}
 
 		fdata = fpi_print_data_new(dev, data_len - sizeof(scan_comp));
-		memcpy(fdata->buffer, data + sizeof(scan_comp), data_len - sizeof(scan_comp));
+		memcpy(fdata->data, data + sizeof(scan_comp), data_len - sizeof(scan_comp));
 		*_data = fdata;
 comp_out:
 		g_free(data);
@@ -679,7 +679,7 @@ static int verify(struct fp_dev *dev, struct fp_print_data *print)
 
 	data = g_malloc(data_len);
 	memcpy(data, verify_hdr, sizeof(verify_hdr));
-	memcpy(data + sizeof(verify_hdr), print->buffer, print->length);
+	memcpy(data + sizeof(verify_hdr), print->data, print->length);
 
 	r = send_cmd28(dev, 0x03, data, data_len);
 	if (r < 0)
@@ -781,6 +781,7 @@ static const struct usb_id id_table[] = {
 };
 
 struct fp_driver upekts_driver = {
+	.id = 1,
 	.name = FP_COMPONENT,
 	.full_name = "UPEK TouchStrip",
 	.id_table = id_table,

@@ -78,6 +78,7 @@ void fpi_log(enum fpi_log_level, const char *component, const char *function,
 struct fp_dev {
 	struct fp_driver *drv;
 	usb_dev_handle *udev;
+	uint32_t devtype;
 	void *priv;
 
 	int nr_enroll_stages;
@@ -104,6 +105,7 @@ enum fp_driver_type {
 };
 
 struct fp_driver {
+	const uint16_t id;
 	const char *name;
 	const char *full_name;
 	const struct usb_id * const id_table;
@@ -152,14 +154,30 @@ struct fp_dscv_dev {
 	unsigned long driver_data;
 };
 
-struct fp_print_data {
-	const char *driver_name;
-	size_t length;
-	unsigned char buffer[0];
+enum fp_print_data_type {
+	PRINT_DATA_RAW = 0, /* memset-imposed default */
+	PRINT_DATA_NBIS_MINUTIAE,
 };
 
+struct fp_print_data {
+	uint16_t driver_id;
+	uint32_t devtype;
+	enum fp_print_data_type type;
+	size_t length;
+	unsigned char data[0];
+};
+
+struct fpi_print_data_fp1 {
+	char prefix[3];
+	uint16_t driver_id;
+	uint32_t devtype;
+	unsigned char data_type;
+	unsigned char data[0];
+} __attribute__((__packed__));
+
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length);
-int fpi_print_data_compatible(struct fp_dev *dev, struct fp_print_data *data);
+gboolean fpi_print_data_compatible(struct fp_print_data *data,
+	struct fp_dev *dev);
 
 /* bit values for fp_img.flags */
 #define FP_IMG_V_FLIPPED 		(1<<0)

@@ -243,7 +243,8 @@ int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
 	/* FIXME: space is wasted if we dont hit the max minutiae count. would
 	 * be good to make this dynamic. */
 	print = fpi_print_data_new(imgdev->dev, sizeof(struct xyt_struct));
-	minutiae_to_xyt(minutiae, bw, bh, print->buffer);
+	print->type = PRINT_DATA_NBIS_MINUTIAE;
+	minutiae_to_xyt(minutiae, bw, bh, print->data);
 	/* FIXME: the print buffer at this point is endian-specific, and will
 	 * only work when loaded onto machines with identical endianness. not good!
 	 * data format should be platform-independant. */
@@ -263,10 +264,16 @@ int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
 int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	struct fp_print_data *new_print)
 {
-	struct xyt_struct *gstruct = (struct xyt_struct *) enrolled_print->buffer;
-	struct xyt_struct *pstruct = (struct xyt_struct *) new_print->buffer;
+	struct xyt_struct *gstruct = (struct xyt_struct *) enrolled_print->data;
+	struct xyt_struct *pstruct = (struct xyt_struct *) new_print->data;
 	GTimer *timer;
 	int r;
+
+	if (enrolled_print->type != PRINT_DATA_NBIS_MINUTIAE ||
+			new_print->type != PRINT_DATA_NBIS_MINUTIAE) {
+		fp_err("invalid print format");
+		return -EINVAL;
+	}
 
 	timer = g_timer_new();
 	r = bozorth_main(pstruct, gstruct);

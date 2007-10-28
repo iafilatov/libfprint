@@ -1,6 +1,5 @@
 LIBRARY
 =======
-fingerprint data classifcation by device or device type
 identification
 external API documentation
 test suite against NFIQ compliance set
@@ -8,7 +7,9 @@ test suite against NFIQ compliance set
 DRIVERS
 =======
 Sunplus 895 driver
-AES3501 driver
+AES1610 driver
+AES2501 driver
+AES3400/3500 driver
 ID Mouse driver
 Support for 2nd generation MS devices
 Support for 2nd generation UPEK devices
@@ -17,10 +18,12 @@ IMAGING
 =======
 aes4000 doesn't work very well, maybe due to small minutia count?
 PPMM parameter to get_minutiae seems to have no effect
+nbis minutiae should be stored in endian-independent format
+return images with standard enroll/verify calls
 
 MISC
 ====
 upekts/thinkfinger relicensing (GPL --> LGPL)
 make library optionally asynchronous and maybe thread-safe
 pkg-config file
-
+nbis cleanups

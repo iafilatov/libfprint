@@ -69,6 +69,10 @@ void fpi_log(enum fpi_log_level level, const char *component,
 
 static void register_driver(struct fp_driver *drv)
 {
+	if (drv->id == 0) {
+		fp_err("not registering driver %s: driver ID is 0");
+		return;
+	}
 	registered_drivers = g_list_prepend(registered_drivers, (gpointer) drv);
 	fp_dbg("registered driver %s", drv->name);
 }
@@ -333,7 +337,7 @@ API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
 		return -EINVAL;
 	}
 
-	if (!fpi_print_data_compatible(dev, enrolled_print)) {
+	if (!fpi_print_data_compatible(enrolled_print, dev)) {
 		fp_err("print is not compatible with device");
 		return -EINVAL;
 	}
