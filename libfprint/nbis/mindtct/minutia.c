@@ -37,7 +37,6 @@ identified are necessarily the best available for the purpose.
                ROUTINES:
                         alloc_minutiae()
                         realloc_minutiae()
-                        detect_minutiae()
                         detect_minutiae_V2()
                         update_minutiae()
                         update_minutiae_V2()
@@ -141,99 +140,6 @@ int realloc_minutiae(MINUTIAE *minutiae, const int incr_minutiae)
       exit(-432);
    }
 
-   return(0);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: detect_minutiae - Takes a binary image and its associated IMAP and
-#cat:            NMAP matrices and scans each image block for potential
-#cat:            minutia points.
-
-   Input:
-      bdata     - binary image data (0==while & 1==black)
-      iw        - width (in pixels) of image
-      ih        - height (in pixels) of image
-      imap      - matrix of ridge flow directions
-      nmap      - IMAP augmented with blocks of HIGH-CURVATURE and
-                  blocks which have no neighboring valid directions.
-      mw        - width (in blocks) of IMAP and NMAP matrices.
-      mh        - height (in blocks) of IMAP and NMAP matrices.
-      lfsparms  - parameters and thresholds for controlling LFS
-   Output:
-      minutiae   - points to a list of detected minutia structures
-   Return Code:
-      Zero      - successful completion
-      Negative  - system error
-**************************************************************************/
-int detect_minutiae(MINUTIAE *minutiae,
-            unsigned char *bdata, const int iw, const int ih,
-            const int *imap, const int *nmap, const int mw, const int mh,
-            const LFSPARMS *lfsparms)
-{
-   int blk_i, blk_x, blk_y;
-   int scan_x, scan_y, scan_w, scan_h;
-   int scan_dir;
-   int ret;
-
-   /* Start with first block in IMAP. */
-   blk_i = 0;
-
-   /* Start with first scan line in image. */
-   scan_y = 0;
-
-   /* Foreach row of blocks in IMAP... */
-   for(blk_y = 0; blk_y < mh; blk_y++){
-      /* Reset to beginning of new block row. */
-      scan_x = 0;
-      /* Foreach block in current IMAP row... */
-      for(blk_x = 0; blk_x < mw; blk_x++){
-
-         /* If IMAP is VALID ... */
-         if(imap[blk_i] != INVALID_DIR){
-            /* Choose the feature scan direction based on the block's */
-            /* VALID IMAP direction. The scan direction will either   */
-            /* be HORIZONTAL or VERTICAL.                             */
-            scan_dir = choose_scan_direction(imap[blk_i],
-                                             lfsparms->num_directions);
-            /* Set width of scan region.  The image may not be an even */
-            /* multiple of "blocksize" in width and height, so we must */
-            /* account for this.                                       */
-            /* Bump right by "blocksize" pixels, but not beyond the    */
-            /* image boundary.                                         */
-            scan_w = min(scan_x+lfsparms->blocksize, iw);
-            /* Make the resulting width relative to the region's starting */
-            /* x-pixel column.                                            */
-            scan_w -= scan_x;
-            /* Bump down by "blocksize" pixels, but not beyond the     */
-            /* image boundary.                                         */
-            scan_h = min(scan_y+lfsparms->blocksize, ih);
-            /* Make the resulting height relative to the region's starting */
-            /* y-pixel row.                                                */
-            scan_h -= scan_y;
-            /* Scan the defined region for minutia features. */
-            if((ret = scan4minutiae(minutiae, bdata, iw, ih,
-                                   imap, nmap, blk_x, blk_y, mw, mh,
-                                   scan_x, scan_y, scan_w, scan_h, scan_dir,
-                                   lfsparms))){
-               /* Return code may be:                      */
-               /* 1. ret<0 (implying system error)         */
-               return(ret);
-            }
-
-         } /* Otherwise, IMAP is INVALID, so ignore the block.  This seems */
-           /* quite drastic!                                               */
-
-         /* Advance to the next IMAP block in the row in the image. */
-         scan_x += lfsparms->blocksize;
-         /* Advance to the next IMAP block in the row. */
-         blk_i++;
-      } /* End foreach blk_x */
-      /* Advance to the next IMAP row in the image. */
-      scan_y += lfsparms->blocksize;
-   } /* End foreach blk_y */
-
-   /* Return normally. */
    return(0);
 }
 

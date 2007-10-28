@@ -49,6 +49,84 @@ identified are necessarily the best available for the purpose.
 
 /*************************************************************************
 **************************************************************************
+#cat: sum_rot_block_rows - Computes a vector or pixel row sums by sampling
+#cat:               the current image block at a given orientation.  The
+#cat:               sampling is conducted using a precomputed set of rotated
+#cat:               pixel offsets (called a grid) relative to the orgin of
+#cat:               the image block.
+
+   Input:
+      blkptr    - the pixel address of the origin of the current image block
+      grid_offsets - the rotated pixel offsets for a block-sized grid
+                  rotated according to a specific orientation
+      blocksize - the width and height of the image block and thus the size
+                  of the rotated grid
+   Output:
+      rowsums   - the resulting vector of pixel row sums
+**************************************************************************/
+static void sum_rot_block_rows(int *rowsums, const unsigned char *blkptr,
+                        const int *grid_offsets, const int blocksize)
+{
+   int ix, iy, gi;
+
+   /* Initialize rotation offset index. */
+   gi = 0;
+
+   /* For each row in block ... */
+   for(iy = 0; iy < blocksize; iy++){
+      /* The sums are accumlated along the rotated rows of the grid, */
+      /* so initialize row sum to 0.                                 */
+      rowsums[iy] = 0;
+      /* Foreach column in block ... */
+      for(ix = 0; ix < blocksize; ix++){
+         /* Accumulate pixel value at rotated grid position in image */
+         rowsums[iy] += *(blkptr + grid_offsets[gi]);
+         gi++;
+      }
+   }
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: dft_power - Computes the DFT power by applying a specific wave form
+#cat:             frequency to a vector of pixel row sums computed from a
+#cat:             specific orientation of the block image
+
+   Input:
+      rowsums - accumulated rows of pixels from within a rotated grid
+                overlaying an input image block
+      wave    - the wave form (cosine and sine components) at a specific
+                frequency
+      wavelen - the length of the wave form (must match the height of the
+                image block which is the length of the rowsum vector)
+   Output:
+      power   - the computed DFT power for the given wave form at the
+                given orientation within the image block
+**************************************************************************/
+static void dft_power(double *power, const int *rowsums,
+               const DFTWAVE *wave, const int wavelen)
+{
+   int i;
+   double cospart, sinpart;
+
+   /* Initialize accumulators */
+   cospart = 0.0;
+   sinpart = 0.0;
+
+   /* Accumulate cos and sin components of DFT. */
+   for(i = 0; i < wavelen; i++){
+      /* Multiply each rotated row sum by its        */
+      /* corresponding cos or sin point in DFT wave. */
+      cospart += (rowsums[i] * wave->cos[i]);
+      sinpart += (rowsums[i] * wave->sin[i]);
+   }
+
+   /* Power is the sum of the squared cos and sin components */
+   *power = (cospart * cospart) + (sinpart * sinpart);
+}
+
+/*************************************************************************
+**************************************************************************
 #cat: dft_dir_powers - Conducts the DFT analysis on a block of image data.
 #cat:         The image block is sampled across a range of orientations
 #cat:         (directions) and multiple wave forms of varying frequency are
@@ -121,80 +199,105 @@ int dft_dir_powers(double **powers, unsigned char *pdata,
 
 /*************************************************************************
 **************************************************************************
-#cat: sum_rot_block_rows - Computes a vector or pixel row sums by sampling
-#cat:               the current image block at a given orientation.  The
-#cat:               sampling is conducted using a precomputed set of rotated
-#cat:               pixel offsets (called a grid) relative to the orgin of
-#cat:               the image block.
+#cat: get_max_norm - Analyses a DFT power vector for a specific wave form
+#cat:                applied at different orientations (directions) to the
+#cat:                current image block.  The routine retuns the maximum
+#cat:                power value in the vector, the direction at which the
+#cat:                maximum occurs, and a normalized power value.  The
+#cat:                normalized power is computed as the maximum power divided
+#cat:                by the average power across all the directions.  These
+#cat:                simple statistics are fundamental to the selection of
+#cat:                a dominant direction flow for the image block.
 
    Input:
-      blkptr    - the pixel address of the origin of the current image block
-      grid_offsets - the rotated pixel offsets for a block-sized grid
-                  rotated according to a specific orientation
-      blocksize - the width and height of the image block and thus the size
-                  of the rotated grid
+      power_vector - the DFT power values derived form a specific wave form
+                     applied at different directions
+      ndirs      - the number of directions to which the wave form was applied
    Output:
-      rowsums   - the resulting vector of pixel row sums
+      powmax     - the maximum power value in the DFT power vector
+      powmax_dir - the direciton at which the maximum power value occured
+      pownorm    - the normalized power corresponding to the maximum power
 **************************************************************************/
-void sum_rot_block_rows(int *rowsums, const unsigned char *blkptr,
-                        const int *grid_offsets, const int blocksize)
+static void get_max_norm(double *powmax, int *powmax_dir,
+               double *pownorm, const double *power_vector, const int ndirs)
 {
-   int ix, iy, gi;
+   int dir;
+   double max_v, powsum;
+   int max_i;
+   double powmean;
 
-   /* Initialize rotation offset index. */
-   gi = 0;
+   /* Find max power value and store corresponding direction */
+   max_v = power_vector[0];
+   max_i = 0;
 
-   /* For each row in block ... */
-   for(iy = 0; iy < blocksize; iy++){
-      /* The sums are accumlated along the rotated rows of the grid, */
-      /* so initialize row sum to 0.                                 */
-      rowsums[iy] = 0;
-      /* Foreach column in block ... */
-      for(ix = 0; ix < blocksize; ix++){
-         /* Accumulate pixel value at rotated grid position in image */
-         rowsums[iy] += *(blkptr + grid_offsets[gi]);
-         gi++;
+   /* Sum the total power in a block at a given direction */
+   powsum = power_vector[0];
+
+   /* For each direction ... */
+   for(dir = 1; dir < ndirs; dir++){
+      powsum += power_vector[dir];
+      if(power_vector[dir] > max_v){
+         max_v = power_vector[dir];
+         max_i = dir;
       }
    }
+
+   *powmax = max_v;
+   *powmax_dir = max_i;
+
+   /* Powmean is used as denominator for pownorm, so setting  */
+   /* a non-zero minimum avoids possible division by zero.    */
+   powmean = max(powsum, MIN_POWER_SUM)/(double)ndirs;
+
+   *pownorm = *powmax / powmean;
 }
 
 /*************************************************************************
 **************************************************************************
-#cat: dft_power - Computes the DFT power by applying a specific wave form
-#cat:             frequency to a vector of pixel row sums computed from a
-#cat:             specific orientation of the block image
+#cat: sort_dft_waves - Creates a ranked list of DFT wave form statistics
+#cat:                  by sorting on the normalized squared maximum power.
 
    Input:
-      rowsums - accumulated rows of pixels from within a rotated grid
-                overlaying an input image block
-      wave    - the wave form (cosine and sine components) at a specific
-                frequency
-      wavelen - the length of the wave form (must match the height of the
-                image block which is the length of the rowsum vector)
+      powmaxs  - maximum DFT power for each wave form used to derive
+                 statistics
+      pownorms - normalized maximum power corresponding to values in powmaxs
+      nstats   - number of wave forms used to derive statistics (N Wave - 1)
    Output:
-      power   - the computed DFT power for the given wave form at the
-                given orientation within the image block
+      wis      - sorted list of indices corresponding to the ranked set of
+                 wave form statistics.  These indices will be used as
+                 indirect addresses when processing the power statistics
+                 in descending order of "dominance"
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
 **************************************************************************/
-void dft_power(double *power, const int *rowsums,
-               const DFTWAVE *wave, const int wavelen)
+static int sort_dft_waves(int *wis, const double *powmaxs, const double *pownorms,
+                   const int nstats)
 {
    int i;
-   double cospart, sinpart;
+   double *pownorms2;
 
-   /* Initialize accumulators */
-   cospart = 0.0;
-   sinpart = 0.0;
-
-   /* Accumulate cos and sin components of DFT. */
-   for(i = 0; i < wavelen; i++){
-      /* Multiply each rotated row sum by its        */
-      /* corresponding cos or sin point in DFT wave. */
-      cospart += (rowsums[i] * wave->cos[i]);
-      sinpart += (rowsums[i] * wave->sin[i]);
+   /* Allocate normalized power^2 array */
+   pownorms2 = (double *)malloc(nstats * sizeof(double));
+   if(pownorms2 == (double *)NULL){
+      fprintf(stderr, "ERROR : sort_dft_waves : malloc : pownorms2\n");
+      return(-100);
    }
 
-   /* Power is the sum of the squared cos and sin components */
-   *power = (cospart * cospart) + (sinpart * sinpart);
+   for(i = 0; i < nstats; i++){
+      /* Wis will hold the sorted statistic indices when all is done. */
+      wis[i] = i;
+      /* This is normalized squared max power. */
+      pownorms2[i] = powmaxs[i] * pownorms[i];
+   }
+
+   /* Sort the statistic indices on the normalized squared power. */
+   bubble_sort_double_dec_2(pownorms2, wis, nstats);
+
+   /* Deallocate the working memory. */
+   free(pownorms2);
+
+   return(0);
 }
 
 /*************************************************************************
@@ -249,109 +352,6 @@ int dft_power_stats(int *wis, double *powmaxs, int *powmax_dirs,
    /* Get sorted order of applied DFT waves based on normalized power */
    if((ret = sort_dft_waves(wis, powmaxs, pownorms, tw-fw)))
       return(ret);
-
-   return(0);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: get_max_norm - Analyses a DFT power vector for a specific wave form
-#cat:                applied at different orientations (directions) to the
-#cat:                current image block.  The routine retuns the maximum
-#cat:                power value in the vector, the direction at which the
-#cat:                maximum occurs, and a normalized power value.  The
-#cat:                normalized power is computed as the maximum power divided
-#cat:                by the average power across all the directions.  These
-#cat:                simple statistics are fundamental to the selection of
-#cat:                a dominant direction flow for the image block.
-
-   Input:
-      power_vector - the DFT power values derived form a specific wave form
-                     applied at different directions
-      ndirs      - the number of directions to which the wave form was applied
-   Output:
-      powmax     - the maximum power value in the DFT power vector
-      powmax_dir - the direciton at which the maximum power value occured
-      pownorm    - the normalized power corresponding to the maximum power
-**************************************************************************/
-void get_max_norm(double *powmax, int *powmax_dir,
-               double *pownorm, const double *power_vector, const int ndirs)
-{
-   int dir;
-   double max_v, powsum;
-   int max_i;
-   double powmean;
-
-   /* Find max power value and store corresponding direction */
-   max_v = power_vector[0];
-   max_i = 0;
-
-   /* Sum the total power in a block at a given direction */
-   powsum = power_vector[0];
-
-   /* For each direction ... */
-   for(dir = 1; dir < ndirs; dir++){
-      powsum += power_vector[dir];
-      if(power_vector[dir] > max_v){
-         max_v = power_vector[dir];
-         max_i = dir;
-      }
-   }
-
-   *powmax = max_v;
-   *powmax_dir = max_i;
-
-   /* Powmean is used as denominator for pownorm, so setting  */
-   /* a non-zero minimum avoids possible division by zero.    */
-   powmean = max(powsum, MIN_POWER_SUM)/(double)ndirs;
-
-   *pownorm = *powmax / powmean;
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: sort_dft_waves - Creates a ranked list of DFT wave form statistics
-#cat:                  by sorting on the normalized squared maximum power.
-
-   Input:
-      powmaxs  - maximum DFT power for each wave form used to derive
-                 statistics
-      pownorms - normalized maximum power corresponding to values in powmaxs
-      nstats   - number of wave forms used to derive statistics (N Wave - 1)
-   Output:
-      wis      - sorted list of indices corresponding to the ranked set of
-                 wave form statistics.  These indices will be used as
-                 indirect addresses when processing the power statistics
-                 in descending order of "dominance"
-   Return Code:
-      Zero     - successful completion
-      Negative - system error
-**************************************************************************/
-int sort_dft_waves(int *wis, const double *powmaxs, const double *pownorms,
-                   const int nstats)
-{
-   int i;
-   double *pownorms2;
-
-   /* Allocate normalized power^2 array */
-   pownorms2 = (double *)malloc(nstats * sizeof(double));
-   if(pownorms2 == (double *)NULL){
-      fprintf(stderr, "ERROR : sort_dft_waves : malloc : pownorms2\n");
-      return(-100);
-   }
-
-   for(i = 0; i < nstats; i++){
-      /* Wis will hold the sorted statistic indices when all is done. */
-      wis[i] = i;
-      /* This is normalized squared max power. */
-      pownorms2[i] = powmaxs[i] * pownorms[i];
-   }
-
-   /* Sort the statistic indices on the normalized squared power. */
-   bubble_sort_double_dec_2(pownorms2, wis, nstats);
-
-   /* Deallocate the working memory. */
-   free(pownorms2);
 
    return(0);
 }

@@ -33,10 +33,8 @@ NBIS_SRC = \
 	nbis/mindtct/matchpat.c \
 	nbis/mindtct/minutia.c \
 	nbis/mindtct/morph.c \
-	nbis/mindtct/mytime.c \
 	nbis/mindtct/quality.c \
 	nbis/mindtct/remove.c \
-	nbis/mindtct/results.c \
 	nbis/mindtct/ridges.c \
 	nbis/mindtct/shape.c \
 	nbis/mindtct/sort.c \

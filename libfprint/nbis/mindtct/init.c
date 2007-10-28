@@ -37,7 +37,6 @@ identified are necessarily the best available for the purpose.
                ROUTINES:
                         init_dir2rad()
                         init_dftwaves()
-                        get_max_padding()
                         get_max_padding_V2()
                         init_rotgrids()
                         alloc_dir_powers()
@@ -241,80 +240,6 @@ int init_dftwaves(DFTWAVES **optr, const double *dft_coefs,
 
    *optr = dftwaves;
    return(0);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: get_max_padding - Deterines the maximum amount of image pixel padding
-#cat:                   required by all LFS processes.  Padding is currently
-#cat:                   required by the rotated grids used in DFT analyses,
-#cat:                   rotated grids used in directional binarization,
-#cat:                   and in the grid used for isotropic binarization.
-#cat:                   The NIST generalized code enables the parameters
-#cat:                   governing these processes to be redefined, so a check
-#cat:                   at runtime is required to determine which process
-#cat:                   requires the most padding.  By using the maximum as
-#cat:                   the padding factor, all processes will run safely
-#cat:                   with a single padding of the input image avoiding the
-#cat:                   need to repad for further processes.
-
-   Input:
-      imap_blocksize  - the size (in pixels) of each IMAP block in the image
-      dirbin_grid_w   - the width (in pixels) of the rotated grids used in
-                        directional binarization
-      dirbin_grid_h   - the height (in pixels) of the rotated grids used in
-                        directional binarization
-      isobin_grid_dim - the dimension (in pixels) of the square grid used in
-                        isotropic binarization
-   Return Code:
-      Non-negative - the maximum padding required for all processes
-**************************************************************************/
-int get_max_padding(const int imap_blocksize,
-                    const int dirbin_grid_w, const int dirbin_grid_h,
-                    const int isobin_grid_dim)
-{
-   int dft_pad, dirbin_pad, isobin_pad, max_pad;
-   double diag;
-   double pad;
-
-   /* Compute pad required for rotated blocks used in DFT analyses. */
-   diag = sqrt((double)(2.0 * imap_blocksize * imap_blocksize));
-   /* Compute pad as difference between the IMAP blocksize            */
-   /* and the diagonal distance of the block.                         */
-   /* Assumption: all block origins reside in valid/allocated memory. */
-   /* DFT grids are computed with pixel offsets RELATIVE2ORIGIN.      */
-   pad = (diag-imap_blocksize)/(double)2.0;
-   /* Need to truncate precision so that answers are consistent */
-   /* on different computer architectures when rounding doubles. */
-   pad = trunc_dbl_precision(pad, TRUNC_SCALE);
-   dft_pad = sround(pad);
-
-   /* Compute pad required for rotated blocks used in directional */
-   /* binarization.                                               */
-   diag = sqrt((double)((dirbin_grid_w*dirbin_grid_w)+
-                        (dirbin_grid_h*dirbin_grid_h)));
-   /* Assumption: all grid centers reside in valid/allocated memory. */
-   /* dirbin grids are computed with pixel offsets RELATIVE2CENTER.  */
-   pad = (diag-1)/(double)2.0;
-   /* Need to truncate precision so that answers are consistent */
-   /* on different computer architectures when rounding doubles. */
-   pad = trunc_dbl_precision(pad, TRUNC_SCALE);
-   dirbin_pad = sround(pad);
-
-   /* Compute pad required for grids used in isotropic binarization. */
-   pad = (isobin_grid_dim - 1)/(double)2.0;
-   /* Need to truncate precision so that answers are consistent */
-   /* on different computer architectures when rounding doubles. */
-   pad = trunc_dbl_precision(pad, TRUNC_SCALE);
-   isobin_pad = sround((isobin_grid_dim - 1)/(double)2.0);
-
-   max_pad = max(dft_pad, dirbin_pad);
-   max_pad = max(max_pad, isobin_pad);
-
-   /* Return the maximum of the three required paddings.  This padding will */
-   /* be sufficiently large for all three purposes, so that padding of the  */
-   /* input image will only be required once.                               */
-   return(max_pad);
 }
 
 /*************************************************************************

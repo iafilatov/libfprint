@@ -36,70 +36,15 @@ identified are necessarily the best available for the purpose.
 
 ***********************************************************************
                ROUTINES:
-                        binarize()
                         binarize_V2()
-			binarize_image()
 			binarize_image_V2()
                         dirbinarize()
-                        isobinarize()
 
 ***********************************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <lfs.h>
-
-/*************************************************************************
-**************************************************************************
-#cat: binarize - Takes a padded grayscale input image and its associated ridge
-#cat:              direction flow NMAP and produces a binarized version of the
-#cat:              image.  It then fills horizontal and vertical "holes" in the
-#cat:              binary image results.
-
-   Input:
-      pdata    - padded input grayscale image
-      pw       - padded width (in pixels) of input image
-      ph       - padded height (in pixels) of input image
-      nmap     - 2-D vector of IMAP directions and other codes
-      mw       - width (in blocks) of the NMAP
-      mh       - height (in blocks) of the NMAP
-      dirbingrids - set of rotated grid offsets used for directional
-              binarization
-      lfsparms - parameters and thresholds for controlling LFS
-   Output:
-      optr  - points to created (unpadded) binary image
-      ow    - width of binary image
-      oh    - height of binary image
-   Return Code:
-      Zero     - successful completion
-      Negative - system error
-**************************************************************************/
-int binarize(unsigned char **optr, int *ow, int *oh,
-          unsigned char *pdata, const int pw, const int ph,
-          int *nmap, const int mw, const int mh,
-          const ROTGRIDS *dirbingrids, const LFSPARMS *lfsparms)
-{
-   unsigned char *bdata;
-   int i, bw, bh, ret; /* return code */
-
-   /* 1. Binarize the padded input image using NMAP information. */
-   if((ret = binarize_image(&bdata, &bw, &bh, pdata, pw, ph,
-                         nmap, mw, mh, lfsparms->blocksize,
-                         dirbingrids, lfsparms->isobin_grid_dim))){
-      return(ret);
-   }
-
-   /* 2. Fill black and white holes in binary image. */
-   /* LFS scans the binary image, filling holes, 3 times. */
-   for(i = 0; i < lfsparms->num_fill_holes; i++)
-      fill_holes(bdata, bw, bh);
-
-   /* Return binarized input image. */
-   *optr = bdata;
-   *ow = bw;
-   *oh = bh;
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -151,89 +96,6 @@ int binarize_V2(unsigned char **odata, int *ow, int *oh,
 
    /* Return binarized input image. */
    *odata = bdata;
-   *ow = bw;
-   *oh = bh;
-   return(0);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: binarize_image - Takes a grayscale input image and its associated
-#cat:                  NMAP and generates a binarized version of the image.
-
-   Input:
-      pdata - padded input grayscale image
-      pw    - padded width (in pixels) of input image
-      ph    - padded height (in pixels) of input image
-      nmap  - 2-D vector of IMAP directions and other codes
-      mw    - width (in blocks) of the NMAP
-      mh    - height (in blocks) of the NMAP
-      imap_blocksize - dimension (in pixels) of each NMAP block
-      dirbingrids - set of rotated grid offsets used for directional
-              binarization
-      isobin_grid_dim - dimension (in pixels) of grid used for isotropic
-              binarization
-   Output:
-      optr  - points to binary image results
-      ow    - points to binary image width
-      oh    - points to binary image height
-   Return Code:
-      Zero     - successful completion
-      Negative - system error
-**************************************************************************/
-int binarize_image(unsigned char **optr, int *ow, int *oh,
-                   unsigned char *pdata, const int pw, const int ph,
-                   const int *nmap, const int mw, const int mh,
-                   const int imap_blocksize, const ROTGRIDS *dirbingrids,
-                   const int isobin_grid_dim)
-{
-   int ix, iy, bw, bh, bx, by, nmapval;
-   unsigned char *bdata, *bptr;
-   unsigned char *pptr, *spptr;
-
-   /* Compute dimensions of "unpadded" binary image results. */
-   bw = pw - (dirbingrids->pad<<1);
-   bh = ph - (dirbingrids->pad<<1);
-
-   bdata = (unsigned char *)malloc(bw*bh*sizeof(unsigned char));
-   if(bdata == (unsigned char *)NULL){
-      fprintf(stderr, "ERROR : binarize_image : malloc : bdata\n");
-      return(-110);
-   }
-
-   bptr = bdata;
-   spptr = pdata + (dirbingrids->pad * pw) + dirbingrids->pad;
-   for(iy = 0; iy < bh; iy++){
-      /* Set pixel pointer to start of next row in grid. */
-      pptr = spptr;
-      for(ix = 0; ix < bw; ix++){
-         /* Compute which block the current pixel is in. */
-         bx = (int)(ix/imap_blocksize);
-         by = (int)(iy/imap_blocksize);
-         /* Get corresponding value in NMAP */
-         nmapval = *(nmap + (by*mw) + bx);
-         /* If current block has no neighboring blocks with */
-         /* VALID directions ...                            */
-         if(nmapval == NO_VALID_NBRS)
-            /* Set binary pixel to white (255). */
-            *bptr = WHITE_PIXEL;
-         /* Otherwise, if block's NMAP has a valid direction ... */
-         else if(nmapval >= 0)
-            /* Use directional binarization based on NMAP direction. */
-            *bptr = dirbinarize(pptr, nmapval, dirbingrids);
-         else
-            /* Otherwise, the block's NMAP is either INVALID or */
-            /* HIGH-CURVATURE, so use isotropic binarization.    */
-            *bptr = isobinarize(pptr, pw, ph, isobin_grid_dim);
-         /* Bump input and output pixel pointers. */
-         pptr++;
-         bptr++;
-      }
-      /* Bump pointer to the next row in padded input image. */
-      spptr += pw;
-   }
-
-   *optr = bdata;
    *ow = bw;
    *oh = bh;
    return(0);
@@ -385,71 +247,3 @@ int dirbinarize(const unsigned char *pptr, const int idir,
       return(WHITE_PIXEL);
 }
 
-/*************************************************************************
-**************************************************************************
-#cat: isobinarize - Determines the binary value of a grayscale pixel based
-#cat:               on comparing the grayscale value with a surrounding
-#cat:               neighborhood grid of pixels.  If the current pixel (treated
-#cat:               as an average) is less than the sum of the pixels in
-#cat:               the neighborhood, then the binary value is set to BLACK,
-#cat:               otherwise it is set to WHITE.  This binarization technique
-#cat:               is used when there is no VALID IMAP direction for the
-#cat:               block in which the current pixel resides.
-
-   CAUTION: The image to which the input pixel points must be appropriately
-            padded to account for the radius of the neighborhood.  Otherwise,
-            this routine may access "unkown" memory.
-
-   Input:
-      pptr - pointer to curent grayscale pixel
-      pw   - padded width (in pixels) of the grayscale image
-      ph   - padded height (in pixels) of the grayscale image
-      isobin_grid_dim - dimension (in pixels) of the neighborhood
-   Return Code:
-      BLACK_PIXEL - pixel intensity for BLACK
-      WHITE_PIXEL - pixel intensity of WHITE
-**************************************************************************/
-int isobinarize(unsigned char *pptr, const int pw, const int ph,
-                const int isobin_grid_dim)
-{
-   unsigned char *sptr, *cptr;
-   int px, py;
-   int radius;
-   int bsum;
-   double drad;
-
-   /* Initialize grid pixel sum to zero. */
-   bsum = 0;
-   /* Compute radius from current pixel based on isobin_grid_dim. */
-   drad = (isobin_grid_dim - 1)/(double)2.0;
-   /* Need to truncate precision so that answers are consistent */
-   /* on different computer architectures when rounding doubles. */
-   drad = trunc_dbl_precision(drad, TRUNC_SCALE);
-   radius = sround(drad);
-   /* Set pointer to origin of grid centered on the current pixel. */
-   sptr = pptr - (radius*pw) - radius;
-
-   /* For each row in the grid ... */
-   for(py = 0; py < isobin_grid_dim; py++){
-      /* Set pixel pointer to start of next row in grid. */
-      cptr = sptr;
-      /* For each column in the grid ... */
-      for(px = 0; px < isobin_grid_dim; px++){
-         /* Accumulate next pixel in the grid. */
-         bsum += *cptr;
-         /* Bump pixel pointer. */
-         cptr++;
-      }
-      /* Bump to the start of the next row in the grid. */
-      sptr += pw;
-   }
-
-   /* If current (center) pixel when treated as an average for the   */
-   /* entire grid is less than the total pixel sum of the grid ... */
-   if((*pptr * isobin_grid_dim * isobin_grid_dim) < bsum)
-      /* Set the binary pixel to BLACK. */
-      return(BLACK_PIXEL);
-   else
-      /* Otherwise, set the binary pixel to WHITE. */
-      return(WHITE_PIXEL);
-}

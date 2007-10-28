@@ -46,8 +46,6 @@ identified are necessarily the best available for the purpose.
                         get_loop_aspect()
                         fill_loop()
                         fill_partial_row()
-                        flood_loop()
-                        flood_fill4()
 ***********************************************************************/
 
 #include <stdio.h>
@@ -501,6 +499,107 @@ int is_loop_clockwise(const int *contour_x, const int *contour_y,
 
 /*************************************************************************
 **************************************************************************
+#cat: get_loop_aspect - Takes a contour list (determined to form a complete
+#cat:            loop) and measures the loop's aspect (the largest and smallest
+#cat:            distances across the loop) and returns the points on the
+#cat:            loop where these distances occur.
+
+   Input:
+      contour_x - x-coord list for loop's contour points
+      contour_y - y-coord list for loop's contour points
+      ncontour  - number of points in contour
+   Output:
+      omin_fr   - contour point index where minimum aspect occurs
+      omin_to   - opposite contour point index where minimum aspect occurs
+      omin_dist - the minimum distance across the loop
+      omax_fr   - contour point index where maximum aspect occurs
+      omax_to   - contour point index where maximum aspect occurs
+      omax_dist - the maximum distance across the loop
+**************************************************************************/
+static void get_loop_aspect(int *omin_fr, int *omin_to, double *omin_dist,
+              int *omax_fr, int *omax_to, double *omax_dist,
+              const int *contour_x, const int *contour_y, const int ncontour)
+{
+   int halfway, limit;
+   int i, j;
+   double dist;
+   double min_dist, max_dist;
+   int min_i, max_i, min_j, max_j;
+
+   /* Compute half the perimeter of the loop. */
+   halfway = ncontour>>1;
+
+   /* Take opposite points on the contour and walk half way    */
+   /* around the loop.                                         */
+   i = 0;
+   j = halfway;
+   /* Compute squared distance between opposite points on loop. */
+   dist = squared_distance(contour_x[i], contour_y[i],
+                           contour_x[j], contour_y[j]);
+
+   /* Initialize running minimum and maximum distances along loop. */
+   min_dist = dist;
+   min_i = i;
+   min_j = j;
+   max_dist = dist;
+   max_i = i;
+   max_j = j;
+   /* Bump to next pair of opposite points. */
+   i++;
+   /* Make sure j wraps around end of list. */
+   j++;
+   j %= ncontour;
+
+   /* If the loop is of even length, then we only need to walk half */
+   /* way around as the other half will be exactly redundant.  If   */
+   /* the loop is of odd length, then the second half will not be   */
+   /* be exactly redundant and the difference "may" be meaningful.  */
+   /* If execution speed is an issue, then probably get away with   */
+   /* walking only the fist half of the loop under ALL conditions.  */
+
+   /* If loop has odd length ... */
+   if(ncontour % 2)
+      /* Walk the loop's entire perimeter. */
+      limit = ncontour;
+   /* Otherwise the loop has even length ... */
+   else
+      /* Only walk half the perimeter. */
+      limit = halfway;
+
+   /* While we have not reached our perimeter limit ... */
+   while(i < limit){
+      /* Compute squared distance between opposite points on loop. */
+      dist = squared_distance(contour_x[i], contour_y[i],
+                              contour_x[j], contour_y[j]);
+      /* Check the running minimum and maximum distances. */
+      if(dist < min_dist){
+         min_dist = dist;
+         min_i = i;
+         min_j = j;
+      }
+      if(dist > max_dist){
+         max_dist = dist;
+         max_i = i;
+         max_j = j;
+      }
+      /* Bump to next pair of opposite points. */
+      i++;
+      /* Make sure j wraps around end of list. */
+      j++;
+      j %= ncontour;
+   }
+
+   /* Assign minimum and maximum distances to output pointers. */
+   *omin_fr = min_i;
+   *omin_to = min_j;
+   *omin_dist = min_dist;
+   *omax_fr = max_i;
+   *omax_to = max_j;
+   *omax_dist = max_dist;
+}
+
+/*************************************************************************
+**************************************************************************
 #cat: process_loop - Takes a contour list that has been determined to form
 #cat:            a complete loop, and processes it. If the loop is sufficiently
 #cat:            large and elongated, then two minutia points are calculated
@@ -845,103 +944,39 @@ int process_loop_V2(MINUTIAE *minutiae,
 
 /*************************************************************************
 **************************************************************************
-#cat: get_loop_aspect - Takes a contour list (determined to form a complete
-#cat:            loop) and measures the loop's aspect (the largest and smallest
-#cat:            distances across the loop) and returns the points on the
-#cat:            loop where these distances occur.
+#cat: fill_partial_row - Fills a specified range of contiguous pixels on
+#cat:            a specified row of an 8-bit pixel image with a specified
+#cat:            pixel value.  NOTE, the pixel coordinates are assumed to
+#cat:            be within the image boundaries.
 
    Input:
-      contour_x - x-coord list for loop's contour points
-      contour_y - y-coord list for loop's contour points
-      ncontour  - number of points in contour
+      fill_pix - pixel value to fill with (should be on range [0..255]
+      frx      - x-pixel coord where fill should begin
+      tox      - x-pixel coord where fill should end (inclusive)
+      y        - y-pixel coord of current row being filled
+      bdata    - 8-bit image data
+      iw       - width (in pixels) of image
+      ih       - height (in pixels) of image
    Output:
-      omin_fr   - contour point index where minimum aspect occurs
-      omin_to   - opposite contour point index where minimum aspect occurs
-      omin_dist - the minimum distance across the loop
-      omax_fr   - contour point index where maximum aspect occurs
-      omax_to   - contour point index where maximum aspect occurs
-      omax_dist - the maximum distance across the loop
+      bdata    - 8-bit image data with partial row filled.
 **************************************************************************/
-void get_loop_aspect(int *omin_fr, int *omin_to, double *omin_dist,
-              int *omax_fr, int *omax_to, double *omax_dist,
-              const int *contour_x, const int *contour_y, const int ncontour)
+static void fill_partial_row(const int fill_pix, const int frx, const int tox,
+          const int y, unsigned char *bdata, const int iw, const int ih)
 {
-   int halfway, limit;
-   int i, j;
-   double dist;
-   double min_dist, max_dist;
-   int min_i, max_i, min_j, max_j;
+   int x;
+   unsigned char *bptr;
 
-   /* Compute half the perimeter of the loop. */
-   halfway = ncontour>>1;
+   /* Set pixel pointer to starting x-coord on current row. */
+   bptr = bdata+(y*iw)+frx;
 
-   /* Take opposite points on the contour and walk half way    */
-   /* around the loop.                                         */
-   i = 0;
-   j = halfway;
-   /* Compute squared distance between opposite points on loop. */
-   dist = squared_distance(contour_x[i], contour_y[i],
-                           contour_x[j], contour_y[j]);
-
-   /* Initialize running minimum and maximum distances along loop. */
-   min_dist = dist;
-   min_i = i;
-   min_j = j;
-   max_dist = dist;
-   max_i = i;
-   max_j = j;
-   /* Bump to next pair of opposite points. */
-   i++;
-   /* Make sure j wraps around end of list. */
-   j++;
-   j %= ncontour;
-
-   /* If the loop is of even length, then we only need to walk half */
-   /* way around as the other half will be exactly redundant.  If   */
-   /* the loop is of odd length, then the second half will not be   */
-   /* be exactly redundant and the difference "may" be meaningful.  */
-   /* If execution speed is an issue, then probably get away with   */
-   /* walking only the fist half of the loop under ALL conditions.  */
-
-   /* If loop has odd length ... */
-   if(ncontour % 2)
-      /* Walk the loop's entire perimeter. */
-      limit = ncontour;
-   /* Otherwise the loop has even length ... */
-   else
-      /* Only walk half the perimeter. */
-      limit = halfway;
-
-   /* While we have not reached our perimeter limit ... */
-   while(i < limit){
-      /* Compute squared distance between opposite points on loop. */
-      dist = squared_distance(contour_x[i], contour_y[i],
-                              contour_x[j], contour_y[j]);
-      /* Check the running minimum and maximum distances. */
-      if(dist < min_dist){
-         min_dist = dist;
-         min_i = i;
-         min_j = j;
-      }
-      if(dist > max_dist){
-         max_dist = dist;
-         max_i = i;
-         max_j = j;
-      }
-      /* Bump to next pair of opposite points. */
-      i++;
-      /* Make sure j wraps around end of list. */
-      j++;
-      j %= ncontour;
+   /* Foreach pixel between starting and ending x-coord on row */
+   /* (including the end points) ...                           */
+   for(x = frx; x <= tox; x++){
+      /* Set current pixel with fill pixel value. */
+      *bptr = fill_pix;
+      /* Bump to next pixel in the row. */
+      bptr++;
    }
-
-   /* Assign minimum and maximum distances to output pointers. */
-   *omin_fr = min_i;
-   *omin_to = min_j;
-   *omin_dist = min_dist;
-   *omax_fr = max_i;
-   *omax_to = max_j;
-   *omax_dist = max_dist;
 }
 
 /*************************************************************************
@@ -1075,154 +1110,3 @@ int fill_loop(const int *contour_x, const int *contour_y,
    return(0);
 }
 
-/*************************************************************************
-**************************************************************************
-#cat: fill_partial_row - Fills a specified range of contiguous pixels on
-#cat:            a specified row of an 8-bit pixel image with a specified
-#cat:            pixel value.  NOTE, the pixel coordinates are assumed to
-#cat:            be within the image boundaries.
-
-   Input:
-      fill_pix - pixel value to fill with (should be on range [0..255]
-      frx      - x-pixel coord where fill should begin
-      tox      - x-pixel coord where fill should end (inclusive)
-      y        - y-pixel coord of current row being filled
-      bdata    - 8-bit image data
-      iw       - width (in pixels) of image
-      ih       - height (in pixels) of image
-   Output:
-      bdata    - 8-bit image data with partial row filled.
-**************************************************************************/
-void fill_partial_row(const int fill_pix, const int frx, const int tox,
-          const int y, unsigned char *bdata, const int iw, const int ih)
-{
-   int x;
-   unsigned char *bptr;
-
-   /* Set pixel pointer to starting x-coord on current row. */
-   bptr = bdata+(y*iw)+frx;
-
-   /* Foreach pixel between starting and ending x-coord on row */
-   /* (including the end points) ...                           */
-   for(x = frx; x <= tox; x++){
-      /* Set current pixel with fill pixel value. */
-      *bptr = fill_pix;
-      /* Bump to next pixel in the row. */
-      bptr++;
-   }
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: flood_loop - Fills a given contour (determined to form a complete loop)
-#cat:            with a specified pixel value using a recursive flood-fill
-#cat:            technique.
-#cat:            NOTE, this fill approach will NOT always work with the
-#cat:            contours generated in this application because they
-#cat:            are NOT guaranteed to be ENTIRELY surrounded by 8-connected
-#cat:            pixels not equal to the fill pixel value.  This is unfortunate
-#cat:            because the flood-fill is a simple algorithm that will handle
-#cat:            complex/concaved shapes.
-
-   Input:
-      contour_x  - x-coord list for loop's contour points
-      contour_y  - y-coord list for loop's contour points
-      ncontour   - number of points in contour
-      bdata      - binary image data (0==while & 1==black)
-      iw         - width (in pixels) of image
-      ih         - height (in pixels) of image
-   Output:
-      bdata      - binary image data with loop filled
-**************************************************************************/
-void flood_loop(const int *contour_x, const int *contour_y,
-                 const int ncontour, unsigned char *bdata,
-                 const int iw, const int ih)
-{
-   int feature_pix, fill_pix;
-   int i;
-
-   /* Get the pixel value of the minutia feauture.  This is */
-   /* the pixel value we wish to replace with the flood.    */
-   feature_pix = *(bdata + (contour_y[0] * iw) + contour_x[0]);
-
-   /* Flip the feature pixel value to the value we want to */
-   /* fill with and send this value to the flood routine.  */
-   fill_pix = !feature_pix;
-
-   /* Flood-fill interior of contour using a 4-neighbor fill.  */
-   /* We are using a 4-neighbor fill because the contour was   */
-   /* collected using 8-neighbors, and the 4-neighbor fill     */
-   /* will NOT escape the 8-neighbor based contour.            */
-   /* The contour passed must be guarenteed to be complete for */
-   /* the flood-fill to work properly.                         */
-   /* We are initiating a flood-fill from each point on the    */
-   /* contour to make sure complex patterns get filled in.     */
-   /* The complex patterns we are concerned about are those    */
-   /* that "pinch" the interior of the feature off due to      */
-   /* skipping "exposed" corners along the contour.            */
-   /* Simple shapes will fill upon invoking the first contour  */
-   /* pixel, and the subsequent calls will immediately return  */
-   /* as their seed pixel will have already been flipped.      */
-   for(i = 0; i < ncontour; i++){
-      /* Start the recursive flooding. */
-      flood_fill4(fill_pix, contour_x[i], contour_y[i],
-                  bdata, iw, ih);
-   }
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: flood_fill4 - Recursively floods a region of an 8-bit pixel image with a
-#cat:               specified pixel value given a starting (seed) point.  The
-#cat:               recursion is based neighbors being 4-connected.
-
-   Input:
-      fill_pix - 8-bit pixel value to be filled with (on range [0..255]
-      x        - starting x-pixel coord
-      y        - starting y-pixel coord
-      bdata    - 8-bit pixel image data
-      iw       - width (in pixels) of image
-      ih       - height (in pixels) of image
-   Output:
-      bdata    - 8-bit pixel image data with region filled
-**************************************************************************/
-void flood_fill4(const int fill_pix, const int x, const int y,
-                 unsigned char *bdata, const int iw, const int ih)
-{
-   unsigned char *pptr;
-   int y_north, y_south, x_east, x_west;
-
-   /* Get address of current pixel. */
-   pptr =  bdata + (y*iw) + x;
-   /* If pixel needs to be filled ... */
-   if(*pptr != fill_pix){
-      /* Fill the current pixel. */
-      *pptr = fill_pix;
-
-      /* Recursively invoke flood on the pixel's 4 neighbors.   */
-      /* Test to make sure neighbors are within image boudaries */
-      /* before invoking each flood.                            */
-      y_north = y-1;
-      y_south = y+1;
-      x_west = x-1;
-      x_east = x+1;
-
-      /* Invoke North */
-      if(y_north >= 0)
-         flood_fill4(fill_pix, x, y_north, bdata, iw, ih);
-
-      /* Invoke East */
-      if(x_east < iw)
-         flood_fill4(fill_pix, x_east, y, bdata, iw, ih);
-
-      /* Invoke South */
-      if(y_south < ih)
-         flood_fill4(fill_pix, x, y_south, bdata, iw, ih);
-         
-      /* Invoke West */
-      if(x_west >= 0)
-         flood_fill4(fill_pix, x_west, y, bdata, iw, ih);
-   }
-
-   /* Otherwise, there is nothing to be done. */
-}

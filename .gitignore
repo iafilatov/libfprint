@@ -20,3 +20,4 @@ depcomp
 install-sh
 .deps
 .libs
+compile

@@ -36,7 +36,6 @@ identified are necessarily the best available for the purpose.
                ROUTINES:
                         alloc_shape()
                         free_shape()
-                        dump_shape()
                         shape_from_contour()
                         sort_row_on_x()
 ***********************************************************************/
@@ -61,7 +60,7 @@ identified are necessarily the best available for the purpose.
       Zero     - Shape successfully allocated and initialized
       Negative - System error
 **************************************************************************/
-int alloc_shape(SHAPE **oshape, const int xmin, const int ymin,
+static int alloc_shape(SHAPE **oshape, const int xmin, const int ymin,
                   const int xmax, const int ymax)
 {
    SHAPE *shape;
@@ -181,33 +180,20 @@ void free_shape(SHAPE *shape)
 
 /*************************************************************************
 **************************************************************************
-#cat: dump_shape - Takes an initialized shape structure and dumps its contents
-#cat:            as formatted text to the specified open file pointer.
+#cat: sort_row_on_x - Takes a row structure and sorts its points left-to-
+#cat:            right on X.
 
    Input:
-      shape     - shape structure to be dumped
+      row       - row structure to be sorted
    Output:
-      fpout     - open file pointer to be written to
+      row       - row structure with points in sorted order
 **************************************************************************/
-void dump_shape(FILE *fpout, const SHAPE *shape)
+static void sort_row_on_x(ROW *row)
 {
-   int i, j;
-
-   /* Print the shape's y-limits and number of scanlines. */
-   fprintf(fpout, "shape:  ymin=%d, ymax=%d, nrows=%d\n",
-           shape->ymin, shape->ymax, shape->nrows);
-
-   /* Foreach row in the shape... */
-   for(i = 0; i < shape->nrows; i++){
-       /* Print the current row's y-coord and number of points on the row. */
-       fprintf(fpout, "row %d :   y=%d, npts=%d\n", i, shape->rows[i]->y,
-              shape->rows[i]->npts);
-       /* Print each successive point on the current row. */
-       for(j = 0; j < shape->rows[i]->npts; j++){
-          fprintf(fpout, "pt %d : %d %d\n", j, shape->rows[i]->xs[j],
-                 shape->rows[i]->y);
-       }
-   }
+   /* Conduct a simple increasing bubble sort on the x-coords */
+   /* in the given row.  A bubble sort is satisfactory as the */
+   /* number of points will be relatively small.              */
+   bubble_sort_int_inc(row->xs, row->npts);
 }
 
 /*************************************************************************
@@ -282,23 +268,5 @@ int shape_from_contour(SHAPE **oshape, const int *contour_x,
 
    /* Return normally. */
    return(0);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: sort_row_on_x - Takes a row structure and sorts its points left-to-
-#cat:            right on X.
-
-   Input:
-      row       - row structure to be sorted
-   Output:
-      row       - row structure with points in sorted order
-**************************************************************************/
-void sort_row_on_x(ROW *row)
-{
-   /* Conduct a simple increasing bubble sort on the x-coords */
-   /* in the given row.  A bubble sort is satisfactory as the */
-   /* number of points will be relatively small.              */
-   bubble_sort_int_inc(row->xs, row->npts);
 }
 
