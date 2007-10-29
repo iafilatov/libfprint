@@ -73,12 +73,15 @@ identified are necessarily the best available for the purpose.
                         adjust_high_curvature_minutia()
                         adjust_high_curvature_minutia_V2()
                         get_low_curvature_direction()
+                        lfs2nist_minutia_XYT()
 
 ***********************************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <lfs.h>
+
+
 
 /*************************************************************************
 **************************************************************************
@@ -3459,5 +3462,50 @@ int get_low_curvature_direction(const int scan_dir, const int appearing,
 
    /* Return resulting direction on range [0..31]. */
    return(idir);
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: lfs2nist_minutia_XYT - Converts XYT minutiae attributes in LFS native
+#cat:        representation to NIST internal representation
+
+   Input:
+      minutia  - LFS minutia structure containing attributes to be converted
+   Output:
+      ox       - NIST internal based x-pixel coordinate
+      oy       - NIST internal based y-pixel coordinate
+      ot       - NIST internal based minutia direction/orientation
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
+void lfs2nist_minutia_XYT(int *ox, int *oy, int *ot,
+                          const MINUTIA *minutia, const int iw, const int ih)
+{
+   int x, y, t;
+   float degrees_per_unit;
+
+   /*       XYT's according to NIST internal rep:           */
+    /*      1. pixel coordinates with origin bottom-left    */
+   /*       2. orientation in degrees on range [0..360]     */
+   /*          with 0 pointing east and increasing counter  */
+   /*          clockwise (same as M1)                       */
+   /*       3. direction pointing out and away from the     */
+   /*             ridge ending or bifurcation valley        */
+   /*             (opposite direction from M1)              */
+
+   x = minutia->x;
+   y = ih - minutia->y;
+
+   degrees_per_unit = 180 / (float)NUM_DIRECTIONS;
+
+   t = (270 - sround(minutia->direction * degrees_per_unit)) % 360;
+   if(t < 0){
+      t += 360;
+   }
+
+   *ox = x;
+   *oy = y;
+   *ot = t;
 }
 

@@ -39,7 +39,6 @@ identified are necessarily the best available for the purpose.
                         combined_minutia_quality()
                         grayscale_reliability()
                         get_neighborhood_stats()
-                        reliability_fr_quality_map()
 
 ***********************************************************************/
 
@@ -175,6 +174,120 @@ int gen_quality_map(int **oqmap, int *direction_map, int *low_contrast_map,
 
 /***********************************************************************
 ************************************************************************
+#cat: get_neighborhood_stats - Given a minutia point, computes the mean
+#cat:              and stdev of the 8-bit grayscale pixels values in a
+#cat:              surrounding neighborhood with specified radius.
+
+   Code originally written by Austin Hicklin for FBI ATU
+   Modified by Michael D. Garris (NIST) Sept. 25, 2000
+
+   Input:
+      minutia    - structure containing detected minutia
+      idata      - 8-bit grayscale fingerprint image
+      iw         - width (in pixels) of the image
+      ih         - height (in pixels) of the image
+      radius_pix - pixel radius of surrounding neighborhood
+   Output:
+      mean       - mean of neighboring pixels
+      stdev      - standard deviation of neighboring pixels
+************************************************************************/
+static void get_neighborhood_stats(double *mean, double *stdev, MINUTIA *minutia,
+                     unsigned char *idata, const int iw, const int ih,
+                     const int radius_pix)
+{
+   int i, x, y, rows, cols;
+   int n = 0, sumX = 0, sumXX = 0;
+   int histogram[256];
+
+   /* Zero out histogram. */
+   memset(histogram, 0, 256 * sizeof(int));
+
+   /* Set minutia's coordinate variables. */
+   x = minutia->x;
+   y = minutia->y;
+
+
+   /* If minutiae point is within sampleboxsize distance of image border, */
+   /* a value of 0 reliability is returned. */
+   if ((x < radius_pix) || (x > iw-radius_pix-1) || 
+       (y < radius_pix) || (y > ih-radius_pix-1)) {
+      *mean = 0.0;
+      *stdev = 0.0;
+      return;
+      
+   }
+
+   /* Foreach row in neighborhood ... */
+   for(rows = y - radius_pix;
+       rows <= y + radius_pix;
+       rows++){
+      /* Foreach column in neighborhood ... */
+      for(cols = x - radius_pix;
+          cols <= x + radius_pix;
+          cols++){
+         /* Bump neighbor's pixel value bin in histogram. */
+         histogram[*(idata+(rows * iw)+cols)]++;
+      }
+   }
+
+   /* Foreach grayscale pixel bin ... */
+   for(i = 0; i < 256; i++){
+      if(histogram[i]){
+         /* Accumulate Sum(X[i]) */
+         sumX += (i * histogram[i]);
+         /* Accumulate Sum(X[i]^2) */
+         sumXX += (i * i * histogram[i]);
+         /* Accumulate N samples */
+         n += histogram[i];
+      }
+   }
+
+   /* Mean = Sum(X[i])/N */
+   *mean = sumX/(double)n;
+   /* Stdev = sqrt((Sum(X[i]^2)/N) - Mean^2) */
+   *stdev = sqrt((sumXX/(double)n) - ((*mean)*(*mean)));
+}
+
+/***********************************************************************
+************************************************************************
+#cat: grayscale_reliability - Given a minutia point, computes a reliability
+#cat:              measure from the stdev and mean of its pixel neighborhood.
+
+   Code originally written by Austin Hicklin for FBI ATU
+   Modified by Michael D. Garris (NIST) Sept. 25, 2000
+
+   GrayScaleReliability - reasonable reliability heuristic, returns
+   0.0 .. 1.0 based on stdev and Mean of a localized histogram where
+   "ideal" stdev is >=64; "ideal" Mean is 127.  In a 1 ridge radius
+   (11 pixels), if the bytevalue (shade of gray) in the image has a
+   stdev of >= 64 & a mean of 127,  returns 1.0 (well defined
+   light & dark areas in equal proportions).
+
+   Input:
+      minutia    - structure containing detected minutia
+      idata      - 8-bit grayscale fingerprint image
+      iw         - width (in pixels) of the image
+      ih         - height (in pixels) of the image
+      radius_pix - pixel radius of surrounding neighborhood
+   Return Value:
+      reliability - computed reliability measure
+************************************************************************/
+static double grayscale_reliability(MINUTIA *minutia, unsigned char *idata,
+                             const int iw, const int ih, const int radius_pix)
+{
+   double mean, stdev;
+   double reliability;
+
+   get_neighborhood_stats(&mean, &stdev, minutia, idata, iw, ih, radius_pix);
+
+   reliability = min((stdev>IDEALSTDEV ? 1.0 : stdev/(double)IDEALSTDEV),
+                         (1.0-(fabs(mean-IDEALMEAN)/(double)IDEALMEAN)));
+
+   return(reliability);
+}
+
+/***********************************************************************
+************************************************************************
 #cat: combined_minutia_quality - Combines quality measures derived from
 #cat:              the quality map and neighboring pixel statistics to
 #cat:              infer a reliability measure on the scale [0...1].
@@ -277,191 +390,4 @@ int combined_minutia_quality(MINUTIAE *minutiae,
    /* Return normally. */
    return(0);
 }
-        
 
-/***********************************************************************
-************************************************************************
-#cat: grayscale_reliability - Given a minutia point, computes a reliability
-#cat:              measure from the stdev and mean of its pixel neighborhood.
-
-   Code originally written by Austin Hicklin for FBI ATU
-   Modified by Michael D. Garris (NIST) Sept. 25, 2000
-
-   GrayScaleReliability - reasonable reliability heuristic, returns
-   0.0 .. 1.0 based on stdev and Mean of a localized histogram where
-   "ideal" stdev is >=64; "ideal" Mean is 127.  In a 1 ridge radius
-   (11 pixels), if the bytevalue (shade of gray) in the image has a
-   stdev of >= 64 & a mean of 127,  returns 1.0 (well defined
-   light & dark areas in equal proportions).
-
-   Input:
-      minutia    - structure containing detected minutia
-      idata      - 8-bit grayscale fingerprint image
-      iw         - width (in pixels) of the image
-      ih         - height (in pixels) of the image
-      radius_pix - pixel radius of surrounding neighborhood
-   Return Value:
-      reliability - computed reliability measure
-************************************************************************/
-double grayscale_reliability(MINUTIA *minutia, unsigned char *idata,
-                             const int iw, const int ih, const int radius_pix)
-{
-   double mean, stdev;
-   double reliability;
-
-   get_neighborhood_stats(&mean, &stdev, minutia, idata, iw, ih, radius_pix);
-
-   reliability = min((stdev>IDEALSTDEV ? 1.0 : stdev/(double)IDEALSTDEV),
-                         (1.0-(fabs(mean-IDEALMEAN)/(double)IDEALMEAN)));
-
-   return(reliability);
-}
-
-
-/***********************************************************************
-************************************************************************
-#cat: get_neighborhood_stats - Given a minutia point, computes the mean
-#cat:              and stdev of the 8-bit grayscale pixels values in a
-#cat:              surrounding neighborhood with specified radius.
-
-   Code originally written by Austin Hicklin for FBI ATU
-   Modified by Michael D. Garris (NIST) Sept. 25, 2000
-
-   Input:
-      minutia    - structure containing detected minutia
-      idata      - 8-bit grayscale fingerprint image
-      iw         - width (in pixels) of the image
-      ih         - height (in pixels) of the image
-      radius_pix - pixel radius of surrounding neighborhood
-   Output:
-      mean       - mean of neighboring pixels
-      stdev      - standard deviation of neighboring pixels
-************************************************************************/
-void get_neighborhood_stats(double *mean, double *stdev, MINUTIA *minutia,
-                     unsigned char *idata, const int iw, const int ih,
-                     const int radius_pix)
-{
-   int i, x, y, rows, cols;
-   int n = 0, sumX = 0, sumXX = 0;
-   int histogram[256];
-
-   /* Zero out histogram. */
-   memset(histogram, 0, 256 * sizeof(int));
-
-   /* Set minutia's coordinate variables. */
-   x = minutia->x;
-   y = minutia->y;
-
-
-   /* If minutiae point is within sampleboxsize distance of image border, */
-   /* a value of 0 reliability is returned. */
-   if ((x < radius_pix) || (x > iw-radius_pix-1) || 
-       (y < radius_pix) || (y > ih-radius_pix-1)) {
-      *mean = 0.0;
-      *stdev = 0.0;
-      return;
-      
-   }
-
-   /* Foreach row in neighborhood ... */
-   for(rows = y - radius_pix;
-       rows <= y + radius_pix;
-       rows++){
-      /* Foreach column in neighborhood ... */
-      for(cols = x - radius_pix;
-          cols <= x + radius_pix;
-          cols++){
-         /* Bump neighbor's pixel value bin in histogram. */
-         histogram[*(idata+(rows * iw)+cols)]++;
-      }
-   }
-
-   /* Foreach grayscale pixel bin ... */
-   for(i = 0; i < 256; i++){
-      if(histogram[i]){
-         /* Accumulate Sum(X[i]) */
-         sumX += (i * histogram[i]);
-         /* Accumulate Sum(X[i]^2) */
-         sumXX += (i * i * histogram[i]);
-         /* Accumulate N samples */
-         n += histogram[i];
-      }
-   }
-
-   /* Mean = Sum(X[i])/N */
-   *mean = sumX/(double)n;
-   /* Stdev = sqrt((Sum(X[i]^2)/N) - Mean^2) */
-   *stdev = sqrt((sumXX/(double)n) - ((*mean)*(*mean)));
-}
-
-/***********************************************************************
-************************************************************************
-#cat: reliability_fr_quality_map - Takes a set of minutiae and assigns
-#cat:              each one a reliability measure based on 1 of 5 possible
-#cat:              quality levels from its location in a quality map.
-
-   Input:
-      minutiae    - structure contining the detected minutia
-      quality_map - map with blocks assigned 1 of 5 quality levels
-      map_w       - width (in blocks) of the map
-      map_h       - height (in blocks) of the map
-      blocksize   - size (in pixels) of each block in the map
-   Output:
-      minutiae    - updated reliability members
-   Return Code:
-      Zero       - successful completion
-      Negative   - system error
-************************************************************************/
-int reliability_fr_quality_map(MINUTIAE *minutiae,
-                   int *quality_map, const int mw, const int mh,
-                   const int iw, const int ih, const int blocksize)
-{
-   int ret, i, index;
-   int *pquality_map;
-   MINUTIA *minutia;
-
-   /* Expand block map values to pixel map. */
-   if((ret = pixelize_map(&pquality_map, iw, ih,
-                         quality_map, mw, mh, blocksize))){
-      return(ret);
-   }
-
-   /* Foreach minutiae detected ... */
-   for(i = 0; i < minutiae->num; i++){
-      /* Assign minutia pointer. */
-      minutia = minutiae->list[i];
-      /* Compute minutia pixel index. */
-      index = (minutia->y * iw) + minutia->x;
-      /* Switch on pixel's quality value ... */
-      switch(pquality_map[index]){
-         case 0:
-            minutia->reliability = 0.0;
-            break;
-         case 1:
-            minutia->reliability = 0.25;
-            break;
-         case 2:
-            minutia->reliability = 0.50;
-            break;
-         case 3:
-            minutia->reliability = 0.75;
-            break;
-         case 4:
-            minutia->reliability = 0.99;
-            break;
-         /* Error if quality value not in range [0..4]. */
-         default:
-            fprintf(stderr, "ERROR : reliability_fr_quality_map :");
-            fprintf(stderr, "unexpected quality value %d ",
-                             pquality_map[index]);
-            fprintf(stderr, "not in range [0..4]\n");
-            return(-2);
-      }
-   }
-
-   /* Deallocate pixelized quality map. */
-   free(pquality_map);
-
-   /* Return normally. */
-   return(0);
-}

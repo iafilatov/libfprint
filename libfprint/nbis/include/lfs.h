@@ -721,12 +721,9 @@ extern int find_valid_block(int *, int *, int *, int *, int *,
                      const int, const int);
 extern void set_margin_blocks(int *, const int, const int, const int);
 
-/* chaincod.c */
-extern int chain_code_loop(int **, int *, const int *, const int *, const int);
-extern int is_chain_clockwise(const int *, const int, const int);
-
 /* contour.c */
-extern int allocate_contour(int **, int **, int **, int **, const int);
+int allocate_contour(int **ocontour_x, int **ocontour_y,
+                     int **ocontour_ex, int **ocontour_ey, const int ncontour);
 extern void free_contour(int *, int *, int *, int *);
 extern int get_high_curvature_contour(int **, int **, int **, int **, int *,
                      const int, const int, const int, const int, const int,
@@ -741,11 +738,6 @@ extern int trace_contour(int **, int **, int **, int **, int *,
 extern int search_contour(const int, const int, const int,
                      const int, const int, const int, const int, const int,
                      unsigned char *, const int, const int);
-extern int next_contour_pixel(int *, int *, int *, int *,
-                     const int, const int, const int, const int, const int,
-                     unsigned char *, const int, const int);
-extern int start_scan_nbr(const int, const int, const int, const int);
-extern int next_scan_nbr(const int, const int);
 extern int min_contour_theta(int *, double *, const int, const int *,
                      const int *, const int);
 extern void contour_limits(int *, int *, int *, int *, const int *,
@@ -754,11 +746,11 @@ extern void fix_edge_pixel_pair(int *, int *, int *, int *,
                      unsigned char *, const int, const int);
 
 /* detect.c */
-extern int lfs_detect_minutiae_V2(MINUTIAE **,
-                     int **, int **, int **, int **, int *, int *,
-                     unsigned char **, int *, int *,
-                     unsigned char *, const int, const int,
-                     const LFSPARMS *);
+extern int get_minutiae(MINUTIAE **, int **, int **, int **,
+                 int **, int **, int *, int *,
+                 unsigned char **, int *, int *, int *,
+                 unsigned char *, const int, const int,
+                 const int, const double, const LFSPARMS *);
 
 /* dft.c */
 extern int dft_dir_powers(double **, unsigned char *, const int,
@@ -772,13 +764,6 @@ extern void free_dir2rad(DIR2RAD *);
 extern void free_dftwaves(DFTWAVES *);
 extern void free_rotgrids(ROTGRIDS *);
 extern void free_dir_powers(double **, const int);
-
-/* getmin.c */
-extern int get_minutiae(MINUTIAE **, int **, int **, int **,
-                 int **, int **, int *, int *,
-                 unsigned char **, int *, int *, int *,
-                 unsigned char *, const int, const int,
-                 const int, const double, const LFSPARMS *);
 
 /* imgutil.c */
 extern void bits_6to8(unsigned char *, const int, const int);
@@ -804,32 +789,9 @@ extern int init_rotgrids(ROTGRIDS **, const int, const int, const int,
 extern int alloc_dir_powers(double ***, const int, const int);
 extern int alloc_power_stats(int **, double **, int **, double **, const int);
 
-/* isempty.c */
-extern int is_image_empty(int *, const int, const int);
-extern int is_qmap_empty(int *, const int, const int);
-
-
 /* line.c */
 extern int line_points(int **, int **, int *,
                      const int, const int, const int, const int);
-
-/* link.c */
-extern int link_minutiae(MINUTIAE *, unsigned char *, const int, const int,
-                     int *, const int, const int, const LFSPARMS *);
-extern int create_link_table(int **, int **, int **, int *, int *, int *,
-                     const int, const int, const MINUTIAE *, const int *,
-                     int *, const int, const int, unsigned char *,
-                     const int, const int, const LFSPARMS *);
-extern int update_link_table(int *, int *, int *, int *, int *, int *,
-                     const int, int *, int *, int *, int *,
-                     const int, const int, const int);
-extern int order_link_table(int *, int *, int *, const int, const int,
-                     const int, const int, const MINUTIAE *, const int);
-extern int process_link_table(const int *, const int *, const int *,
-                     const int, const int, const int, const int, MINUTIAE *,
-                     int *, unsigned char *, const int, const int,
-                     const LFSPARMS *);
-extern double link_score(const double, const double, const LFSPARMS *);
 
 /* loop.c */
 extern int get_loop_list(int **, MINUTIAE *, const int, unsigned char *,
@@ -1022,6 +984,8 @@ extern int adjust_high_curvature_minutia_V2(int *, int *, int *,
                      int *, MINUTIAE *, const LFSPARMS *);
 extern int get_low_curvature_direction(const int, const int, const int,
                      const int);
+void lfs2nist_minutia_XYT(int *ox, int *oy, int *ot,
+                          const MINUTIA *minutia, const int iw, const int ih);
 
 /* quality.c */
 extern int gen_quality_map(int **, int *, int *, int *, int *,
@@ -1029,12 +993,6 @@ extern int gen_quality_map(int **, int *, int *, int *, int *,
 extern int combined_minutia_quality(MINUTIAE *, int *, const int, const int,
                      const int, unsigned char *, const int, const int,
                      const int, const double);
-double grayscale_reliability(MINUTIA *, unsigned char *,
-                     const int, const int, const int);
-extern void get_neighborhood_stats(double *, double *, MINUTIA *,
-                     unsigned char *, const int, const int, const int);
-extern int reliability_fr_quality_map(MINUTIAE *, int *, const int,
-                     const int, const int, const int, const int);
 
 /* remove.c */
 extern int remove_false_minutia(MINUTIAE *,
@@ -1049,23 +1007,6 @@ extern int remove_false_minutia_V2(MINUTIAE *,
 extern int count_minutiae_ridges(MINUTIAE *,
                   unsigned char *, const int, const int,
                   const LFSPARMS *);
-extern int count_minutia_ridges(const int, MINUTIAE *,
-                  unsigned char *, const int, const int,
-                  const LFSPARMS *);
-extern int find_neighbors(int **, int *, const int, const int, MINUTIAE *);
-extern int update_nbr_dists(int *, double *, int *, const int,
-                  const int, const int, MINUTIAE *);
-extern int insert_neighbor(const int, const int, const double,
-                  int *, double *, int *, const int);
-extern int sort_neighbors(int *, const int, const int, MINUTIAE *);
-extern int ridge_count(const int, const int, MINUTIAE *,
-                  unsigned char *, const int, const int, const LFSPARMS *);
-extern int find_transition(int *, const int, const int,
-                  const int *, const int *, const int,
-                  unsigned char *, const int, const int);
-extern int validate_ridge_crossing(const int, const int,
-                  const int *, const int *, const int,
-                  unsigned char *, const int, const int, const int);
 
 /* shape.c */
 extern void free_shape(SHAPE *);
@@ -1093,12 +1034,6 @@ extern double angle2line(const int, const int, const int, const int);
 extern int line2direction(const int, const int, const int, const int,
                      const int);
 extern int closest_dir_dist(const int, const int, const int);
-
-/* xytreps.c */
-extern void lfs2nist_minutia_XYT(int *, int *, int *,
-                                const MINUTIA *, const int, const int);
-extern void lfs2m1_minutia_XYT(int *, int *, int *, const MINUTIA *);
-
 
 /*************************************************************************/
 /*        EXTERNAL GLOBAL VARIABLE DEFINITIONS                           */

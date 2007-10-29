@@ -27,3 +27,5 @@ upekts/thinkfinger relicensing (GPL --> LGPL)
 make library optionally asynchronous and maybe thread-safe
 pkg-config file
 nbis cleanups
+track open devices, so we can close them during libfprint close
+free memory during libfprint close
