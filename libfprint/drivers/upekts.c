@@ -148,7 +148,7 @@ static int send_cmd(struct fp_dev *dev, unsigned char seq_a,
 
 	/* Write header */
 	strncpy(buf, "Ciao", 4);
-	len = cpu_to_le16(len);
+	len = GUINT16_TO_LE(len);
 	buf[4] = seq_a;
 	buf[5] = seq_b | ((len & 0xf00) >> 8);
 	buf[6] = len & 0x00ff;
@@ -158,7 +158,7 @@ static int send_cmd(struct fp_dev *dev, unsigned char seq_a,
 		memcpy(buf + 7, data, len);
 
 	/* Append CRC */
-	crc = cpu_to_be16(udf_crc(buf + 4, urblen - 6));
+	crc = GUINT16_TO_BE(udf_crc(buf + 4, urblen - 6));
 	buf[urblen - 2] = crc >> 8;
 	buf[urblen - 1] = crc & 0xff;
 
@@ -187,7 +187,7 @@ static int send_cmd28(struct fp_dev *dev, unsigned char subcmd,
 
 	fp_dbg("seq=%02x subcmd=%02x with %d bytes of data", seq, subcmd, innerlen);
 
-	_innerlen = cpu_to_le16(innerlen + 3);
+	_innerlen = GUINT16_TO_LE(innerlen + 3);
 	buf[0] = 0x28;
 	buf[1] = _innerlen & 0x00ff;
 	buf[2] = (_innerlen & 0xff00) >> 8;
@@ -233,7 +233,7 @@ static unsigned char *__read_msg(struct fp_dev *dev, size_t *data_len)
 		goto err;
 	}
 
-	len = le16_to_cpu(((buf[5] & 0xf) << 8) | buf[6]);
+	len = GUINT16_FROM_LE(((buf[5] & 0xf) << 8) | buf[6]);
 
 	if (r != MSG_READ_BUF_SIZE && (len + 9) < r) {
 		/* Check that the length claimed inside the message is in line with
@@ -263,7 +263,7 @@ static unsigned char *__read_msg(struct fp_dev *dev, size_t *data_len)
 	}
 
 	computed_crc = udf_crc(buf + 4, len + 3);
-	msg_crc = le16_to_cpu((buf[len + 8] << 8) | buf[len + 7]);
+	msg_crc = GUINT16_FROM_LE((buf[len + 8] << 8) | buf[len + 7]);
 	if (computed_crc != msg_crc) {
 		fp_err("CRC failed, got %04x expected %04x", msg_crc, computed_crc);
 		goto err;
@@ -301,7 +301,7 @@ retry:
 
 	code_a = buf[4];
 	code_b = buf[5] & 0xf0;
-	len = le16_to_cpu(((buf[5] & 0xf) << 8) | buf[6]);
+	len = GUINT16_FROM_LE(((buf[5] & 0xf) << 8) | buf[6]);
 	fp_dbg("A=%02x B=%02x len=%d", code_a, code_b, len);
 
 	if (code_a && !code_b) {
@@ -346,7 +346,7 @@ retry:
 		}
 
 		innerlen = innerbuf[1] | (innerbuf[2] << 8);
-		innerlen = le16_to_cpu(innerlen) - 3;
+		innerlen = GUINT16_FROM_LE(innerlen) - 3;
 		_subcmd = innerbuf[5];
 		fp_dbg("device responds to subcmd %x with %d bytes", _subcmd, innerlen);
 		if (seq)

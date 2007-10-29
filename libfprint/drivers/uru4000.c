@@ -188,7 +188,7 @@ retry:
 		return -EIO;
 	}
 
-	type = be16_to_cpu(*((uint16_t *) buf));
+	type = GUINT16_FROM_BE(*((uint16_t *) buf));
 	fp_dbg("irq type %04x", type);
 
 	return 0;
@@ -212,7 +212,7 @@ static int get_irq_with_type(struct fp_img_dev *dev, uint16_t irqtype,
 		r = get_irq(dev, irqbuf, timeout);
 		if (r < 0)
 			return r;
-		hdr = be16_to_cpu(*((uint16_t *) irqbuf));
+		hdr = GUINT16_FROM_BE(*((uint16_t *) irqbuf));
 	} while (hdr != irqtype);
 
 	if (discarded > 0)

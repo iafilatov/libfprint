@@ -21,21 +21,10 @@
 #define __FPRINT_INTERNAL_H__
 
 #include <config.h>
-
 #include <stdint.h>
 
 #include <glib.h>
 #include <usb.h>
-
-#ifdef __DARWIN_NULL
-/* Darwin does endianness slightly differently */
-#include <machine/endian.h>
-#define __BYTE_ORDER BYTE_ORDER
-#define __LITTLE_ENDIAN LITTLE_ENDIAN
-#define __BIG_ENDIAN BIG_ENDIAN
-#else /* Linux */
-#include <endian.h>
-#endif
 
 #include <fprint.h>
 
@@ -200,21 +189,6 @@ int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
 	struct fp_print_data **ret);
 int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	struct fp_print_data *new_print);
-
-#define bswap16(x) (((x & 0xff) << 8) | (x >> 8))
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define cpu_to_le16(x) (x)
-#define le16_to_cpu(x) (x)
-#define cpu_to_be16(x) bswap16(x)
-#define be16_to_cpu(x) bswap16(x)
-#elif __BYTE_ORDER == __BIG_ENDIAN
-#define cpu_to_le16(x) bswap16(x)
-#define le16_to_cpu(x) bswap16(x)
-#define cpu_to_be16(x) (x)
-#define be16_to_cpu(x) (x)
-#else
-#error "Unrecognized endianness"
-#endif
 
 #endif
 
