@@ -45,6 +45,12 @@ enum fp_finger {
 struct fp_dscv_dev **fp_discover_devs(void);
 void fp_dscv_devs_free(struct fp_dscv_dev **devs);
 struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev);
+uint32_t fp_dscv_dev_get_devtype(struct fp_dscv_dev *dev);
+
+static inline uint16_t fp_dscv_dev_get_driver_id(struct fp_dscv_dev *dev)
+{
+	return fp_driver_get_driver_id(fp_dscv_dev_get_driver(dev));
+}
 
 /* Device handling */
 struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev);
@@ -52,10 +58,12 @@ void fp_dev_close(struct fp_dev *dev);
 struct fp_driver *fp_dev_get_driver(struct fp_dev *dev);
 int fp_dev_get_nr_enroll_stages(struct fp_dev *dev);
 struct fp_img_dev *fp_dev_to_img_dev(struct fp_dev *dev);
+uint32_t fp_dev_get_devtype(struct fp_dev *dev);
 
 /* Drivers */
 const char *fp_driver_get_name(struct fp_driver *drv);
 const char *fp_driver_get_full_name(struct fp_driver *drv);
+uint16_t fp_driver_get_driver_id(struct fp_driver *drv);
 
 /* Enrollment */
 enum fp_enroll_result {
@@ -90,6 +98,8 @@ void fp_print_data_free(struct fp_print_data *data);
 size_t fp_print_data_get_data(struct fp_print_data *data, unsigned char **ret);
 struct fp_print_data *fp_print_data_from_data(unsigned char *buf,
 	size_t buflen);
+uint16_t fp_print_data_get_driver_id(struct fp_print_data *data);
+uint32_t fp_print_data_get_devtype(struct fp_print_data *data);
 
 /* Imaging devices */
 int fp_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,

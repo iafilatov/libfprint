@@ -306,3 +306,12 @@ API_EXPORTED void fp_print_data_free(struct fp_print_data *data)
 	g_free(data);
 }
 
+API_EXPORTED uint16_t fp_print_data_get_driver_id(struct fp_print_data *data)
+{
+	return data->driver_id;
+}
+
+API_EXPORTED uint32_t fp_print_data_get_devtype(struct fp_print_data *data)
+{
+	return data->devtype;
+}

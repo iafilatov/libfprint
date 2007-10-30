@@ -207,6 +207,11 @@ API_EXPORTED struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev)
 	return dev->drv;
 }
 
+API_EXPORTED uint32_t fp_dscv_dev_get_devtype(struct fp_dscv_dev *dev)
+{
+	return dev->devtype;
+}
+
 API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 {
 	struct fp_dev *dev;
@@ -257,6 +262,11 @@ API_EXPORTED int fp_dev_get_nr_enroll_stages(struct fp_dev *dev)
 	return dev->nr_enroll_stages;
 }
 
+API_EXPORTED uint32_t fp_dev_get_devtype(struct fp_dev *dev)
+{
+	return dev->devtype;
+}
+
 API_EXPORTED const char *fp_driver_get_name(struct fp_driver *drv)
 {
 	return drv->name;
@@ -265,6 +275,11 @@ API_EXPORTED const char *fp_driver_get_name(struct fp_driver *drv)
 API_EXPORTED const char *fp_driver_get_full_name(struct fp_driver *drv)
 {
 	return drv->full_name;
+}
+
+API_EXPORTED uint16_t fp_driver_get_driver_id(struct fp_driver *drv)
+{
+	return drv->id;
 }
 
 API_EXPORTED struct fp_img_dev *fp_dev_to_img_dev(struct fp_dev *dev)
