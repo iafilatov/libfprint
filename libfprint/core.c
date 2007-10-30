@@ -121,6 +121,32 @@ static struct fp_driver *find_supporting_driver(struct usb_device *udev,
 	return NULL;
 }
 
+static struct fp_dscv_dev *discover_dev(struct usb_device *udev)
+{
+	struct usb_id *usb_id;
+	struct fp_driver *drv = find_supporting_driver(udev, &usb_id);
+	struct fp_dscv_dev *ddev;
+	uint32_t devtype = 0;
+
+	if (!drv)
+		return NULL;
+
+	if (drv->discover) {
+		int r = drv->discover(usb_id, &devtype);
+		if (r < 0)
+			fp_err("%s discover failed, code %d", drv->name, r);
+		if (r <= 0)
+			return NULL;
+	}
+
+	ddev = g_malloc0(sizeof(*ddev));
+	ddev->drv = drv;
+	ddev->udev = udev;
+	ddev->driver_data = usb_id->driver_data;
+	ddev->devtype = devtype;
+	return ddev;
+}
+
 API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 {
 	GList *tmplist = NULL;
@@ -142,15 +168,9 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 	 * sets of drivers against small sets of USB devices */
 	for (bus = usb_get_busses(); bus; bus = bus->next)
 		for (udev = bus->devices; udev; udev = udev->next) {
-			unsigned long driver_data;
-			struct fp_driver *drv = find_supporting_driver(udev, &driver_data);
-			struct fp_dscv_dev *ddev;
-			if (!drv)
+			struct fp_dscv_dev *ddev = discover_dev(udev);
+			if (!ddev)
 				continue;
-			ddev = g_malloc0(sizeof(*ddev));
-			ddev->drv = drv;
-			ddev->udev = udev;
-			ddev->driver_data = driver_data;
 			tmplist = g_list_prepend(tmplist, (gpointer) ddev);
 			dscv_count++;
 		}

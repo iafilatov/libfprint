@@ -103,6 +103,7 @@ struct fp_driver {
 	void *priv;
 
 	/* Device operations */
+	int (*discover)(struct usb_id *usb_id, uint32_t *devtype);
 	int (*init)(struct fp_dev *dev, unsigned long driver_data);
 	void (*exit)(struct fp_dev *dev);
 	int (*enroll)(struct fp_dev *dev, gboolean initial, int stage,
@@ -141,6 +142,7 @@ struct fp_dscv_dev {
 	struct usb_device *udev;
 	struct fp_driver *drv;
 	unsigned long driver_data;
+	uint32_t devtype;
 };
 
 enum fp_print_data_type {
