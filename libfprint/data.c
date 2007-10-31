@@ -48,36 +48,27 @@ static void storage_setup(void)
 	/* FIXME handle failure */
 }
 
-static const char *finger_code_to_str(enum fp_finger finger)
+#define FP_FINGER_IS_VALID(finger) \
+	((finger) >= LEFT_THUMB && (finger) <= RIGHT_LITTLE)
+
+/* for debug messages only */
+static const char *finger_num_to_str(enum fp_finger finger)
 {
 	const char *names[] = {
-		[LEFT_THUMB] = "lthu",
-		[LEFT_INDEX] = "lind",
-		[LEFT_MIDDLE] = "lmid",
-		[LEFT_RING] = "lrin",
-		[LEFT_LITTLE] = "llit",
-		[RIGHT_THUMB] = "rthu",
-		[RIGHT_INDEX] = "rind",
-		[RIGHT_MIDDLE] = "rmid",
-		[RIGHT_RING] = "rrin",
-		[RIGHT_LITTLE] = "rlit",
+		[LEFT_THUMB] = "left thumb",
+		[LEFT_INDEX] = "left index",
+		[LEFT_MIDDLE] = "left middle",
+		[LEFT_RING] = "left ring",
+		[LEFT_LITTLE] = "left little",
+		[RIGHT_THUMB] = "right thumb",
+		[RIGHT_INDEX] = "right index",
+		[RIGHT_MIDDLE] = "right middle",
+		[RIGHT_RING] = "right ring",
+		[RIGHT_LITTLE] = "right little",
 	};
-	if (finger < LEFT_THUMB || finger > RIGHT_LITTLE)
-		return NULL;
+	if (!FP_FINGER_IS_VALID(finger))
+		return "UNKNOWN";
 	return names[finger];
-}
-
-static enum fp_print_data_type get_data_type_for_dev(struct fp_dev *dev)
-{
-	switch (dev->drv->type) {
-	case DRIVER_PRIMITIVE:
-		return PRINT_DATA_RAW;
-	case DRIVER_IMAGING:
-		return PRINT_DATA_NBIS_MINUTIAE;
-	default:
-		fp_err("unrecognised drv type %d", dev->drv->type);
-		return PRINT_DATA_RAW;
-	}
 }
 
 static struct fp_print_data *print_data_new(uint16_t driver_id,
@@ -98,7 +89,7 @@ struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length)
 	struct fp_print_data *data = g_malloc(sizeof(*data) + length);
 	memset(data, 0, sizeof(*data));
 	return print_data_new(dev->drv->id, dev->devtype,
-		get_data_type_for_dev(dev), length);
+		fpi_driver_get_data_type(dev->drv), length);
 }
 
 API_EXPORTED size_t fp_print_data_get_data(struct fp_print_data *data,
@@ -148,7 +139,7 @@ API_EXPORTED struct fp_print_data *fp_print_data_from_data(unsigned char *buf,
 	return data;
 }
 
-static char *__get_path_to_storedir(uint16_t driver_id, uint32_t devtype)
+static char *get_path_to_storedir(uint16_t driver_id, uint32_t devtype)
 {
 	char idstr[5];
 	char devtypestr[9];
@@ -159,20 +150,24 @@ static char *__get_path_to_storedir(uint16_t driver_id, uint32_t devtype)
 	return g_build_filename(base_store, idstr, devtypestr, NULL);
 }
 
-static char *get_path_to_storedir(struct fp_dev *dev)
-{
-	return __get_path_to_storedir(dev->drv->id, dev->devtype);
-}
-
-static char *get_path_to_print(struct fp_dev *dev, const char *fingerstr)
+static char *__get_path_to_print(uint16_t driver_id, uint32_t devtype,
+	enum fp_finger finger)
 {
 	char *dirpath;
 	char *path;
+	char fingername[2];
 
-	dirpath = get_path_to_storedir(dev);
-	path = g_build_filename(dirpath, fingerstr, NULL);
+	g_snprintf(fingername, 2, "%x", finger);
+
+	dirpath = get_path_to_storedir(driver_id, devtype);
+	path = g_build_filename(dirpath, fingername, NULL);
 	g_free(dirpath);
 	return path;
+}
+
+static char *get_path_to_print(struct fp_dev *dev, enum fp_finger finger)
+{
+	return __get_path_to_print(dev->drv->id, dev->devtype, finger);
 }
 
 API_EXPORTED int fp_print_data_save(struct fp_print_data *data,
@@ -181,31 +176,29 @@ API_EXPORTED int fp_print_data_save(struct fp_print_data *data,
 	GError *err = NULL;
 	char *path;
 	char *dirpath;
-	const char *fingerstr = finger_code_to_str(finger);
 	unsigned char *buf;
 	size_t len;
 	int r;
 
-	if (!fingerstr)
-		return -EINVAL;
-
 	if (!base_store)
 		storage_setup();
 
-	fp_dbg("save %s print from driver %04x", fingerstr, data->driver_id);
+	fp_dbg("save %s print from driver %04x", finger_num_to_str(finger),
+		data->driver_id);
 	len = fp_print_data_get_data(data, &buf);
 	if (!len)
 		return -ENOMEM;
 
-	dirpath = __get_path_to_storedir(data->driver_id, data->devtype);
+	path = __get_path_to_print(data->driver_id, data->devtype, finger);
+	dirpath = g_path_get_dirname(path);
 	r = g_mkdir_with_parents(dirpath, DIR_PERMS);
 	if (r < 0) {
 		fp_err("couldn't create storage directory");
+		g_free(path);
 		g_free(dirpath);
 		return r;
 	}
 
-	path = g_build_filename(dirpath, fingerstr, NULL);
 	fp_dbg("saving to %s", path);
 	g_file_set_contents(path, buf, len, &err);
 	free(buf);
@@ -213,7 +206,7 @@ API_EXPORTED int fp_print_data_save(struct fp_print_data *data,
 	g_free(path);
 	if (err) {
 		r = err->code;
-		fp_err("%s save failed: %s", fingerstr, err->message);
+		fp_err("save failed: %s", err->message);
 		g_error_free(err);
 		/* FIXME interpret error codes */
 		return r;
@@ -222,65 +215,39 @@ API_EXPORTED int fp_print_data_save(struct fp_print_data *data,
 	return 0;
 }
 
-gboolean fpi_print_data_compatible(struct fp_print_data *data,
-	struct fp_dev *dev)
+gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
+	enum fp_print_data_type type1, uint16_t driver_id2, uint32_t devtype2,
+	enum fp_print_data_type type2)
 {
-	struct fp_driver *drv = dev->drv;
-
-	if (drv->id != data->driver_id) {
-		fp_dbg("driver name mismatch: %02x vs %02x", drv->id, data->driver_id);
+	if (driver_id1 != driver_id2) {
+		fp_dbg("driver ID mismatch: %02x vs %02x", driver_id1, driver_id2);
 		return FALSE;
 	}
 
-	if (dev->devtype != data->devtype) {
-		fp_dbg("devtype mismatch: %04x vs %04x", dev->devtype, data->devtype);
+	if (devtype1 != devtype2) {
+		fp_dbg("devtype mismatch: %04x vs %04x", devtype1, devtype2);
 		return FALSE;
 	}
 
-	switch (data->type) {
-	case PRINT_DATA_RAW:
-		if (drv->type != DRIVER_PRIMITIVE) {
-			fp_dbg("raw data vs primitive driver mismatch");
-			return FALSE;
-		}
-		break;
-	case PRINT_DATA_NBIS_MINUTIAE:
-		if (drv->type != DRIVER_IMAGING) {
-			fp_dbg("minutiae data vs imaging driver mismatch");
-			return FALSE;
-		}
-		break;
-	default:
-		fp_err("unrecognised data type %d", data->type);
+	if (type1 != type2) {
+		fp_dbg("type mismatch: %d vs %d", type1, type2);
 		return FALSE;
 	}
 
 	return TRUE;
 }
 
-API_EXPORTED int fp_print_data_load(struct fp_dev *dev,
-	enum fp_finger finger, struct fp_print_data **data)
+static int load_from_file(char *path, struct fp_print_data **data)
 {
-	const char *fingerstr = finger_code_to_str(finger);
-	gchar *path;
 	gsize length;
 	gchar *contents;
 	GError *err = NULL;
-	struct fp_print_data *fdata;
 
-	if (!fingerstr)
-		return -EINVAL;
-
-	if (!base_store)
-		storage_setup();
-
-	path = get_path_to_print(dev, fingerstr);
 	fp_dbg("from %s", path);
 	g_file_get_contents(path, &contents, &length, &err);
-	g_free(path);
 	if (err) {
 		int r = err->code;
-		fp_err("%s load failed: %s", fingerstr, err->message);
+		fp_err("%s load failed: %s", path, err->message);
 		g_error_free(err);
 		/* FIXME interpret more error codes */
 		if (r == G_FILE_ERROR_NOENT)
@@ -289,16 +256,41 @@ API_EXPORTED int fp_print_data_load(struct fp_dev *dev,
 			return r;
 	}
 
-	fdata = fp_print_data_from_data(contents, length);
+	*data = fp_print_data_from_data(contents, length);
 	g_free(contents);
+	return 0;
+}
 
-	if (!fpi_print_data_compatible(fdata, dev)) {
+API_EXPORTED int fp_print_data_load(struct fp_dev *dev,
+	enum fp_finger finger, struct fp_print_data **data)
+{
+	gchar *path;
+	struct fp_print_data *fdata;
+	int r;
+
+	if (!base_store)
+		storage_setup();
+
+	path = get_path_to_print(dev, finger);
+	r = load_from_file(path, &fdata);
+	g_free(path);
+	if (r)
+		return r;
+
+	if (!fp_dev_supports_print_data(dev, fdata)) {
 		fp_err("print data is not compatible!");
+		fp_print_data_free(fdata);
 		return -EINVAL;
 	}
 
 	*data = fdata;
 	return 0;
+}
+
+API_EXPORTED int fp_print_data_from_dscv_print(struct fp_dscv_print *print,
+	struct fp_print_data **data)
+{
+	return load_from_file(print->path, data);
 }
 
 API_EXPORTED void fp_print_data_free(struct fp_print_data *data)
@@ -314,4 +306,171 @@ API_EXPORTED uint16_t fp_print_data_get_driver_id(struct fp_print_data *data)
 API_EXPORTED uint32_t fp_print_data_get_devtype(struct fp_print_data *data)
 {
 	return data->devtype;
+}
+
+static GSList *scan_dev_store_dir(char *devpath, uint16_t driver_id,
+	uint32_t devtype, GSList *list)
+{
+	GError *err = NULL;
+	const gchar *ent;
+	struct fp_dscv_print *print;
+
+	GDir *dir = g_dir_open(devpath, 0, &err);
+	if (!dir) {
+		fp_err("opendir %s failed: %s", devpath, err->message);
+		g_error_free(err);
+		return list;
+	}
+
+	while (ent = g_dir_read_name(dir)) {
+		/* ent is an 1 hex character fp_finger code */
+		guint64 val;
+		enum fp_finger finger;
+		gchar *endptr;
+
+		if (*ent == 0 || strlen(ent) != 1)
+			continue;
+
+		val = g_ascii_strtoull(ent, &endptr, 16);
+		if (endptr == ent || !FP_FINGER_IS_VALID(val)) {
+			fp_dbg("skipping print file %s", ent);
+			continue;
+		}
+
+		finger = (enum fp_finger) val;
+		print = g_malloc(sizeof(*print));
+		print->driver_id = driver_id;
+		print->devtype = devtype;
+		print->path = g_build_filename(devpath, ent, NULL);
+		print->finger = finger;
+		list = g_slist_prepend(list, print);
+	}
+
+	g_dir_close(dir);
+	return list;
+}
+
+static GSList *scan_driver_store_dir(char *drvpath, uint16_t driver_id,
+	GSList *list)
+{
+	GError *err = NULL;
+	const gchar *ent;
+
+	GDir *dir = g_dir_open(drvpath, 0, &err);
+	if (!dir) {
+		fp_err("opendir %s failed: %s", drvpath, err->message);
+		g_error_free(err);
+		return list;
+	}
+
+	while (ent = g_dir_read_name(dir)) {
+		/* ent is an 8 hex character devtype */
+		guint64 val;
+		uint32_t devtype;
+		gchar *endptr;
+		gchar *path;
+
+		if (*ent == 0 || strlen(ent) != 8)
+			continue;
+
+		val = g_ascii_strtoull(ent, &endptr, 16);
+		if (endptr == ent) {
+			fp_dbg("skipping devtype %s", ent);
+			continue;
+		}
+
+		devtype = (uint32_t) val;
+		path = g_build_filename(drvpath, ent, NULL);
+		list = scan_dev_store_dir(path, driver_id, devtype, list);
+		g_free(path);
+	}
+
+	g_dir_close(dir);
+	return list;
+}
+
+API_EXPORTED struct fp_dscv_print **fp_discover_prints(void)
+{
+	GDir *dir;
+	const gchar *ent;
+	GError *err = NULL;
+	GSList *tmplist = NULL;
+	GSList *elem;
+	unsigned int tmplist_len;
+	struct fp_dscv_print **list;
+	unsigned int i;
+
+	if (!base_store)
+		storage_setup();
+
+	dir = g_dir_open(base_store, 0, &err);
+	if (!dir) {
+		fp_err("opendir %s failed: %s", base_store, err->message);
+		g_error_free(err);
+		return NULL;
+	}
+
+	while (ent = g_dir_read_name(dir)) {
+		/* ent is a 4 hex digit driver_id */
+		gchar *endptr;
+		gchar *path;
+		guint64 val;
+		uint16_t driver_id;
+
+		if (*ent == 0 || strlen(ent) != 4)
+			continue;
+
+		val = g_ascii_strtoull(ent, &endptr, 16);
+		if (endptr == ent) {
+			fp_dbg("skipping drv id %s", ent);
+			continue;
+		}
+
+		driver_id = (uint16_t) val;
+		path = g_build_filename(base_store, ent, NULL);
+		tmplist = scan_driver_store_dir(path, driver_id, tmplist);
+		g_free(path);
+	}
+
+	g_dir_close(dir);
+	tmplist_len = g_slist_length(tmplist);
+	list = g_malloc(sizeof(*list) * (tmplist_len + 1));
+	elem = tmplist;
+	for (i = 0; i < tmplist_len; i++, elem = g_slist_next(elem))
+		list[i] = elem->data;
+	list[tmplist_len] = NULL; /* NULL-terminate */
+
+	g_slist_free(tmplist);
+	return list;
+}
+
+API_EXPORTED void fp_dscv_prints_free(struct fp_dscv_print **prints)
+{
+	int i;
+	struct fp_dscv_print *print;
+
+	if (!prints)
+		return;
+
+	for (i = 0; print = prints[i]; i++) {
+		if (print)
+			g_free(print->path);
+		g_free(print);
+	}
+	g_free(prints);
+}
+
+API_EXPORTED uint16_t fp_dscv_print_get_driver_id(struct fp_dscv_print *print)
+{
+	return print->driver_id;
+}
+
+API_EXPORTED uint32_t fp_dscv_print_get_devtype(struct fp_dscv_print *print)
+{
+	return print->devtype;
+}
+
+API_EXPORTED enum fp_finger fp_dscv_print_get_finger(struct fp_dscv_print *print)
+{
+	return print->finger;
 }

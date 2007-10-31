@@ -20,8 +20,11 @@
 #ifndef __FPRINT_H__
 #define __FPRINT_H__
 
+#include <stdint.h>
+
 /* structs that applications are not allowed to peek into */
 struct fp_dscv_dev;
+struct fp_dscv_print;
 struct fp_dev;
 struct fp_driver;
 struct fp_print_data;
@@ -41,16 +44,36 @@ enum fp_finger {
 	RIGHT_LITTLE,
 };
 
+/* Drivers */
+const char *fp_driver_get_name(struct fp_driver *drv);
+const char *fp_driver_get_full_name(struct fp_driver *drv);
+uint16_t fp_driver_get_driver_id(struct fp_driver *drv);
+
 /* Device discovery */
 struct fp_dscv_dev **fp_discover_devs(void);
 void fp_dscv_devs_free(struct fp_dscv_dev **devs);
 struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev);
 uint32_t fp_dscv_dev_get_devtype(struct fp_dscv_dev *dev);
+int fp_dscv_dev_supports_print_data(struct fp_dscv_dev *dev,
+	struct fp_print_data *print);
+int fp_dscv_dev_supports_dscv_print(struct fp_dscv_dev *dev,
+	struct fp_dscv_print *print);
+struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev **devs,
+	struct fp_print_data *print);
+struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev **devs,
+	struct fp_dscv_print *print);
 
 static inline uint16_t fp_dscv_dev_get_driver_id(struct fp_dscv_dev *dev)
 {
 	return fp_driver_get_driver_id(fp_dscv_dev_get_driver(dev));
 }
+
+/* Print discovery */
+struct fp_dscv_print **fp_discover_prints(void);
+void fp_dscv_prints_free(struct fp_dscv_print **prints);
+uint16_t fp_dscv_print_get_driver_id(struct fp_dscv_print *print);
+uint32_t fp_dscv_print_get_devtype(struct fp_dscv_print *print);
+enum fp_finger fp_dscv_print_get_finger(struct fp_dscv_print *print);
 
 /* Device handling */
 struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev);
@@ -59,11 +82,8 @@ struct fp_driver *fp_dev_get_driver(struct fp_dev *dev);
 int fp_dev_get_nr_enroll_stages(struct fp_dev *dev);
 struct fp_img_dev *fp_dev_to_img_dev(struct fp_dev *dev);
 uint32_t fp_dev_get_devtype(struct fp_dev *dev);
-
-/* Drivers */
-const char *fp_driver_get_name(struct fp_driver *drv);
-const char *fp_driver_get_full_name(struct fp_driver *drv);
-uint16_t fp_driver_get_driver_id(struct fp_driver *drv);
+int fp_dev_supports_print_data(struct fp_dev *dev, struct fp_print_data *data);
+int fp_dev_supports_dscv_print(struct fp_dev *dev, struct fp_dscv_print *print);
 
 /* Enrollment */
 enum fp_enroll_result {
@@ -92,6 +112,8 @@ int fp_verify_finger(struct fp_dev *dev, struct fp_print_data *enrolled_print);
 
 /* Data handling */
 int fp_print_data_load(struct fp_dev *dev, enum fp_finger finger,
+	struct fp_print_data **data);
+int fp_print_data_from_dscv_print(struct fp_dscv_print *print,
 	struct fp_print_data **data);
 int fp_print_data_save(struct fp_print_data *data, enum fp_finger finger);
 void fp_print_data_free(struct fp_print_data *data);

@@ -103,13 +103,15 @@ struct fp_driver {
 	void *priv;
 
 	/* Device operations */
-	int (*discover)(struct usb_id *usb_id, uint32_t *devtype);
+	int (*discover)(const struct usb_id *usb_id, uint32_t *devtype);
 	int (*init)(struct fp_dev *dev, unsigned long driver_data);
 	void (*exit)(struct fp_dev *dev);
 	int (*enroll)(struct fp_dev *dev, gboolean initial, int stage,
 		struct fp_print_data **print_data);
 	int (*verify)(struct fp_dev *dev, struct fp_print_data *data);
 };
+
+enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv);
 
 /* flags for fp_img_driver.flags */
 #define FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE (1 << 0)
@@ -145,6 +147,13 @@ struct fp_dscv_dev {
 	uint32_t devtype;
 };
 
+struct fp_dscv_print {
+	uint16_t driver_id;
+	uint32_t devtype;
+	enum fp_finger finger;
+	char *path;
+};
+
 enum fp_print_data_type {
 	PRINT_DATA_RAW = 0, /* memset-imposed default */
 	PRINT_DATA_NBIS_MINUTIAE,
@@ -167,8 +176,9 @@ struct fpi_print_data_fp1 {
 } __attribute__((__packed__));
 
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length);
-gboolean fpi_print_data_compatible(struct fp_print_data *data,
-	struct fp_dev *dev);
+gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
+	enum fp_print_data_type type1, uint16_t driver_id2, uint32_t devtype2,
+	enum fp_print_data_type type2);
 
 /* bit values for fp_img.flags */
 #define FP_IMG_V_FLIPPED 		(1<<0)

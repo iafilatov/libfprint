@@ -101,7 +101,7 @@ static void register_drivers(void)
 }
 
 static struct fp_driver *find_supporting_driver(struct usb_device *udev,
-	unsigned long *driver_data)
+	const struct usb_id **usb_id)
 {
 	GList *elem = registered_drivers;
 	
@@ -114,7 +114,7 @@ static struct fp_driver *find_supporting_driver(struct usb_device *udev,
 					udev->descriptor.idProduct == id->product) {
 				fp_dbg("driver %s supports USB device %04x:%04x",
 					drv->name, id->vendor, id->product);
-				*driver_data = id->driver_data;
+				*usb_id = id;
 				return drv;
 			}
 	} while (elem = g_list_next(elem));
@@ -123,7 +123,7 @@ static struct fp_driver *find_supporting_driver(struct usb_device *udev,
 
 static struct fp_dscv_dev *discover_dev(struct usb_device *udev)
 {
-	struct usb_id *usb_id;
+	const struct usb_id *usb_id;
 	struct fp_driver *drv = find_supporting_driver(udev, &usb_id);
 	struct fp_dscv_dev *ddev;
 	uint32_t devtype = 0;
@@ -212,6 +212,58 @@ API_EXPORTED uint32_t fp_dscv_dev_get_devtype(struct fp_dscv_dev *dev)
 	return dev->devtype;
 }
 
+enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv)
+{
+	switch (drv->type) {
+	case DRIVER_PRIMITIVE:
+		return PRINT_DATA_RAW;
+	case DRIVER_IMAGING:
+		return PRINT_DATA_NBIS_MINUTIAE;
+	default:
+		fp_err("unrecognised drv type %d", drv->type);
+		return PRINT_DATA_RAW;
+	}
+}
+
+API_EXPORTED int fp_dscv_dev_supports_print_data(struct fp_dscv_dev *dev,
+	struct fp_print_data *data)
+{
+	return fpi_print_data_compatible(dev->drv->id, dev->devtype,
+		fpi_driver_get_data_type(dev->drv), data->driver_id, data->devtype,
+		data->type);
+}
+
+API_EXPORTED int fp_dscv_dev_supports_dscv_print(struct fp_dscv_dev *dev,
+	struct fp_dscv_print *data)
+{
+	return fpi_print_data_compatible(dev->drv->id, dev->devtype, 0,
+		data->driver_id, data->devtype, 0);
+}
+
+API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev **devs,
+	struct fp_print_data *data)
+{
+	struct fp_dscv_dev *ddev;
+	int i;
+
+	for (i = 0; ddev = devs[i]; i++)
+		if (fp_dscv_dev_supports_print_data(ddev, data))
+			return ddev;
+	return NULL;
+}
+
+API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev **devs,
+	struct fp_dscv_print *print)
+{
+	struct fp_dscv_dev *ddev;
+	int i;
+
+	for (i = 0; ddev = devs[i]; i++)
+		if (fp_dscv_dev_supports_dscv_print(ddev, print))
+			return ddev;
+	return NULL;
+}
+
 API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 {
 	struct fp_dev *dev;
@@ -265,6 +317,21 @@ API_EXPORTED int fp_dev_get_nr_enroll_stages(struct fp_dev *dev)
 API_EXPORTED uint32_t fp_dev_get_devtype(struct fp_dev *dev)
 {
 	return dev->devtype;
+}
+
+API_EXPORTED int fp_dev_supports_print_data(struct fp_dev *dev,
+	struct fp_print_data *data)
+{
+	return fpi_print_data_compatible(dev->drv->id, dev->devtype,
+		fpi_driver_get_data_type(dev->drv), data->driver_id, data->devtype,
+		data->type);
+}
+
+API_EXPORTED int fp_dev_supports_dscv_print(struct fp_dev *dev,
+	struct fp_dscv_print *data)
+{
+	return fpi_print_data_compatible(dev->drv->id, dev->devtype,
+		0, data->driver_id, data->devtype, 0);
 }
 
 API_EXPORTED const char *fp_driver_get_name(struct fp_driver *drv)
@@ -372,7 +439,7 @@ API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
 		return -EINVAL;
 	}
 
-	if (!fpi_print_data_compatible(enrolled_print, dev)) {
+	if (!fp_dev_supports_print_data(dev, enrolled_print)) {
 		fp_err("print is not compatible with device");
 		return -EINVAL;
 	}
