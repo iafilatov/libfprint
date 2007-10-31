@@ -44,6 +44,7 @@ enum {
 	IRQDATA_SCANPWR_ON = 0x56aa,
 	IRQDATA_FINGER_ON = 0x0101,
 	IRQDATA_FINGER_OFF = 0x0200,
+	IRQDATA_DEATH = 0x0800,
 };
 
 enum {
@@ -99,6 +100,31 @@ static const struct uru4k_dev_profile {
 struct uru4k_dev {
 	uint8_t interface;
 };
+
+/*
+ * HWSTAT
+ *
+ * This register has caused me a lot of headaches. It pretty much defines
+ * code flow, and if you don't get it right, the pretty lights don't come on.
+ * I think the situation is somewhat complicated by the fact that writing it
+ * doesn't affect the read results in the way you'd expect -- but then again
+ * it does have some obvious effects. Here's what we know
+ *
+ * BIT 7: LOW POWER MODE
+ * When this bit is set, the device is partially turned off or something. Some
+ * things, like firmware upload, need to be done in this state. But generally
+ * we want to clear this bit during late initialization, which can sometimes
+ * be tricky.
+ *
+ * BIT 2: SOMETHING WENT WRONG
+ * Not sure about this, but see the init function, as when we detect it,
+ * we reboot the device. Well, we mess with hwstat until this evil bit gets
+ * cleared.
+ *
+ * BIT 1: IRQ PENDING
+ * Just had a brainwave. This bit is set when the device is trying to deliver
+ * and interrupt to the host. Maybe?
+ */
 
 static int get_hwstat(struct fp_img_dev *dev, unsigned char *data)
 {
@@ -191,56 +217,86 @@ retry:
 	type = GUINT16_FROM_BE(*((uint16_t *) buf));
 	fp_dbg("irq type %04x", type);
 
+	/* The 0800 interrupt seems to indicate imminent failure (0 bytes transfer)
+	 * of the next scan. I think I've stopped it from coming up, not sure
+	 * though! */
+	if (type == IRQDATA_DEATH)
+		fp_warn("oh no! got the interrupt OF DEATH! expect things to go bad");
+
 	return 0;
 }
 
-static int get_irq_with_type(struct fp_img_dev *dev, uint16_t irqtype,
-	int timeout)
+enum get_irq_status {
+	GET_IRQ_SUCCESS = 0,
+	GET_IRQ_OVERFLOW = 1,
+};
+
+static int get_irq_with_type(struct fp_img_dev *dev,
+	uint16_t irqtype, int timeout)
 {
 	uint16_t hdr;
-	int discarded = -1;
+	int discarded = 0;
 	unsigned char irqbuf[IRQ_LENGTH];
 
 	fp_dbg("type=%04x", irqtype);
 
-	/* Sometimes we get an interrupt from a previous 'session' indicating
-	 * finger-on-sensor, we ignore this and wait for the real interrupt */
 	do {
-		int r;
-		discarded++;
-
-		r = get_irq(dev, irqbuf, timeout);
+		int r = get_irq(dev, irqbuf, timeout);
 		if (r < 0)
 			return r;
+
 		hdr = GUINT16_FROM_BE(*((uint16_t *) irqbuf));
-	} while (hdr != irqtype);
+		if (hdr == irqtype)
+			break;
+		discarded++;
+	} while (discarded < 3);
 
 	if (discarded > 0)
 		fp_dbg("discarded %d interrupts", discarded);
 
-	return 0;
+	if (hdr == irqtype) {
+		return GET_IRQ_SUCCESS;
+	} else {
+		/* I've seen several cases where we're waiting for the 56aa powerup
+		 * interrupt, but instead we just get three 0200 interrupts and then
+		 * nothing. My theory is that the device can only queue 3 interrupts,
+		 * or something. So, if we discard 3, ask the caller to retry whatever
+		 * it was doing. */
+		fp_dbg("possible IRQ overflow detected!");
+		return GET_IRQ_OVERFLOW;
+	}
 }
 
 static int await_finger_on(struct fp_img_dev *dev)
 {
 	int r;
 
+retry:
 	r = set_mode(dev, MODE_AWAIT_FINGER_ON);
 	if (r < 0)
 		return r;
 
-	return get_irq_with_type(dev, IRQDATA_FINGER_ON, 0);
+	r = get_irq_with_type(dev, IRQDATA_FINGER_ON, 0);
+	if (r == GET_IRQ_OVERFLOW)
+		goto retry;
+	else
+		return r;
 }
 
 static int await_finger_off(struct fp_img_dev *dev)
 {
 	int r;
 
+retry:
 	r = set_mode(dev, MODE_AWAIT_FINGER_OFF);
 	if (r < 0)
 		return r;
 	
-	return get_irq_with_type(dev, IRQDATA_FINGER_OFF, 0);
+	r = get_irq_with_type(dev, IRQDATA_FINGER_OFF, 0);
+	if (r == GET_IRQ_OVERFLOW)
+		goto retry;
+	else
+		return r;
 }
 
 static int capture(struct fp_img_dev *dev, gboolean unconditional,
@@ -306,6 +362,7 @@ static int do_init(struct fp_img_dev *dev)
 	int i;
 	int r;
 
+retry:
 	r = get_hwstat(dev, &status);
 	if (r < 0)
 		return r;
@@ -376,10 +433,10 @@ static int do_init(struct fp_img_dev *dev)
 	}
 
 	r = get_irq_with_type(dev, IRQDATA_SCANPWR_ON, 5);
-	if (r < 0)
+	if (r == GET_IRQ_OVERFLOW)
+		goto retry;
+	else
 		return r;
-
-	return 0;
 }
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
