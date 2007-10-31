@@ -421,108 +421,128 @@ static const unsigned char init28_0b[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00
 };
 
+static int do_init(struct fp_dev *dev)
+{
+	enum read_msg_status msgstat;
+	unsigned char dummy = 0x10;
+	uint8_t seq;
+	int r;
+
+	r = usb_control_msg(dev->udev, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		0x0c, 0x100, 0x400, &dummy, sizeof(dummy), TIMEOUT);
+	if (r < 0) {
+		fp_dbg("control write failed\n");
+		return r;
+	}
+
+	msgstat = read_msg(dev, &seq, NULL, NULL, NULL);
+	if (msgstat != READ_MSG_CMD) {
+		fp_err("expected command, got %d seq=%x", msgstat, seq);
+		return -EPROTO;
+	}
+	if (seq != 3) {
+		fp_err("expected seq=3, got %x", seq);
+		return -EPROTO;
+	}
+
+	r = send_cmdresponse(dev, ++seq, (unsigned char *) init_resp03,
+		sizeof(init_resp03));
+	if (r < 0)
+		return r;
+	
+	msgstat = read_msg(dev, &seq, NULL, NULL, NULL);
+	if (msgstat != READ_MSG_CMD) {
+		fp_err("expected command, got %d seq=%x", msgstat, seq);
+		return -EPROTO;
+	}
+	if (seq != 5) {
+		fp_err("expected seq=5, got %x", seq);
+		return -EPROTO;
+	}
+
+	dummy = 0x04;
+	r = send_cmd28(dev, 0x06, &dummy, 1);
+	if (r < 0)
+		return r;
+	if (read_msg28(dev, 0x06, NULL, NULL) < 0)
+		return r;
+
+	dummy = 0x04;
+	r = send_cmd28(dev, 0x07, &dummy, 1);
+	if (r < 0)
+		return r;
+	if (read_msg28(dev, 0x07, NULL, NULL) < 0)
+		return r;
+
+	r = send_cmd28(dev, 0x08, (unsigned char *) init28_08,
+		sizeof(init28_08));
+	if (r < 0)
+		return r;
+	if (read_msg28(dev, 0x08, NULL, NULL) < 0)
+		return r;
+
+	r = send_cmd28(dev, 0x0c, (unsigned char *) init28_0c,
+		sizeof(init28_0c));
+	if (r < 0)
+		return r;
+	if (read_msg28(dev, 0x0c, NULL, NULL) < 0)
+		return r;
+
+	r = send_cmd28(dev, 0x0b, (unsigned char *) init28_0b,
+		sizeof(init28_0b));
+	if (r < 0)
+		return r;
+	if (read_msg28(dev, 0x0b, NULL, NULL) < 0)
+		return r;
+
+	return 0;
+}
+
+static int do_deinit(struct fp_dev *dev)
+{
+	unsigned char dummy = 0;
+	enum read_msg_status msgstat;
+	uint8_t seq;
+	int r;
+
+	/* FIXME: either i've misunderstood the message system or this is illegal
+	 * here, since we arent responding to anything. */
+	r = send_cmdresponse(dev, 0x07, &dummy, 1);
+	if (r < 0)
+		return r;
+	
+	msgstat = read_msg(dev, &seq, NULL, NULL, NULL);
+	if (msgstat != READ_MSG_CMD) {
+		fp_err("expected command, got %d seq=%x", msgstat, seq);
+		return -EPROTO;
+	}
+	if (seq != 1) {
+		fp_err("expected seq=1, got %x", seq);
+		return -EPROTO;
+	}
+
+	return 0;
+}
+
 static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 {
 	struct upekts_dev *upekdev = NULL;
-	unsigned char dummy = 0x10;
-	enum read_msg_status msgstat;
-	uint8_t seq;
 	int r;
 
 	r = usb_claim_interface(dev->udev, 0);
 	if (r < 0)
 		return r;
 
-	r = usb_control_msg(dev->udev, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		0x0c, 0x100, 0x400, &dummy, sizeof(dummy), TIMEOUT);
-	if (r < 0) {
-		fp_dbg("control write failed\n");
-		goto err;
-	}
-
 	upekdev = g_malloc(sizeof(*upekdev));
 	upekdev->seq = 0xf0; /* incremented to 0x00 before first cmd */
 	dev->priv = upekdev;
 	dev->nr_enroll_stages = 3;
 
-	msgstat = read_msg(dev, &seq, NULL, NULL, NULL);
-	if (msgstat != READ_MSG_CMD) {
-		fp_err("expected command, got %d seq=%x", msgstat, seq);
-		goto err;
-	}
-	if (seq != 3) {
-		fp_err("expected seq=3, got %x", seq);
-		goto err;
-	}
-
-	r = send_cmdresponse(dev, ++seq, (unsigned char *) init_resp03,
-		sizeof(init_resp03));
-	if (r < 0)
-		goto err;
-	
-	msgstat = read_msg(dev, &seq, NULL, NULL, NULL);
-	if (msgstat != READ_MSG_CMD) {
-		fp_err("expected command, got %d seq=%x", msgstat, seq);
-		goto err;
-	}
-	if (seq != 5) {
-		fp_err("expected seq=5, got %x", seq);
-		goto err;
-	}
-
-	dummy = 0x04;
-	r = send_cmd28(dev, 0x06, &dummy, 1);
-	if (r < 0)
-		goto err;
-	if (read_msg28(dev, 0x06, NULL, NULL) < 0)
-		goto err;
-
-	dummy = 0x04;
-	r = send_cmd28(dev, 0x07, &dummy, 1);
-	if (r < 0)
-		goto err;
-	if (read_msg28(dev, 0x07, NULL, NULL) < 0)
-		goto err;
-
-	r = send_cmd28(dev, 0x08, (unsigned char *) init28_08,
-		sizeof(init28_08));
-	if (r < 0)
-		goto err;
-	if (read_msg28(dev, 0x08, NULL, NULL) < 0)
-		goto err;
-
-	r = send_cmd28(dev, 0x0c, (unsigned char *) init28_0c,
-		sizeof(init28_0c));
-	if (r < 0)
-		goto err;
-	if (read_msg28(dev, 0x0c, NULL, NULL) < 0)
-		goto err;
-
-	r = send_cmd28(dev, 0x0b, (unsigned char *) init28_0b,
-		sizeof(init28_0b));
-	if (r < 0)
-		goto err;
-	if (read_msg28(dev, 0x0b, NULL, NULL) < 0)
-		goto err;
-
 	return 0;
-err:
-	usb_release_interface(dev->udev, 0);
-	g_free(upekdev);
-
-	return -EPROTO;
 }
 
 static void dev_exit(struct fp_dev *dev)
 {
-	unsigned char dummy = 0;
-
-	/* FIXME: either i've misunderstood the message system or this is illegal
-	 * here, since we arent responding to anything. */
-	send_cmdresponse(dev, 0x07, &dummy, 1);
-	
-	// FIXME should read msg A=01
-
 	usb_release_interface(dev->udev, 0);
 	g_free(dev->priv);
 }
@@ -547,6 +567,10 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 	int passed = 0;
 
 	if (initial) {
+		r = do_init(dev);
+		if (r < 0)
+			return r;
+
 		r = send_cmd28(dev, 0x02, (unsigned char *) enroll_init,
 			sizeof(enroll_init));
 		if (r < 0)
@@ -656,6 +680,7 @@ static int enroll(struct fp_dev *dev, gboolean initial,
 		memcpy(fdata->data, data + sizeof(scan_comp), data_len - sizeof(scan_comp));
 		*_data = fdata;
 comp_out:
+		do_deinit(dev);
 		g_free(data);
 	}
 
@@ -676,6 +701,10 @@ static int verify(struct fp_dev *dev, struct fp_print_data *print)
 	unsigned char status;
 	gboolean need_poll = FALSE;
 	gboolean done = FALSE;
+
+	r = do_init(dev);
+	if (r < 0)
+		return r;
 
 	data = g_malloc(data_len);
 	memcpy(data, verify_hdr, sizeof(verify_hdr));
@@ -771,6 +800,7 @@ static int verify(struct fp_dev *dev, struct fp_print_data *print)
 	}
 
 out:
+	do_deinit(dev);
 	g_free(data);
 	return r;
 }
