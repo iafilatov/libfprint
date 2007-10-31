@@ -7,6 +7,13 @@ AES4000_SRC = drivers/aes4000.c
 DRIVER_SRC = $(UPEKTS_SRC) $(URU4000_SRC) $(AES4000_SRC)
 
 NBIS_SRC = \
+	nbis/include/bozorth.h \
+	nbis/include/bz_array.h \
+	nbis/include/defs.h \
+	nbis/include/lfs.h \
+	nbis/include/log.h \
+	nbis/include/morph.h \
+	nbis/include/sunrast.h \
 	nbis/bozorth3/bozorth3.c \
 	nbis/bozorth3/bz_alloc.c \
 	nbis/bozorth3/bz_drvrs.c \
@@ -36,11 +43,12 @@ NBIS_SRC = \
 	nbis/mindtct/sort.c \
 	nbis/mindtct/util.c
 
-libfprint_la_CFLAGS = -fvisibility=hidden -Inbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(AM_CFLAGS)
+libfprint_la_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(AM_CFLAGS)
 libfprint_la_LDFLAGS = -version-info @lt_major@:@lt_revision@:@lt_age@
 libfprint_la_LIBADD = -lm $(LIBUSB_LIBS) $(GLIB_LIBS)
 
 libfprint_la_SOURCES =	\
+	fp_internal.h	\
 	core.c		\
 	data.c		\
 	img.c		\
@@ -48,3 +56,4 @@ libfprint_la_SOURCES =	\
 	$(DRIVER_SRC)	\
 	$(NBIS_SRC)
 
+pkginclude_HEADERS = fprint.h

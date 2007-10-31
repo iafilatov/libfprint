@@ -1,8 +1,12 @@
-EXTRA_DIST = THANKS TODO HACKING
+EXTRA_DIST = THANKS TODO HACKING libfprint.pc.in
 
 SUBDIRS = libfprint
 
 if BUILD_EXAMPLES
 SUBDIRS += examples
 endif
+
+pkgconfigdir=$(libdir)/pkgconfig
+pkgconfig_DATA=libfprint.pc
+DISTCLEANFILES=libfprint.pc
 

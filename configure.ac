@@ -85,6 +85,6 @@ AC_DEFINE([API_EXPORTED], [__attribute__((visibility("default")))], [Default vis
 AM_CFLAGS="-Werror-implicit-function-declaration -Wimplicit-int -Wunreachable-code -Wunused-function -Wunused-label -Wunused-value -Wunused-variable -Wnonnull -Wreturn-type -Wextra -Wshadow"
 AC_SUBST(AM_CFLAGS)
 
-AC_CONFIG_FILES([Makefile] [libfprint/Makefile] [examples/Makefile])
+AC_CONFIG_FILES([libfprint.pc] [Makefile] [libfprint/Makefile] [examples/Makefile])
 AC_OUTPUT
 

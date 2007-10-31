@@ -3,9 +3,13 @@ LIBRARY
 identification
 external API documentation
 test suite against NFIQ compliance set
+make library optionally asynchronous and maybe thread-safe
+nbis cleanups
+track open devices, so we can close them during libfprint close
+free memory during libfprint close
 
-DRIVERS
-=======
+NEW DRIVERS
+===========
 Sunplus 895 driver
 AES1610 driver
 AES2501 driver
@@ -20,12 +24,9 @@ aes4000 doesn't work very well, maybe due to small minutia count?
 PPMM parameter to get_minutiae seems to have no effect
 nbis minutiae should be stored in endian-independent format
 return images with standard enroll/verify calls
+upekts reverify problems
 
 MISC
 ====
 upekts/thinkfinger relicensing (GPL --> LGPL)
-make library optionally asynchronous and maybe thread-safe
-pkg-config file
-nbis cleanups
-track open devices, so we can close them during libfprint close
-free memory during libfprint close
+
