@@ -1,6 +1,6 @@
 EXTRA_DIST = THANKS TODO HACKING libfprint.pc.in
 
-SUBDIRS = libfprint
+SUBDIRS = libfprint doc
 
 if BUILD_EXAMPLES
 SUBDIRS += examples

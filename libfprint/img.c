@@ -28,6 +28,23 @@
 #include "nbis/include/bozorth.h"
 #include "nbis/include/lfs.h"
 
+/** @defgroup img Image operations
+ * libfprint offers several ways of retrieving images from imaging devices,
+ * one example being the fp_dev_img_capture() function. The functions
+ * documented below allow you to work with such images.
+ *
+ * \section img_fmt Image format
+ * All images are represented as 8-bit greyscale data.
+ *
+ * \section img_std Image standardization
+ * In some contexts, images you are provided through libfprint are raw images
+ * from the hardware. The orientation of these varies from device-to-device,
+ * as does the color scheme (black-on-white or white-on-black?). libfprint
+ * provides the fp_img_standardize function to convert images into standard
+ * form, which is defined to be: finger flesh as black on white surroundings,
+ * natural upright orientation.
+ */
+
 struct fp_img *fpi_img_new(size_t length)
 {
 	struct fp_img *img = g_malloc(sizeof(*img) + length);
@@ -66,26 +83,53 @@ struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize)
 	return g_realloc(img, sizeof(*img) + newsize);
 }
 
+/** \ingroup img
+ * Frees an image. Must be called when you are finished working with an image.
+ * \param img the image to destroy
+ */
 API_EXPORTED void fp_img_free(struct fp_img *img)
 {
 	g_free(img);
 }
 
+/** \ingroup img
+ * Gets the pixel height of an image.
+ * \param img an image
+ * \returns the height of the image
+ */
 API_EXPORTED int fp_img_get_height(struct fp_img *img)
 {
 	return img->height;
 }
 
+/** \ingroup img
+ * Gets the pixel width of an image.
+ * \param img an image
+ * \returns the width of the image
+ */
 API_EXPORTED int fp_img_get_width(struct fp_img *img)
 {
 	return img->width;
 }
 
+/** \ingroup img
+ * Gets the greyscale data for an image. This data must not be modified or
+ * freed, and must not be used after fp_img_free() has been called.
+ * \param img an image
+ * \returns a pointer to libfprint's internal data for the image
+ */
 API_EXPORTED unsigned char *fp_img_get_data(struct fp_img *img)
 {
 	return img->data;
 }
 
+/** \ingroup img
+ * A quick convenience function to save an image to a file in
+ * <a href="http://netpbm.sourceforge.net/doc/pgm.html">PGM format</a>.
+ * \param img the image to save
+ * \param path the path to save the image. Existing files will be overwritten.
+ * \returns 0 on success, non-zero on error.
+ */
 API_EXPORTED int fp_img_save_to_file(struct fp_img *img, char *path)
 {
 	FILE *fd = fopen(path, "w");
@@ -159,6 +203,13 @@ static void invert_colors(struct fp_img *img)
 		img->data[i] = 0xff - img->data[i];
 }
 
+/** \ingroup img
+ * \ref img_std "Standardizes" an image by normalizing its orientation, colors,
+ * etc. It is safe to call this multiple times on an image, libfprint keeps
+ * track of the work it needs to do to make an image standard and will not
+ * perform these operations more than once for a given image.
+ * \param img the image to standardize
+ */
 API_EXPORTED void fp_img_standardize(struct fp_img *img)
 {
 	if (img->flags & FP_IMG_V_FLIPPED) {
