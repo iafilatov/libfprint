@@ -58,22 +58,22 @@ static void img_dev_exit(struct fp_dev *dev)
 	g_free(imgdev);
 }
 
-API_EXPORTED int fp_imgdev_get_img_width(struct fp_img_dev *imgdev)
+int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
 	return imgdrv->img_width;
 }
 
-API_EXPORTED int fp_imgdev_get_img_height(struct fp_img_dev *imgdev)
+int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
 	return imgdrv->img_height;
 }
 
-API_EXPORTED int fp_imgdev_capture(struct fp_img_dev *imgdev,
-	int unconditional, struct fp_img **image)
+int fpi_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
+	struct fp_img **image)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
@@ -151,7 +151,7 @@ int img_dev_enroll(struct fp_dev *dev, gboolean initial, int stage,
 	/* FIXME: convert to 3-stage enroll mechanism, where we scan 3 prints,
 	 * use NFIQ to pick the best one, and discard the others */
 
-	r = fp_imgdev_capture(imgdev, 0, &img);
+	r = fpi_imgdev_capture(imgdev, 0, &img);
 	if (r)
 		return r;
 
@@ -178,7 +178,7 @@ static int img_dev_verify(struct fp_dev *dev,
 	struct fp_print_data *print;
 	int r;
 
-	r = fp_imgdev_capture(imgdev, 0, &img);
+	r = fpi_imgdev_capture(imgdev, 0, &img);
 	if (r)
 		return r;
 

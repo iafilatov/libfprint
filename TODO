@@ -23,7 +23,7 @@ IMAGING
 aes4000 doesn't work very well, maybe due to small minutia count?
 PPMM parameter to get_minutiae seems to have no effect
 nbis minutiae should be stored in endian-independent format
-return images with standard enroll/verify calls
+return images with standard enroll/verify call variants
 
 MISC
 ====

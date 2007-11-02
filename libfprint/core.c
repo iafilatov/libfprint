@@ -349,11 +349,50 @@ API_EXPORTED uint16_t fp_driver_get_driver_id(struct fp_driver *drv)
 	return drv->id;
 }
 
-API_EXPORTED struct fp_img_dev *fp_dev_to_img_dev(struct fp_dev *dev)
+static struct fp_img_dev *dev_to_img_dev(struct fp_dev *dev)
 {
 	if (dev->drv->type != DRIVER_IMAGING)
 		return NULL;
 	return dev->priv;
+}
+
+API_EXPORTED int fp_dev_supports_imaging(struct fp_dev *dev)
+{
+	return dev->drv->type == DRIVER_IMAGING;
+}
+
+API_EXPORTED int fp_dev_img_capture(struct fp_dev *dev, int unconditional,
+	struct fp_img **image)
+{
+	struct fp_img_dev *imgdev = dev_to_img_dev(dev);
+	if (!imgdev) {
+		fp_dbg("image capture on non-imaging device");
+		return -ENOTSUP;
+	}
+
+	return fpi_imgdev_capture(imgdev, unconditional, image);
+}
+
+API_EXPORTED int fp_dev_get_img_width(struct fp_dev *dev)
+{
+	struct fp_img_dev *imgdev = dev_to_img_dev(dev);
+	if (!imgdev) {
+		fp_dbg("get image width for non-imaging device");
+		return -1;
+	}
+
+	return fpi_imgdev_get_img_width(imgdev);
+}
+
+API_EXPORTED int fp_dev_get_img_height(struct fp_dev *dev)
+{
+	struct fp_img_dev *imgdev = dev_to_img_dev(dev);
+	if (!imgdev) {
+		fp_dbg("get image height for non-imaging device");
+		return -1;
+	}
+
+	return fpi_imgdev_get_img_height(imgdev);
 }
 
 API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,

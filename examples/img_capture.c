@@ -43,7 +43,6 @@ int main(void)
 	struct fp_dscv_dev *ddev;
 	struct fp_dscv_dev **discovered_devs;
 	struct fp_dev *dev;
-	struct fp_img_dev *imgdev;
 	struct fp_img *img = NULL;
 
 	r = fp_init();
@@ -71,16 +70,14 @@ int main(void)
 		exit(1);
 	}
 
-	imgdev = fp_dev_to_img_dev(dev);
-	if (!imgdev) {
-		fprintf(stderr, "could not get image dev, is this an imaging "
-			"device?\n");
+	if (!fp_dev_supports_imaging(dev)) {
+		fprintf(stderr, "this device does not have imaging capabilities.\n");
 		goto out_close;
 	}
 
 	printf("Opened device. It's now time to scan your finger.\n\n");
 
-	r = fp_imgdev_capture(imgdev, 0, &img);
+	r = fp_dev_img_capture(dev, 0, &img);
 	if (r) {
 		fprintf(stderr, "image capture failed, code %d\n", r);
 		goto out_close;

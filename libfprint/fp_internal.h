@@ -82,6 +82,11 @@ struct fp_img_dev {
 	void *priv;
 };
 
+int fpi_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
+	struct fp_img **image);
+int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev);
+int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev);
+
 struct usb_id {
 	uint16_t vendor;
 	uint16_t product;

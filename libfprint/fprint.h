@@ -80,10 +80,15 @@ struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev);
 void fp_dev_close(struct fp_dev *dev);
 struct fp_driver *fp_dev_get_driver(struct fp_dev *dev);
 int fp_dev_get_nr_enroll_stages(struct fp_dev *dev);
-struct fp_img_dev *fp_dev_to_img_dev(struct fp_dev *dev);
 uint32_t fp_dev_get_devtype(struct fp_dev *dev);
 int fp_dev_supports_print_data(struct fp_dev *dev, struct fp_print_data *data);
 int fp_dev_supports_dscv_print(struct fp_dev *dev, struct fp_dscv_print *print);
+
+int fp_dev_supports_imaging(struct fp_dev *dev);
+int fp_dev_img_capture(struct fp_dev *dev, int unconditional,
+	struct fp_img **image);
+int fp_dev_get_img_width(struct fp_dev *dev);
+int fp_dev_get_img_height(struct fp_dev *dev);
 
 /* Enrollment */
 enum fp_enroll_result {
@@ -122,12 +127,6 @@ struct fp_print_data *fp_print_data_from_data(unsigned char *buf,
 	size_t buflen);
 uint16_t fp_print_data_get_driver_id(struct fp_print_data *data);
 uint32_t fp_print_data_get_devtype(struct fp_print_data *data);
-
-/* Imaging devices */
-int fp_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
-	struct fp_img **image);
-int fp_imgdev_get_img_width(struct fp_img_dev *imgdev);
-int fp_imgdev_get_img_height(struct fp_img_dev *imgdev);
 
 /* Image handling */
 int fp_img_get_height(struct fp_img *img);
