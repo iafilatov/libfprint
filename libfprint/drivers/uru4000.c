@@ -440,7 +440,7 @@ retry:
 		return -EIO;
 	}
 
-	r = get_irq_with_type(dev, IRQDATA_SCANPWR_ON, 400);
+	r = get_irq_with_type(dev, IRQDATA_SCANPWR_ON, 300);
 	if (r == GET_IRQ_OVERFLOW) {
 		goto retry;
 	} else if (r == -ETIMEDOUT) {

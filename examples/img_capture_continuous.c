@@ -140,7 +140,6 @@ int main(void)
 	struct fp_dscv_dev *ddev;
 	struct fp_dscv_dev **discovered_devs;
 	struct fp_dev *dev;
-	struct fp_img_dev *imgdev;
 	int img_width;
 	int img_height;
 	int standardize = 0;
@@ -170,15 +169,13 @@ int main(void)
 		exit(1);
 	}
 
-	imgdev = fp_dev_to_img_dev(dev);
-	if (!imgdev) {
-		fprintf(stderr, "could not get image dev, is this an imaging "
-			"device?\n");
+	if (!fp_dev_supports_imaging(dev)) {
+		fprintf(stderr, "this device does not have imaging capabilities.\n");
 		goto out;
 	}
 
-	img_width = fp_imgdev_get_img_width(imgdev);
-	img_height = fp_imgdev_get_img_height(imgdev);
+	img_width = fp_dev_get_img_width(dev);
+	img_height = fp_dev_get_img_height(dev);
 	framebuffer = malloc(img_width * img_height * 2);
 	if (!framebuffer)
 		goto out;
@@ -211,7 +208,7 @@ int main(void)
 	while (1) { /* event loop */
 		struct fp_img *img;
 
-		r = fp_imgdev_capture(imgdev, 1, &img);
+		r = fp_dev_img_capture(dev, 1, &img);
 		if (r) {
 			fprintf(stderr, "image capture failed, code %d\n", r);
 			goto out;
