@@ -305,6 +305,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	int r;
 	struct fp_img *img;
 	size_t image_size = DATABLK1_RQLEN + DATABLK2_EXPECT - CAPTURE_HDRLEN;
+	int hdr_skip = CAPTURE_HDRLEN;
 
 	r = set_mode(dev, MODE_CAPTURE);
 	if (r < 0)
@@ -338,13 +339,20 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 		fp_err("part 2 capture failed, error %d", r);
 		goto err;
 	} else if (r != DATABLK2_EXPECT) {
-		fp_err("unexpected part 2 capture size (%d)", r);
-		r = -EIO;
-		goto err;
+		if (r == DATABLK2_EXPECT - CAPTURE_HDRLEN) {
+			/* this is rather odd, but it happens sometimes with my MS
+			 * keyboard */
+			fp_dbg("got image with no header!");
+			hdr_skip = 0;
+		} else {
+			fp_err("unexpected part 2 capture size (%d)", r);
+			r = -EIO;
+			goto err;
+		}
 	}
 
 	/* remove header and shrink allocation */
-	g_memmove(img->data, img->data + CAPTURE_HDRLEN, image_size);
+	g_memmove(img->data, img->data + hdr_skip, image_size);
 	img = fpi_img_resize(img, image_size);
 	img->flags = FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED | FP_IMG_COLORS_INVERTED;
 
