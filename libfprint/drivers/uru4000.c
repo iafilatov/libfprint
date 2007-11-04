@@ -188,8 +188,10 @@ static int get_irq(struct fp_img_dev *dev, unsigned char *buf, int timeout)
 	int r;
 	int infinite_timeout = 0;
 
-	if (timeout == 0)
+	if (timeout == 0) {
 		infinite_timeout = 1;
+		timeout = 1000;
+	}
 
 	/* Darwin and Linux behave inconsistently with regard to infinite timeouts.
 	 * Linux accepts a timeout value of 0 as infinite timeout, whereas darwin
@@ -198,16 +200,13 @@ static int get_irq(struct fp_img_dev *dev, unsigned char *buf, int timeout)
 	 * See http://thread.gmane.org/gmane.comp.lib.libusb.devel.general/1315 */
 
 retry:
-	r = usb_interrupt_read(dev->udev, EP_INTR, buf, IRQ_LENGTH, 1000);
-	if (r == -ETIMEDOUT &&
-			((!infinite_timeout && timeout > 0) || infinite_timeout)) {
-		fp_dbg("timeout, retry");
-		timeout--;
+	r = usb_interrupt_read(dev->udev, EP_INTR, buf, IRQ_LENGTH, timeout);
+	if (r == -ETIMEDOUT && infinite_timeout)
 		goto retry;
-	}
 
 	if (r < 0) {
-		fp_err("interrupt read failed, error %d", r);
+		if (r != -ETIMEDOUT)
+			fp_err("interrupt read failed, error %d", r);
 		return r;
 	} else if (r < IRQ_LENGTH) {
 		fp_err("received %d byte IRQ!?", r);
@@ -367,6 +366,7 @@ static int do_init(struct fp_img_dev *dev)
 {
 	unsigned char status;
 	unsigned char tmp;
+	int timeouts = 0;
 	int i;
 	int r;
 
@@ -440,11 +440,19 @@ retry:
 		return -EIO;
 	}
 
-	r = get_irq_with_type(dev, IRQDATA_SCANPWR_ON, 5);
-	if (r == GET_IRQ_OVERFLOW)
+	r = get_irq_with_type(dev, IRQDATA_SCANPWR_ON, 400);
+	if (r == GET_IRQ_OVERFLOW) {
 		goto retry;
-	else
-		return r;
+	} else if (r == -ETIMEDOUT) {
+		timeouts++;
+		if (timeouts <= 3) {
+			fp_dbg("scan power up timeout, retrying...");
+			goto retry;
+		} else {
+			fp_err("could not power up scanner after 3 attempts");
+		}
+	}
+	return r;
 }
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
