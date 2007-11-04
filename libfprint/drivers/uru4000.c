@@ -50,6 +50,7 @@ enum {
 enum {
 	REG_HWSTAT = 0x07,
 	REG_MODE = 0x4e,
+	FIRMWARE_START = 0x100,
 };
 
 enum {
@@ -77,27 +78,28 @@ static const struct uru4k_dev_profile {
 } uru4k_dev_info[] = {
 	[MS_KBD] = {
 		.name = "Microsoft Keyboard with Fingerprint Reader",
-		.firmware_start = 0x100,
-		.fw_enc_offset = 0x42b,
+		.fw_enc_offset = 0x411,
 	},
 	[MS_INTELLIMOUSE] = {
 		.name = "Microsoft Wireless IntelliMouse with Fingerprint Reader",
-		.firmware_start = 0x100,
-		.fw_enc_offset = 0x42b,
+		.fw_enc_offset = 0x411,
 	},
 	[MS_STANDALONE] = {
 		.name = "Microsoft Fingerprint Reader",
-		.firmware_start = 0x100,
-		.fw_enc_offset = 0x42b,
+		.fw_enc_offset = 0x411,
+	},
+	[DP_URU4000] = {
+		.name = "Digital Persona U.are.U 4000",
+		.fw_enc_offset = 0x693,
 	},
 	[DP_URU4000B] = {
 		.name = "Digital Persona U.are.U 4000B",
-		.firmware_start = 0x100,
-		.fw_enc_offset = 0x42b,
+		.fw_enc_offset = 0x411,
 	},
 };
 
 struct uru4k_dev {
+	const struct uru4k_dev_profile *profile;
 	uint8_t interface;
 };
 
@@ -362,6 +364,36 @@ err:
 	return r;
 }
 
+static int fix_firmware(struct fp_img_dev *dev)
+{
+	struct uru4k_dev *urudev = dev->priv;
+	uint32_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
+	unsigned char val, new;
+	int r;
+
+	r = usb_control_msg(dev->udev, 0xc0, 0x0c, enc_addr, 0, &val, 1,
+		CTRL_TIMEOUT);
+	if (r < 0)
+		return r;
+	
+	fp_dbg("encryption byte at %x reads %02x", enc_addr, val);
+	if (val != 0x07 && val != 0x17)
+		fp_dbg("strange encryption byte value, please report this");
+
+	new = val & 0xef;
+	//new = 0x17;
+	if (new == val)
+		return 0;
+
+	r = usb_control_msg(dev->udev, 0x40, 0x04, enc_addr, 0, &new, 1,
+		CTRL_TIMEOUT);
+	if (r < 0)
+		return r;
+
+	fp_dbg("fixed encryption byte to %02x", new);
+	return 1;
+}
+
 static int do_init(struct fp_img_dev *dev)
 {
 	unsigned char status;
@@ -411,7 +443,10 @@ retry:
 			return r;
 	}
 
-	/* FIXME fix firmware (disable encryption) */
+
+	r = fix_firmware(dev);
+	if (r < 0)
+		return r;
 
 	/* Power up device and wait for interrupt notification */
 	/* The combination of both modifying firmware *and* doing C-R auth on
@@ -519,6 +554,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	urudev = g_malloc0(sizeof(*urudev));
+	urudev->profile = &uru4k_dev_info[driver_data];
 	urudev->interface = iface_desc->bInterfaceNumber;
 	dev->priv = urudev;
 
@@ -552,6 +588,9 @@ static const struct usb_id id_table[] = {
 
 	/* ms fp rdr (standalone) */
 	{ .vendor = 0x045e, .product = 0x00bd, .driver_data = MS_STANDALONE },
+
+	/* dp uru4000 (standalone) */
+	{ .vendor = 0x05ba, .product = 0x0007, .driver_data = DP_URU4000 },
 
 	/* dp uru4000b (standalone) */
 	{ .vendor = 0x05ba, .product = 0x000a, .driver_data = DP_URU4000B },
