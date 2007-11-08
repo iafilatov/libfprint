@@ -73,13 +73,14 @@ int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev)
 }
 
 int fpi_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
-	struct fp_img **image)
+	struct fp_img **_img)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
+	struct fp_img *img;
 	int r;
 
-	if (!image) {
+	if (!_img) {
 		fp_err("no image pointer given");
 		return -EINVAL;
 	}
@@ -107,35 +108,50 @@ int fpi_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
 		}
 	}
 
-	r = imgdrv->capture(imgdev, unconditional, image);
+	r = imgdrv->capture(imgdev, unconditional, &img);
 	if (r) {
 		fp_err("capture failed with error %d", r);
 		return r;
+	}
+
+	if (img == NULL) {
+		fp_err("capture succeeded but no image returned?");
+		return -ENODATA;
 	}
 
 	if (!unconditional && imgdrv->await_finger_off) {
 		r = imgdrv->await_finger_off(imgdev);
 		if (r) {
 			fp_err("await_finger_off failed with error %d", r);
+			fp_img_free(img);
 			return r;
 		}
 	}
 
-	if (r == 0) {
-		struct fp_img *img = *image;
-		if (img == NULL) {
-			fp_err("capture succeeded but no image returned?");
-			return -ENODATA;
-		}
+	if (imgdrv->img_width > 0) {
 		img->width = imgdrv->img_width;
-		img->height = imgdrv->img_height;
-		if (!fpi_img_is_sane(img)) {
-			fp_err("image is not sane!");
-			return -EIO;
-		}
+	} else if (img->width <= 0) {
+		fp_err("no image width assigned");
+		goto err;
 	}
 
-	return r;
+	if (imgdrv->img_height > 0) {
+		img->height = imgdrv->img_height;
+	} else if (img->height <= 0) {
+		fp_err("no image height assigned");
+		goto err;
+	}
+
+	if (!fpi_img_is_sane(img)) {
+		fp_err("image is not sane!");
+		goto err;
+	}
+
+	*_img = img;
+	return 0;
+err:
+	fp_img_free(img);
+	return -EIO;
 }
 
 #define MIN_ACCEPTABLE_MINUTIAE 10

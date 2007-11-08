@@ -176,6 +176,11 @@ int main(void)
 
 	img_width = fp_dev_get_img_width(dev);
 	img_height = fp_dev_get_img_height(dev);
+	if (img_width <= 0 || img_height <= 0) {
+		fprintf(stderr, "this device returns images with variable dimensions,"
+			" this example does not support that.\n");
+		goto out;
+	}
 	framebuffer = malloc(img_width * img_height * 2);
 	if (!framebuffer)
 		goto out;
