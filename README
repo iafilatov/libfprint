@@ -1,17 +1,30 @@
 libfprint
+=========
+
+libfprint is part of the fprint project:
 http://www.reactivated.net/fprint
+
+libfprint was originally developed as part of an academic project at the
+University of Manchester with the aim of hiding differences between different
+consumer fingerprint scanners and providing a single uniform API to application
+developers. The ultimate goal of the fprint project is to make fingerprint
+scanners widely and easily usable under common Linux environments.
+
+For more information on libfprint, supported devices, API documentation, etc.,
+see the homepage:
+http://www.reactivated.net/fprint/Libfprint
 
 libfprint is primarily licensed under the GNU LGPL. HOWEVER, THIS PRERELEASE
 VERSION INCLUDES GPL CODE FROM LIBTHINKFINGER, therefore distribution is
 subject to both the terms of the LGPL (see COPYING) *and* the GPL
 (see COPYING.GPL).
 
+At release time, I will contact libthinkfinger authors and see if they will
+be happy to relicense. I expect they will.
+
 libfprint includes code from NIST's NBIS software distribution:
 http://fingerprint.nist.gov/NBIS/index.html
 We include bozorth3 from the US export controlled distribution. We have
 determined that it is fine to ship bozorth3 in an open source project,
 see http://reactivated.net/fprint/US_export_control
-
-At release time, I will contact libthinkfinger authors and see if they will
-be happy to relicense. I expect they will.
 

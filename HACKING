@@ -31,4 +31,55 @@ up with 2 APIs:
  1. The external-facing API for applications
  2. The internal API for fingerprint drivers
 
+Non-static functions which are intended for internal use only are prepended
+with the "fpi_" prefix.
+
+
+API stability
+=============
+
+No API stability has been promised to anyone: go wild, there's no issue with
+breaking APIs at this point in time.
+
+
+Portability
+===========
+
+libfprint is primarily written for Linux. However, I'm interested in
+supporting efforts to port this to other operating systems too.
+
+You should ensure code is portable wherever possible. Try and use GLib rather
+than OS-specific features.
+
+Endianness must be considered in all code. libfprint must support both big-
+and little-endian systems.
+
+
+Coding Style
+============
+
+This project follows Linux kernel coding style but with a tab width of 4.
+
+
+Documentation
+=============
+
+All additions of public API functions must be accompanied with doxygen
+comments.
+
+All changes which potentially change the behaviour of the public API must
+be reflected by updating the appropriate doxygen comments.
+
+
+Contributing
+============
+
+Patches should be sent to the fprint mailing list detailed on the website.
+A subscription is required.
+
+Information about libfprint development repositories can be found here:
+http://www.reactivated.net/fprint/Libfprint_development
+
+If you're looking for ideas for things to work on, look at the TODO file or
+grep the source code for FIXMEs.
 

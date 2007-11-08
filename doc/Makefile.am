@@ -4,7 +4,7 @@ docs: doxygen.cfg
 	doxygen $^
 
 docs-upload: docs
-	ln -s html fprint-api
-	ncftpput -f ~/.ncftp/reactivated -m -R httpdocs fprint-api/
-	rm -f fprint-api
+	ln -s html api
+	ncftpput -f ~/.ncftp/reactivated -m -R httpdocs/fprint api/
+	rm -f api
 
