@@ -25,6 +25,10 @@ PKG_CHECK_MODULES(GLIB, "glib-2.0")
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
+PKG_CHECK_MODULES(IMAGEMAGICK, "ImageMagick")
+AC_SUBST(IMAGEMAGICK_CFLAGS)
+AC_SUBST(IMAGEMAGICK_LIBS)
+
 # Examples build
 AC_ARG_ENABLE([examples-build], [AS_HELP_STRING([--enable-examples-build],
 	[build example applications (default n)])],

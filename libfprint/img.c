@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include <glib.h>
+#include <magick/ImageMagick.h>
 
 #include "fp_internal.h"
 #include "nbis/include/bozorth.h"
@@ -226,6 +227,50 @@ API_EXPORTED void fp_img_standardize(struct fp_img *img)
 	}
 }
 
+static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
+{
+	Image *mimg;
+	Image *resized;
+	ExceptionInfo *exception;
+	MagickBooleanType ret;
+	int new_width = img->width * factor;
+	int new_height = img->height * factor;
+	struct fp_img *newimg;
+
+	/* It is possible to implement resizing using a simple algorithm, however
+	 * we use ImageMagick because it applies some kind of smoothing to the
+	 * result, which improves matching performances in my experiments. */
+
+	if (!IsMagickInstantiated())
+		MagickCoreGenesis(NULL, MagickFalse);
+
+	exception = AcquireExceptionInfo();
+
+	mimg = ConstituteImage(img->width, img->height, "I", CharPixel, img->data, exception);
+
+	ClearMagickException(exception);
+	resized = ResizeImage(mimg, new_width, new_height, 0, 1.0, exception);
+
+	newimg = fpi_img_new(new_width * new_height);
+	newimg->width = new_width;
+	newimg->height = new_height;
+	newimg->flags = img->flags;
+
+	ClearMagickException(exception);
+	ret = ExportImagePixels(resized, 0, 0, new_width, new_height, "I",
+		CharPixel, newimg->data, exception);
+	if (ret != MagickTrue) {
+		fp_err("export failed");
+		return NULL;
+	}
+
+	DestroyImage(mimg);
+	DestroyImage(resized);
+	DestroyExceptionInfo(exception);
+
+	return newimg;
+}
+
 /* Based on write_minutiae_XYTQ and bz_load */
 static void minutiae_to_xyt(MINUTIAE *minutiae, int bwidth,
 	int bheight, unsigned char *buf)
@@ -261,7 +306,7 @@ static void minutiae_to_xyt(MINUTIAE *minutiae, int bwidth,
 	xyt->nrows = nmin;
 }
 
-int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
+int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *_img,
 	struct fp_print_data **ret)
 {
 	MINUTIAE *minutiae;
@@ -272,7 +317,19 @@ int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
 	unsigned char *bdata;
 	int bw, bh, bd;
 	struct fp_print_data *print;
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(imgdev->dev->drv);
+	struct fp_img *img = _img;
+	int free_img = 0;
 	GTimer *timer;
+
+	if (imgdrv->enlarge_factor) {
+		/* FIXME: enlarge_factor should not exist! instead, MINDTCT should
+		 * actually look at the value of the pixels-per-mm parameter and
+		 * figure out itself when the image needs to be treated as if it
+		 * were bigger. */
+		img = im_resize(_img, imgdrv->enlarge_factor);
+		free_img = 1;
+	}
 
 	/* 25.4 mm per inch */
 	timer = g_timer_new();
@@ -284,6 +341,8 @@ int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
 	g_timer_stop(timer);
 	fp_dbg("minutiae scan completed in %f secs", g_timer_elapsed(timer, NULL));
 	g_timer_destroy(timer);
+	if (free_img)
+		g_free(img);
 	if (r) {
 		fp_err("get minutiae failed, code %d", r);
 		return r;

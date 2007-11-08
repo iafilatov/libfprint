@@ -218,6 +218,7 @@ struct fp_img_driver aes4000_driver = {
 	.flags = 0,
 	.img_height = 96,
 	.img_width = 96,
+	.enlarge_factor = 3,
 
 	.init = dev_init,
 	.exit = dev_exit,
