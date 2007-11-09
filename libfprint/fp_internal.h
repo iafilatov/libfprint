@@ -127,6 +127,7 @@ struct fp_img_driver {
 	int img_width;
 	int img_height;
 	unsigned int enlarge_factor;
+	int bz3_threshold;
 
 	/* Device operations */
 	int (*init)(struct fp_img_dev *dev, unsigned long driver_data);

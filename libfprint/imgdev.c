@@ -186,12 +186,16 @@ int img_dev_enroll(struct fp_dev *dev, gboolean initial, int stage,
 	return FP_ENROLL_COMPLETE;
 }
 
+#define BOZORTH3_DEFAULT_THRESHOLD 40
+
 static int img_dev_verify(struct fp_dev *dev,
 	struct fp_print_data *enrolled_print)
 {
 	struct fp_img_dev *imgdev = dev->priv;
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(dev->drv);
 	struct fp_img *img;
 	struct fp_print_data *print;
+	int match_score = imgdrv->bz3_threshold;
 	int r;
 
 	r = fpi_imgdev_capture(imgdev, 0, &img);
@@ -209,11 +213,14 @@ static int img_dev_verify(struct fp_dev *dev,
 		return FP_VERIFY_RETRY;
 	}
 
+	if (match_score == 0)
+		match_score = BOZORTH3_DEFAULT_THRESHOLD;
+
 	r = fpi_img_compare_print_data(enrolled_print, print);
 	fp_print_data_free(print);
 	if (r < 0)
 		return r;
-	if (r >= 40)
+	if (r >= match_score)
 		return FP_VERIFY_MATCH;
 	else
 		return FP_VERIFY_NO_MATCH;

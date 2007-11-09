@@ -220,6 +220,9 @@ struct fp_img_driver aes4000_driver = {
 	.img_width = 96,
 	.enlarge_factor = 3,
 
+	/* temporarily lowered until image quality improves */
+	.bz3_threshold = 9,
+
 	.init = dev_init,
 	.exit = dev_exit,
 	.capture = capture,
