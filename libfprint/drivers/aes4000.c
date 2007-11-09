@@ -102,17 +102,17 @@ static const struct aes4000_regwrite {
 	{ 0x85, 0x3d }, /* set calibration capacitance */
 	{ 0x86, 0x03 }, /* detect drive voltage */
 	{ 0x87, 0x01 }, /* set detection frequency to 125khz */
-	{ 0x88, 0x03 }, /* set column scan period */
-	{ 0x89, 0x03 }, /* set measure drive */
-	{ 0x8a, 0x32 }, /* set measure frequency and sense amplifier bias */
+	{ 0x88, 0x02 }, /* set column scan period */
+	{ 0x89, 0x02 }, /* set measure drive */
+	{ 0x8a, 0x33 }, /* set measure frequency and sense amplifier bias */
 	{ 0x8b, 0x33 }, /* set matrix pattern */
-	{ 0x8c, 0x0b }, /* set demodulation phase 1 */
+	{ 0x8c, 0x0f }, /* set demodulation phase 1 */
 	{ 0x8d, 0x04 }, /* set demodulation phase 2 */
-	{ 0x8e, 0x33 }, /* set sensor gain */
-	{ 0x8f, 0x03 }, /* set image parameters */
-	{ 0x90, 0x0f }, /* carrier offset null */
-	{ 0x91, 0x03 }, /* set A/D reference high */
-	{ 0x92, 0x03 }, /* set A/D reference low */
+	{ 0x8e, 0x23 }, /* set sensor gain */
+	{ 0x8f, 0x07 }, /* set image parameters */
+	{ 0x90, 0x00 }, /* carrier offset null */
+	{ 0x91, 0x1c }, /* set A/D reference high */
+	{ 0x92, 0x08 }, /* set A/D reference low */
 	{ 0x93, 0x00 }, /* set start row to 0 */
 	{ 0x94, 0x05 }, /* set end row to 5 */
 	{ 0x95, 0x00 }, /* set start column to 0 */
