@@ -14,13 +14,8 @@ For more information on libfprint, supported devices, API documentation, etc.,
 see the homepage:
 http://www.reactivated.net/fprint/Libfprint
 
-libfprint is primarily licensed under the GNU LGPL. HOWEVER, THIS PRERELEASE
-VERSION INCLUDES GPL CODE FROM LIBTHINKFINGER, therefore distribution is
-subject to both the terms of the LGPL (see COPYING) *and* the GPL
-(see COPYING.GPL).
-
-At release time, I will contact libthinkfinger authors and see if they will
-be happy to relicense. I expect they will.
+libfprint is licensed under the GNU LGPL version 2.1. See the COPYING file
+for the license text.
 
 libfprint includes code from NIST's NBIS software distribution:
 http://fingerprint.nist.gov/NBIS/index.html
