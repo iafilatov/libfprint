@@ -54,20 +54,20 @@ int main(void)
 	discovered_devs = fp_discover_devs();
 	if (!discovered_devs) {
 		fprintf(stderr, "Could not discover devices\n");
-		exit(1);
+		goto out;
 	}
 
 	ddev = discover_device(discovered_devs);
 	if (!ddev) {
 		fprintf(stderr, "No devices detected.\n");
-		exit(1);
+		goto out;
 	}
 
 	dev = fp_dev_open(ddev);
 	fp_dscv_devs_free(discovered_devs);
 	if (!dev) {
 		fprintf(stderr, "Could not open device.\n");
-		exit(1);
+		goto out;
 	}
 
 	if (!fp_dev_supports_imaging(dev)) {
@@ -100,6 +100,8 @@ int main(void)
 	r = 0;
 out_close:
 	fp_dev_close(dev);
+out:
+	fp_exit();
 	return r;
 }
 

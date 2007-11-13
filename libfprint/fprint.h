@@ -183,6 +183,7 @@ void fp_img_free(struct fp_img *img);
 
 /* Library */
 int fp_init(void);
+void fp_exit(void);
 
 #endif
 

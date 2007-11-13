@@ -153,25 +153,25 @@ int main(void)
 	discovered_devs = fp_discover_devs();
 	if (!discovered_devs) {
 		fprintf(stderr, "Could not discover devices\n");
-		exit(1);
+		goto out;
 	}
 
 	ddev = discover_device(discovered_devs);
 	if (!ddev) {
 		fprintf(stderr, "No devices detected.\n");
-		exit(1);
+		goto out;
 	}
 
 	dev = fp_dev_open(ddev);
 	fp_dscv_devs_free(discovered_devs);
 	if (!dev) {
 		fprintf(stderr, "Could not open device.\n");
-		exit(1);
+		goto out;
 	}
 
 	if (!fp_dev_supports_imaging(dev)) {
 		fprintf(stderr, "this device does not have imaging capabilities.\n");
-		goto out;
+		goto out_close;
 	}
 
 	img_width = fp_dev_get_img_width(dev);
@@ -179,24 +179,24 @@ int main(void)
 	if (img_width <= 0 || img_height <= 0) {
 		fprintf(stderr, "this device returns images with variable dimensions,"
 			" this example does not support that.\n");
-		goto out;
+		goto out_close;
 	}
 	framebuffer = malloc(img_width * img_height * 2);
 	if (!framebuffer)
-		goto out;
+		goto out_close;
 
 	/* make the window */
 	display = XOpenDisplay(getenv("DISPLAY"));
 	if(display == NULL) {
 		fprintf(stderr,"Could not open display \"%s\"\n",
 				getenv("DISPLAY"));
-		goto out;
+		goto out_close;
 	}
 
 	QueryXv();
 
 	if (adaptor < 0)
-		goto out;
+		goto out_close;
 
 	window = XCreateSimpleWindow(display, DefaultRootWindow(display), 0, 0,
 			img_width, img_height, 0,
@@ -216,7 +216,7 @@ int main(void)
 		r = fp_dev_img_capture(dev, 1, &img);
 		if (r) {
 			fprintf(stderr, "image capture failed, code %d\n", r);
-			goto out;
+			goto out_close;
 		}
 		if (standardize)
 			fp_img_standardize(img);
@@ -234,7 +234,7 @@ int main(void)
 			case XK_q:
 			case XK_Q:
 				r = 0;
-				goto out;
+				goto out_close;
 				break;
 			case XK_s:
 			case XK_S:
@@ -245,7 +245,7 @@ int main(void)
 	}
 
 	r = 0;
-out:
+out_close:
 	if (framebuffer)
 		free(framebuffer);
 	fp_dev_close(dev);
@@ -253,6 +253,8 @@ out:
 		XUnmapWindow(display, window);
 	if (display != NULL)
 		XFlush(display);
+out:
+	fp_exit();
 	return r;
 }
 

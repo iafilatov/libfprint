@@ -4,8 +4,6 @@ identification
 test suite against NFIQ compliance set
 make library optionally asynchronous and maybe thread-safe
 nbis cleanups
-track open devices, so we can close them during libfprint close
-free memory during libfprint close
 API function to determine if img device supports uncond. capture
 race-free way of saying "save this print but don't overwrite"
 

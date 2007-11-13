@@ -276,7 +276,8 @@
  * circumstances, you don't have to worry about driver IDs at all.
  */
 
-static GList *registered_drivers = NULL;
+static GSList *registered_drivers = NULL;
+static GSList *opened_devices = NULL;
 
 void fpi_log(enum fpi_log_level level, const char *component,
 	const char *function, const char *format, ...)
@@ -323,7 +324,7 @@ static void register_driver(struct fp_driver *drv)
 		fp_err("not registering driver %s: driver ID is 0");
 		return;
 	}
-	registered_drivers = g_list_prepend(registered_drivers, (gpointer) drv);
+	registered_drivers = g_slist_prepend(registered_drivers, (gpointer) drv);
 	fp_dbg("registered driver %s", drv->name);
 }
 
@@ -353,7 +354,7 @@ static void register_drivers(void)
 static struct fp_driver *find_supporting_driver(struct usb_device *udev,
 	const struct usb_id **usb_id)
 {
-	GList *elem = registered_drivers;
+	GSList *elem = registered_drivers;
 	
 	do {
 		struct fp_driver *drv = elem->data;
@@ -367,7 +368,7 @@ static struct fp_driver *find_supporting_driver(struct usb_device *udev,
 				*usb_id = id;
 				return drv;
 			}
-	} while (elem = g_list_next(elem));
+	} while (elem = g_slist_next(elem));
 	return NULL;
 }
 
@@ -405,7 +406,7 @@ static struct fp_dscv_dev *discover_dev(struct usb_device *udev)
  */
 API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 {
-	GList *tmplist = NULL;
+	GSList *tmplist = NULL;
 	struct fp_dscv_dev **list;
 	struct usb_device *udev;
 	struct usb_bus *bus;
@@ -418,7 +419,7 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 	usb_find_devices();
 
 	/* Check each device against each driver, temporarily storing successfully
-	 * discovered devices in a GList.
+	 * discovered devices in a GSList.
 	 *
 	 * Quite inefficient but excusable as we'll only be dealing with small
 	 * sets of drivers against small sets of USB devices */
@@ -427,23 +428,23 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 			struct fp_dscv_dev *ddev = discover_dev(udev);
 			if (!ddev)
 				continue;
-			tmplist = g_list_prepend(tmplist, (gpointer) ddev);
+			tmplist = g_slist_prepend(tmplist, (gpointer) ddev);
 			dscv_count++;
 		}
 
-	/* Convert our temporary GList into a standard NULL-terminated pointer
+	/* Convert our temporary GSList into a standard NULL-terminated pointer
 	 * array. */
 	list = g_malloc(sizeof(*list) * (dscv_count + 1));
 	if (dscv_count > 0) {
-		GList *elem = tmplist;
+		GSList *elem = tmplist;
 		int i = 0;
 		do {
 			list[i++] = elem->data;
-		} while (elem = g_list_next(elem));
+		} while (elem = g_slist_next(elem));
 	}
 	list[dscv_count] = NULL; /* NULL-terminate */
 
-	g_list_free(tmplist);
+	g_slist_free(tmplist);
 	return list;
 }
 
@@ -601,7 +602,17 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	}
 
 	fp_dbg("");
+	opened_devices = g_slist_prepend(opened_devices, (gpointer) dev);
 	return dev;
+}
+
+/* performs close operation without modifying opened_devices list */
+static void do_close(struct fp_dev *dev)
+{
+	if (dev->drv->exit)
+		dev->drv->exit(dev);
+	usb_close(dev->udev);
+	g_free(dev);
 }
 
 /** \ingroup dev
@@ -612,10 +623,11 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 API_EXPORTED void fp_dev_close(struct fp_dev *dev)
 {
 	fp_dbg("");
-	if (dev->drv->exit)
-		dev->drv->exit(dev);
-	usb_close(dev->udev);
-	g_free(dev);
+
+	if (g_slist_index(opened_devices, (gconstpointer) dev) == -1)
+		fp_err("device %p not in opened list!", dev);
+	opened_devices = g_slist_remove(opened_devices, (gconstpointer) dev);
+	do_close(dev);
 }
 
 /** \ingroup dev
@@ -984,5 +996,29 @@ API_EXPORTED int fp_init(void)
 	usb_init();
 	register_drivers();
 	return 0;
+}
+
+/** \ingroup core
+ * Deinitialise libfprint. This function should be called during your program
+ * exit sequence. You must not use any libfprint functions after calling this
+ * function, unless you call fp_init() again.
+ */
+API_EXPORTED void fp_exit(void)
+{
+	GSList *elem = opened_devices;
+	fp_dbg("");
+
+	if (elem != NULL) {
+		do {
+			fp_dbg("naughty app left a device open on exit!");
+			do_close((struct fp_dev *) elem->data);
+		} while (elem = g_slist_next(elem));
+		g_slist_free(opened_devices);
+		opened_devices = NULL;
+	}
+
+	fpi_data_exit();
+	g_slist_free(registered_drivers);
+	registered_drivers = NULL;
 }
 

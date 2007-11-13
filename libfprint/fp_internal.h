@@ -182,6 +182,7 @@ struct fpi_print_data_fp1 {
 	unsigned char data[0];
 } __attribute__((__packed__));
 
+void fpi_data_exit(void);
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length);
 gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
 	enum fp_print_data_type type1, uint16_t driver_id2, uint32_t devtype2,

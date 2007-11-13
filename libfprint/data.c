@@ -45,7 +45,6 @@
  * in any fashion that suits you.
  */
 
-/* FIXME: should free this during library shutdown */
 static char *base_store = NULL;
 
 static void storage_setup(void)
@@ -61,6 +60,11 @@ static void storage_setup(void)
 	base_store = g_build_filename(homedir, ".fprint/prints", NULL);
 	g_mkdir_with_parents(base_store, DIR_PERMS);
 	/* FIXME handle failure */
+}
+
+void fpi_data_exit(void)
+{
+	g_free(base_store);
 }
 
 #define FP_FINGER_IS_VALID(finger) \

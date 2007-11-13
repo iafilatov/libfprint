@@ -126,7 +126,7 @@ int verify(struct fp_dev *dev, struct fp_print_data *data)
 
 int main(void)
 {
-	int r;
+	int r = 1;
 	struct fp_dscv_dev *ddev;
 	struct fp_dscv_dev **discovered_devs;
 	struct fp_dev *dev;
@@ -141,20 +141,20 @@ int main(void)
 	discovered_devs = fp_discover_devs();
 	if (!discovered_devs) {
 		fprintf(stderr, "Could not discover devices\n");
-		exit(1);
+		goto out;
 	}
 
 	ddev = discover_device(discovered_devs);
 	if (!ddev) {
 		fprintf(stderr, "No devices detected.\n");
-		exit(1);
+		goto out;
 	}
 
 	dev = fp_dev_open(ddev);
 	fp_dscv_devs_free(discovered_devs);
 	if (!dev) {
 		fprintf(stderr, "Could not open device.\n");
-		exit(1);
+		goto out;
 	}
 
 	printf("Opened device. It's now time to enroll your finger.\n\n");
@@ -181,6 +181,8 @@ int main(void)
 	fp_print_data_free(data);
 out_close:
 	fp_dev_close(dev);
+out:
+	fp_exit();
 	return r;
 }
 
