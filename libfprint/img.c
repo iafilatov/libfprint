@@ -86,7 +86,7 @@ struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize)
 
 /** \ingroup img
  * Frees an image. Must be called when you are finished working with an image.
- * \param img the image to destroy
+ * \param img the image to destroy. If NULL, function simply returns.
  */
 API_EXPORTED void fp_img_free(struct fp_img *img)
 {

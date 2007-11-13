@@ -557,7 +557,7 @@ static const unsigned char scan_comp[] = {
 static const unsigned char poll_data[] = { 0x30, 0x01 };
 
 static int enroll(struct fp_dev *dev, gboolean initial,
-	int stage, struct fp_print_data **_data)
+	int stage, struct fp_print_data **_data, struct fp_img **img)
 {
 	unsigned char *data;
 	size_t data_len;
@@ -692,7 +692,8 @@ static const unsigned char verify_hdr[] = {
 	0x00
 };
 
-static int verify(struct fp_dev *dev, struct fp_print_data *print)
+static int verify(struct fp_dev *dev, struct fp_print_data *print,
+	struct fp_img **img)
 {
 	size_t data_len = sizeof(verify_hdr) + print->length;
 	unsigned char *data;

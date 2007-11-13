@@ -143,7 +143,7 @@
  * match. libfprint does offer you some "is this print compatible?" helper
  * functions, so you don't have to worry about these details too much.
  *
- * \section Synchronity/asynchronity
+ * \section sync Synchronity/asynchronity
  *
  * Currently, all data acquisition operations are synchronous and can
  * potentially block for extended periods of time. For example, the enroll
@@ -850,16 +850,25 @@ API_EXPORTED int fp_dev_get_img_height(struct fp_dev *dev)
  * resultant enrollment data. The print_data parameter will not be modified
  * during any other enrollment stages, hence it is actually legal to pass NULL
  * as this argument for all but the final stage.
+ * 
+ * If the device is an imaging device, it can also return the image from
+ * the scan, even when the enroll fails with a RETRY or FAIL code. It is legal
+ * to call this function even on non-imaging devices, just don't expect them to
+ * provide images.
  *
  * \param dev the device
  * \param print_data a location to return the resultant enrollment data from
  * the final stage. Must be freed with fp_print_data_free() after use.
- * \return negative code on error, otherwise a code from #fp_verify_result
+ * \param img location to store the scan image. accepts NULL for no image
+ * storage. If an image is returned, it must be freed with fp_img_free() after
+ * use.
+ * \return negative code on error, otherwise a code from #fp_enroll_result
  */
-API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
-	struct fp_print_data **print_data)
+API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
+	struct fp_print_data **print_data, struct fp_img **img)
 {
 	struct fp_driver *drv = dev->drv;
+	struct fp_img *_img = NULL;
 	int ret;
 	int stage = dev->__enroll_stage;
 	gboolean initial = FALSE;
@@ -884,12 +893,18 @@ API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
 	fp_dbg("%s will handle enroll stage %d/%d%s", drv->name, stage,
 		dev->nr_enroll_stages - 1, initial ? " (initial)" : "");
 
-	ret = drv->enroll(dev, initial, stage, print_data);
+	ret = drv->enroll(dev, initial, stage, print_data, &_img);
 	if (ret < 0) {
 		fp_err("enroll failed with code %d", ret);
 		dev->__enroll_stage = -1;
 		return ret;
 	}
+
+	if (img)
+		*img = _img;
+	else
+		fp_img_free(_img);
+
 	switch (ret) {
 	case FP_ENROLL_PASS:
 		fp_dbg("enroll stage passed");
@@ -925,15 +940,24 @@ API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
 
 /** \ingroup dev
  * Performs a new scan and verify it against a previously enrolled print.
+ * If the device is an imaging device, it can also return the image from
+ * the scan, even when the verify fails with a RETRY code. It is legal to
+ * call this function even on non-imaging devices, just don't expect them to
+ * provide images.
+ *
  * \param dev the device to perform the scan.
  * \param enrolled_print the print to verify against. Must have been previously
  * enrolled with a device compatible to the device selected to perform the scan.
+ * \param img location to store the scan image. accepts NULL for no image
+ * storage. If an image is returned, it must be freed with fp_img_free() after
+ * use.
  * \return negative code on error, otherwise a code from #fp_verify_result
  */
-API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
-	struct fp_print_data *enrolled_print)
+API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
+	struct fp_print_data *enrolled_print, struct fp_img **img)
 {
 	struct fp_driver *drv = dev->drv;
+	struct fp_img *_img = NULL;
 	int r;
 
 	if (!enrolled_print) {
@@ -952,11 +976,16 @@ API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
 	}
 
 	fp_dbg("to be handled by %s", drv->name);
-	r = drv->verify(dev, enrolled_print);
+	r = drv->verify(dev, enrolled_print, &_img);
 	if (r < 0) {
 		fp_dbg("verify error %d", r);
 		return r;
 	}
+
+	if (img)
+		*img = _img;
+	else
+		fp_img_free(_img);
 
 	switch (r) {
 	case FP_VERIFY_NO_MATCH:

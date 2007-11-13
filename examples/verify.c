@@ -44,9 +44,16 @@ int verify(struct fp_dev *dev, struct fp_print_data *data)
 	int r;
 
 	do {
+		struct fp_img *img = NULL;
+
 		sleep(1);
 		printf("\nScan your finger now.\n");
-		r = fp_verify_finger(dev, data);
+		r = fp_verify_finger_img(dev, data, &img);
+		if (img) {
+			fp_img_save_to_file(img, "verify.pgm");
+			printf("Wrote scanned image to verify.pgm\n");
+			fp_img_free(img);
+		}
 		if (r < 0) {
 			printf("verification failed with error %d :(\n", r);
 			return r;

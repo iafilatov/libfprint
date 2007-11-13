@@ -47,13 +47,22 @@ struct fp_print_data *enroll(struct fp_dev *dev) {
 		"complete the process.\n", fp_dev_get_nr_enroll_stages(dev));
 
 	do {
+		struct fp_img *img = NULL;
+	
 		sleep(1);
 		printf("\nScan your finger now.\n");
-		r = fp_enroll_finger(dev, &enrolled_print);
+
+		r = fp_enroll_finger_img(dev, &enrolled_print, &img);
+		if (img) {
+			fp_img_save_to_file(img, "enrolled.pgm");
+			printf("Wrote scanned image to enrolled.pgm\n");
+			fp_img_free(img);
+		}
 		if (r < 0) {
 			printf("Enroll failed with error %d\n", r);
 			return NULL;
 		}
+
 		switch (r) {
 		case FP_ENROLL_COMPLETE:
 			printf("Enroll complete!\n");

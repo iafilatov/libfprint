@@ -128,7 +128,25 @@ enum fp_enroll_result {
 	FP_ENROLL_RETRY_REMOVE_FINGER,
 };
 
-int fp_enroll_finger(struct fp_dev *dev, struct fp_print_data **print_data);
+int fp_enroll_finger_img(struct fp_dev *dev, struct fp_print_data **print_data,
+	struct fp_img **img);
+
+/** \ingroup dev
+ * Performs an enroll stage. See \ref enrolling for an explanation of enroll
+ * stages. This function is just a shortcut to calling fp_enroll_finger_img()
+ * with a NULL image parameter. Be sure to read the description of
+ * fp_enroll_finger_img() in order to understand its behaviour.
+ *
+ * \param dev the device
+ * \param print_data a location to return the resultant enrollment data from
+ * the final stage. Must be freed with fp_print_data_free() after use.
+ * \return negative code on error, otherwise a code from #fp_enroll_result
+ */
+static inline int fp_enroll_finger(struct fp_dev *dev,
+	struct fp_print_data **print_data)
+{
+	return fp_enroll_finger_img(dev, print_data, NULL);
+}
 
 /** \ingroup dev
  * Verification result codes returned from fp_verify_finger().
@@ -158,7 +176,22 @@ enum fp_verify_result {
 	FP_VERIFY_RETRY_REMOVE_FINGER = FP_ENROLL_RETRY_REMOVE_FINGER,
 };
 
-int fp_verify_finger(struct fp_dev *dev, struct fp_print_data *enrolled_print);
+int fp_verify_finger_img(struct fp_dev *dev,
+	struct fp_print_data *enrolled_print, struct fp_img **img);
+
+/** \ingroup dev
+ * Performs a new scan and verify it against a previously enrolled print.
+ * \param dev the device to perform the scan.
+ * \param enrolled_print the print to verify against. Must have been previously
+ * enrolled with a device compatible to the device selected to perform the scan.
+ * \return negative code on error, otherwise a code from #fp_verify_result
+ * \sa fp_verify_finger_img()
+ */
+static inline int fp_verify_finger(struct fp_dev *dev,
+	struct fp_print_data *enrolled_print)
+{
+	return fp_verify_finger_img(dev, enrolled_print, NULL);
+}
 
 /* Data handling */
 int fp_print_data_load(struct fp_dev *dev, enum fp_finger finger,

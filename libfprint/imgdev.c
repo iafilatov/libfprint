@@ -157,7 +157,7 @@ err:
 #define MIN_ACCEPTABLE_MINUTIAE 10
 
 int img_dev_enroll(struct fp_dev *dev, gboolean initial, int stage,
-	struct fp_print_data **ret)
+	struct fp_print_data **ret, struct fp_img **_img)
 {
 	struct fp_img *img;
 	struct fp_img_dev *imgdev = dev->priv;
@@ -168,12 +168,17 @@ int img_dev_enroll(struct fp_dev *dev, gboolean initial, int stage,
 	 * use NFIQ to pick the best one, and discard the others */
 
 	r = fpi_imgdev_capture(imgdev, 0, &img);
+
+	/* If we got an image, standardize it and return it even if the scan
+	 * quality was too low for processing. */
+	if (img)
+		fp_img_standardize(img);
+	if (_img)
+		*_img = img;
 	if (r)
 		return r;
 
-	fp_img_standardize(img);
 	r = fpi_img_detect_minutiae(imgdev, img, &print);
-	fp_img_free(img);
 	if (r < 0)
 		return r;
 	if (r < MIN_ACCEPTABLE_MINUTIAE) {
@@ -189,22 +194,27 @@ int img_dev_enroll(struct fp_dev *dev, gboolean initial, int stage,
 #define BOZORTH3_DEFAULT_THRESHOLD 40
 
 static int img_dev_verify(struct fp_dev *dev,
-	struct fp_print_data *enrolled_print)
+	struct fp_print_data *enrolled_print, struct fp_img **_img)
 {
 	struct fp_img_dev *imgdev = dev->priv;
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(dev->drv);
-	struct fp_img *img;
+	struct fp_img *img = NULL;
 	struct fp_print_data *print;
 	int match_score = imgdrv->bz3_threshold;
 	int r;
 
 	r = fpi_imgdev_capture(imgdev, 0, &img);
+
+	/* If we got an image, standardize it and return it even if the scan
+	 * quality was too low for processing. */
+	if (img)
+		fp_img_standardize(img);
+	if (_img)
+		*_img = img;
 	if (r)
 		return r;
 
-	fp_img_standardize(img);
 	r = fpi_img_detect_minutiae(imgdev, img, &print);
-	fp_img_free(img);
 	if (r < 0)
 		return r;
 	if (r < MIN_ACCEPTABLE_MINUTIAE) {
