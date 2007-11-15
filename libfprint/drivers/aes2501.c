@@ -378,11 +378,11 @@ static int sum_histogram_values(unsigned char *data, uint8_t threshold)
 
 /* find overlapping parts of  frames */
 static unsigned int find_overlap(unsigned char *first_frame,
-	unsigned char *second_frame)
+	unsigned char *second_frame, unsigned int *min_error)
 {
 	unsigned int dy;
-	unsigned int min_error = 255 * FRAME_SIZE;
 	unsigned int not_overlapped_height = 0;
+	*min_error = 255 * FRAME_SIZE;
 	for (dy = 0; dy < FRAME_HEIGHT; dy++) {
 		/* Calculating difference (error) between parts of frames */
 		unsigned int i;
@@ -397,8 +397,8 @@ static unsigned int find_overlap(unsigned char *first_frame,
 		/* Normalize error */
 		error *= 15;
 		error /= i;
-		if (error < min_error) {
-			min_error = error;
+		if (error < *min_error) {
+			*min_error = error;
 			not_overlapped_height = dy;
 		}
 		first_frame += FRAME_WIDTH;
@@ -409,11 +409,13 @@ static unsigned int find_overlap(unsigned char *first_frame,
 
 /* assemble a series of frames into a single image */
 static unsigned int assemble(unsigned char *input, unsigned char *output,
-	int num_strips)
+	int num_strips, gboolean reverse, unsigned int *errors_sum)
 {
 	uint8_t *assembled = output;
 	int frame;
 	uint32_t image_height = FRAME_HEIGHT;
+	unsigned int min_error;
+	*errors_sum = 0;
 
 	if (num_strips < 1)
 		return 0;
@@ -422,6 +424,8 @@ static unsigned int assemble(unsigned char *input, unsigned char *output,
 	 * Taken from document describing aes2501 image format
 	 * TODO: move reversing detection here */
 	
+	if (reverse)
+		output += (num_strips - 1) * FRAME_SIZE;
 	for (frame = 0; frame < num_strips; frame++) {
 		int column;
 	    for (column = 0; column < FRAME_WIDTH; column++) {
@@ -433,7 +437,10 @@ static unsigned int assemble(unsigned char *input, unsigned char *output,
 			}
 		}
 
-		output += FRAME_SIZE;
+		if (reverse)
+		    output -= FRAME_SIZE;
+		else
+		    output += FRAME_SIZE;
 	}
 
 	/* Detecting where frames overlaped */
@@ -442,11 +449,12 @@ static unsigned int assemble(unsigned char *input, unsigned char *output,
 		int not_overlapped;
 
 		output += FRAME_SIZE;
-		not_overlapped = find_overlap(assembled, output);
+		not_overlapped = find_overlap(assembled, output, &min_error);
+		*errors_sum += min_error;
 		image_height += not_overlapped;
 		assembled += FRAME_WIDTH * not_overlapped;
 		memcpy(assembled, output, FRAME_SIZE); 
-	} 
+	}
 	return image_height;
 }
 
@@ -512,6 +520,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	int r;
 	struct fp_img *img;
 	unsigned int nstrips;
+	unsigned int errors_sum, r_errors_sum;
 	unsigned char *cooked;
 	unsigned char *imgptr;
 	unsigned char buf[1705];
@@ -574,12 +583,19 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	if (nstrips == MAX_FRAMES)
 		fp_warn("swiping finger too slow?");
 
-	img->height = assemble(img->data, cooked, nstrips);
+	img->flags = FP_IMG_COLORS_INVERTED;
+	img->height = assemble(img->data, cooked, nstrips, FALSE, &errors_sum);
+	img->height = assemble(img->data, cooked, nstrips, TRUE, &r_errors_sum);
+	
+	if (r_errors_sum > errors_sum) {
+	    img->height = assemble(img->data, cooked, nstrips, FALSE, &errors_sum);
+		img->flags |= FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
+	}
+
 	for (i = 0; i < img->height * FRAME_WIDTH; i++)
 		img->data[i] = (cooked[i] << 4) | 0xf;
 
 	img = fpi_img_resize(img, img->height * FRAME_WIDTH);
-	img->flags = FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED | FP_IMG_COLORS_INVERTED;
 	*ret = img;
 	return 0;
 err:
