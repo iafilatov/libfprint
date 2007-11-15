@@ -17,9 +17,15 @@ http://www.reactivated.net/fprint/Libfprint
 libfprint is licensed under the GNU LGPL version 2.1. See the COPYING file
 for the license text.
 
+Section 6 of the license states that for compiled works that use this
+library, such works must include libfprint copyright notices alongside the
+copyright notices for the other parts of the work. We have attempted to
+make this process slightly easier for you by grouping these all in one place:
+the AUTHORS file.
+
 libfprint includes code from NIST's NBIS software distribution:
 http://fingerprint.nist.gov/NBIS/index.html
 We include bozorth3 from the US export controlled distribution. We have
 determined that it is fine to ship bozorth3 in an open source project,
-see http://reactivated.net/fprint/US_export_control
+see http://reactivated.net/fprint/wiki/US_export_control
 

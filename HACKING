@@ -1,3 +1,14 @@
+Copyright notices
+=================
+
+If you make a contribution substantial enough to add or update a copyright
+notice on a file, such notice must be mirrored in the AUTHORS file. This is
+to make it easy for people to comply to section 6 of the LGPL, which states
+that a "work that uses the Library" must include copyright notices from
+this library. By providing them all in one place, hopefully we save such
+users some time.
+
+
 USB
 ===
 

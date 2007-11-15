@@ -10,3 +10,9 @@ pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=libfprint.pc
 DISTCLEANFILES=libfprint.pc
 
+.PHONY: ChangeLog
+ChangeLog:
+	git --git-dir $(top_srcdir)/.git log > ChangeLog
+
+dist-hook: ChangeLog
+

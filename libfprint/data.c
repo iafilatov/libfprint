@@ -378,7 +378,7 @@ API_EXPORTED int fp_print_data_from_dscv_print(struct fp_dscv_print *print,
 
 /** \ingroup print_data
  * Frees a stored print. Must be called when you are finished using the print.
- * \param data the stored print to destroy
+ * \param data the stored print to destroy. If NULL, function simply returns.
  */
 API_EXPORTED void fp_print_data_free(struct fp_print_data *data)
 {
@@ -586,7 +586,8 @@ API_EXPORTED struct fp_dscv_print **fp_discover_prints(void)
  * Frees a list of discovered prints. This function also frees the discovered
  * prints themselves, so make sure you do not use any discovered prints
  * after calling this function.
- * \param prints the list of discovered prints
+ * \param prints the list of discovered prints. If NULL, function simply
+ * returns.
  */
 API_EXPORTED void fp_dscv_prints_free(struct fp_dscv_print **prints)
 {

@@ -453,7 +453,8 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
  * Free a list of discovered devices. This function destroys the list and all
  * discovered devices that it included, so make sure you have opened your
  * discovered device <b>before</b> freeing the list.
- * \param devs the list of discovered devices
+ * \param devs the list of discovered devices. If NULL, function simply
+ * returns.
  */
 API_EXPORTED void fp_dscv_devs_free(struct fp_dscv_dev **devs)
 {
@@ -619,10 +620,13 @@ static void do_close(struct fp_dev *dev)
 /** \ingroup dev
  * Close a device. You must call this function when you are finished using
  * a fingerprint device.
- * \param dev the device to close
+ * \param dev the device to close. If NULL, function simply returns.
  */
 API_EXPORTED void fp_dev_close(struct fp_dev *dev)
 {
+	if (!dev)
+		return;
+
 	fp_dbg("");
 
 	if (g_slist_index(opened_devices, (gconstpointer) dev) == -1)
