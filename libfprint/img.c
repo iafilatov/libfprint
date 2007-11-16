@@ -231,7 +231,7 @@ static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
 {
 	Image *mimg;
 	Image *resized;
-	ExceptionInfo *exception;
+	ExceptionInfo exception;
 	MagickBooleanType ret;
 	int new_width = img->width * factor;
 	int new_height = img->height * factor;
@@ -242,23 +242,23 @@ static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
 	 * result, which improves matching performances in my experiments. */
 
 	if (!IsMagickInstantiated())
-		MagickCoreGenesis(NULL, MagickFalse);
+		InitializeMagick(NULL);
+	
+	GetExceptionInfo(&exception);
+	mimg = ConstituteImage(img->width, img->height, "I", CharPixel, img->data,
+		&exception);
 
-	exception = AcquireExceptionInfo();
-
-	mimg = ConstituteImage(img->width, img->height, "I", CharPixel, img->data, exception);
-
-	ClearMagickException(exception);
-	resized = ResizeImage(mimg, new_width, new_height, 0, 1.0, exception);
+	GetExceptionInfo(&exception);
+	resized = ResizeImage(mimg, new_width, new_height, 0, 1.0, &exception);
 
 	newimg = fpi_img_new(new_width * new_height);
 	newimg->width = new_width;
 	newimg->height = new_height;
 	newimg->flags = img->flags;
 
-	ClearMagickException(exception);
+	GetExceptionInfo(&exception);
 	ret = ExportImagePixels(resized, 0, 0, new_width, new_height, "I",
-		CharPixel, newimg->data, exception);
+		CharPixel, newimg->data, &exception);
 	if (ret != MagickTrue) {
 		fp_err("export failed");
 		return NULL;
@@ -266,7 +266,6 @@ static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
 
 	DestroyImage(mimg);
 	DestroyImage(resized);
-	DestroyExceptionInfo(exception);
 
 	return newimg;
 }
