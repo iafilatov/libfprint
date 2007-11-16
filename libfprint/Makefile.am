@@ -46,9 +46,9 @@ NBIS_SRC = \
 	nbis/mindtct/sort.c \
 	nbis/mindtct/util.c
 
-libfprint_la_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(IMAGEMAGICK_CFLAGS) $(AM_CFLAGS)
+libfprint_la_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(IMAGEMAGICK_CFLAGS) $(CRYPTO_CFLAGS) $(AM_CFLAGS)
 libfprint_la_LDFLAGS = -version-info @lt_major@:@lt_revision@:@lt_age@
-libfprint_la_LIBADD = -lm $(LIBUSB_LIBS) $(GLIB_LIBS) $(IMAGEMAGICK_LIBS)
+libfprint_la_LIBADD = -lm $(LIBUSB_LIBS) $(GLIB_LIBS) $(IMAGEMAGICK_LIBS) $(CRYPTO_LIBS)
 
 libfprint_la_SOURCES =	\
 	fp_internal.h	\

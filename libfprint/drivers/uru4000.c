@@ -23,6 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <openssl/aes.h>
 #include <usb.h>
 
 #include <fp_internal.h>
@@ -39,6 +40,7 @@
 #define DATABLK2_EXPECT	0xb1c0
 #define CAPTURE_HDRLEN	64
 #define IRQ_LENGTH		64
+#define CR_LENGTH		16
 
 enum {
 	IRQDATA_SCANPWR_ON = 0x56aa,
@@ -51,6 +53,8 @@ enum {
 	REG_HWSTAT = 0x07,
 	REG_MODE = 0x4e,
 	FIRMWARE_START = 0x100,
+	REG_RESPONSE = 0x2000,
+	REG_CHALLENGE = 0x2010,
 };
 
 enum {
@@ -75,32 +79,50 @@ static const struct uru4k_dev_profile {
 	const char *name;
 	uint16_t firmware_start;
 	uint16_t fw_enc_offset;
+	gboolean auth_cr;
 } uru4k_dev_info[] = {
 	[MS_KBD] = {
 		.name = "Microsoft Keyboard with Fingerprint Reader",
 		.fw_enc_offset = 0x411,
+		.auth_cr = FALSE,
 	},
 	[MS_INTELLIMOUSE] = {
 		.name = "Microsoft Wireless IntelliMouse with Fingerprint Reader",
 		.fw_enc_offset = 0x411,
+		.auth_cr = FALSE,
 	},
 	[MS_STANDALONE] = {
 		.name = "Microsoft Fingerprint Reader",
 		.fw_enc_offset = 0x411,
+		.auth_cr = FALSE,
+	},
+	[MS_STANDALONE_V2] = {
+		.name = "Microsoft Fingerprint Reader v2",
+		.fw_enc_offset = 0x52e,
+		.auth_cr = TRUE,	
 	},
 	[DP_URU4000] = {
 		.name = "Digital Persona U.are.U 4000",
 		.fw_enc_offset = 0x693,
+		.auth_cr = FALSE,
 	},
 	[DP_URU4000B] = {
 		.name = "Digital Persona U.are.U 4000B",
 		.fw_enc_offset = 0x411,
+		.auth_cr = FALSE,
 	},
 };
 
 struct uru4k_dev {
 	const struct uru4k_dev_profile *profile;
 	uint8_t interface;
+	AES_KEY aeskey;
+};
+
+/* For 2nd generation MS devices */
+static const unsigned char crkey[] = {
+	0x79, 0xac, 0x91, 0x79, 0x5c, 0xa1, 0x47, 0x8e,
+	0x98, 0xe0, 0x0f, 0x3c, 0x59, 0x8f, 0x5f, 0x4b,
 };
 
 /*
@@ -182,6 +204,71 @@ static int set_mode(struct fp_img_dev *dev, unsigned char mode)
 	}
 
 	return 0;
+}
+
+static int read_challenge(struct fp_img_dev *dev, unsigned char *data)
+{
+	int r;
+
+	/* The windows driver uses a request of 0x0c here. We use 0x04 to be
+	 * consistent with every other command we know about. */
+	r = usb_control_msg(dev->udev, CTRL_IN, USB_RQ, REG_CHALLENGE, 0,
+		data, CR_LENGTH, CTRL_TIMEOUT);
+	if (r < 0) {
+		fp_err("error %d", r);
+		return r;
+	} else if (r < CR_LENGTH) {
+		fp_err("read too short (%d)", r);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int write_response(struct fp_img_dev *dev, unsigned char *data)
+{
+	int r;
+
+	r = usb_control_msg(dev->udev, CTRL_OUT, USB_RQ, REG_RESPONSE, 0, data,
+		CR_LENGTH, CTRL_TIMEOUT);
+	if (r < 0) {
+		fp_err("error %d", r);
+		return r;
+	} else if (r < 1) {
+		fp_err("write too short (%d)", r);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/*
+ * 2nd generation MS devices added an AES-based challenge/response
+ * authentication scheme, where the device challenges the authenticity of the
+ * driver.
+ */
+static int auth_cr(struct fp_img_dev *dev)
+{
+	struct uru4k_dev *urudev = dev->priv;
+	unsigned char challenge[CR_LENGTH];
+	unsigned char response[CR_LENGTH];
+	int r;
+
+	fp_dbg("");
+
+	r = read_challenge(dev, challenge);
+	if (r < 0) {
+		fp_err("error %d reading challenge", r);
+		return r;
+	}
+
+	AES_encrypt(challenge, response, &urudev->aeskey);
+
+	r = write_response(dev, response);
+	if (r < 0)
+		fp_err("error %d writing response", r);
+
+	return r;
 }
 
 static int get_irq(struct fp_img_dev *dev, unsigned char *buf, int timeout)
@@ -398,6 +485,8 @@ static int do_init(struct fp_img_dev *dev)
 {
 	unsigned char status;
 	unsigned char tmp;
+	struct uru4k_dev *urudev = dev->priv;
+	gboolean need_auth_cr = urudev->profile->auth_cr;
 	int timeouts = 0;
 	int i;
 	int r;
@@ -467,7 +556,11 @@ retry:
 
 		usleep(10000);
 
-		/* FIXME do C-R auth for v2 devices */
+		if (need_auth_cr) {
+			r = auth_cr(dev);
+			if (r < 0)
+				return r;
+		}
 	}
 
 	if (tmp & 0x80) {
@@ -556,6 +649,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	urudev = g_malloc0(sizeof(*urudev));
 	urudev->profile = &uru4k_dev_info[driver_data];
 	urudev->interface = iface_desc->bInterfaceNumber;
+	AES_set_encrypt_key(crkey, 128, &urudev->aeskey);
 	dev->priv = urudev;
 
 	r = do_init(dev);
@@ -588,6 +682,9 @@ static const struct usb_id id_table[] = {
 
 	/* ms fp rdr (standalone) */
 	{ .vendor = 0x045e, .product = 0x00bd, .driver_data = MS_STANDALONE },
+
+	/* ms fp rdr (standalone) v2 */
+	{ .vendor = 0x045e, .product = 0x00ca, .driver_data = MS_STANDALONE_V2 },
 
 	/* dp uru4000 (standalone) */
 	{ .vendor = 0x05ba, .product = 0x0007, .driver_data = DP_URU4000 },
