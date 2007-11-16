@@ -36,6 +36,7 @@
 #define EP_OUT			(2 | USB_ENDPOINT_OUT)
 
 #define BULK_TIMEOUT 4000
+#define MAX_REGWRITES_PER_REQUEST	16
 
 /*
  * The AES2501 is an imaging device using a swipe-type sensor. It samples
@@ -61,19 +62,27 @@ struct aes2501_regwrite {
 	unsigned char value;
 };
 
-static int write_reg(struct fp_img_dev *dev, unsigned char reg,
-	unsigned char value)
+static int do_write_regv(struct fp_img_dev *dev, struct aes2501_regwrite *regs,
+	unsigned int num)
 {
-	unsigned char data[] = { reg, value };
+	size_t alloc_size = num * 2;
+	unsigned char *data = g_malloc(alloc_size);
+	unsigned int i;
+	size_t offset = 0;
 	int r;
 
-	fp_dbg("%02x=%02x", reg, value);
-	r = usb_bulk_write(dev->udev, EP_OUT, data, sizeof(data), BULK_TIMEOUT);
+	for (i = 0; i < num; i++) {
+		data[offset++] = regs[i].reg;
+		data[offset++] = regs[i].value;
+	}
+
+	r = usb_bulk_write(dev->udev, EP_OUT, data, alloc_size, BULK_TIMEOUT);
+	g_free(data);
 	if (r < 0) {
 		fp_err("bulk write error %d", r);
 		return r;
-	} else if (r < sizeof(data)) {
-		fp_err("unexpected short write %d/%d", r, sizeof(data));
+	} else if (r < alloc_size) {
+		fp_err("unexpected short write %d/%d", r, alloc_size);
 		return -EIO;
 	}
 
@@ -84,15 +93,27 @@ static int write_regv(struct fp_img_dev *dev, struct aes2501_regwrite *regs,
 	unsigned int num)
 {
 	unsigned int i;
-	int r;
+	int skip = 0;
+	int add_offset = 0;
+	fp_dbg("write %d regs", num);
 
-	/* FIXME: could combine multiple writes into a single transaction */
+	for (i = 0; i < num; i += add_offset + skip) {
+		int r, j;
+		int limit = MIN(num, i + MAX_REGWRITES_PER_REQUEST);
+		skip = 0;
 
-	for (i = 0; i < num; i++) {
-		r = write_reg(dev, regs[i].reg, regs[i].value);
+		for (j = i; j < limit; j++)
+			if (!regs[j].reg) {
+				skip = 1;
+				break;
+			}
+
+		add_offset = j - i;
+		r = do_write_regv(dev, &regs[i], add_offset);
 		if (r < 0)
 			return r;
 	}
+
 	return 0;
 }
 
@@ -115,9 +136,13 @@ static int read_data(struct fp_img_dev *dev, unsigned char *data, size_t len)
 static int read_regs(struct fp_img_dev *dev, unsigned char *data)
 {
 	int r;
+	const struct aes2501_regwrite regwrite = {
+		AES2501_REG_CTRL2, AES2501_CTRL2_READ_REGS
+	};
+
 	fp_dbg("");
 
-	r = write_reg(dev, AES2501_REG_CTRL2, AES2501_CTRL2_READ_REGS);
+	r = write_regv(dev, &regwrite, 1);
 	if (r < 0)
 		return r;
 	
@@ -126,6 +151,7 @@ static int read_regs(struct fp_img_dev *dev, unsigned char *data)
 
 static const struct aes2501_regwrite init_1[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
+	{ 0, 0 },
 	{ 0xb0, 0x27 }, /* Reserved? */
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
 	{ AES2501_REG_EXCITCTRL, 0x40 },
@@ -304,6 +330,7 @@ static const struct aes2501_regwrite finger_det_reqs[] = {
 	{ 0xa7, 0x00 },
 	{ AES2501_REG_TREGC, AES2501_TREGC_ENABLE },
 	{ AES2501_REG_TREGD, 0x1a },
+	{ 0, 0 },
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_REG_UPDATE },
 	{ AES2501_REG_CTRL2, AES2501_CTRL2_SET_ONE_SHOT },
 	{ AES2501_REG_LPONT, AES2501_LPONT_MIN_VALUE },
@@ -460,6 +487,7 @@ static unsigned int assemble(unsigned char *input, unsigned char *output,
 
 static const struct aes2501_regwrite capture_reqs_1[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
+	{ 0, 0 },
 	{ AES2501_REG_EXCITCTRL, 0x40 },
 	{ AES2501_REG_DETCTRL,
 		AES2501_DETCTRL_SDELAY_31_MS | AES2501_DETCTRL_DRATE_CONTINUOUS },
@@ -590,6 +618,9 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	if (r_errors_sum > errors_sum) {
 	    img->height = assemble(img->data, cooked, nstrips, FALSE, &errors_sum);
 		img->flags |= FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
+		fp_dbg("normal scan direction");
+	} else {
+		fp_dbg("reversed scan direction");
 	}
 
 	for (i = 0; i < img->height * FRAME_WIDTH; i++)
