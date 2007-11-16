@@ -159,7 +159,7 @@ err:
 int img_dev_enroll(struct fp_dev *dev, gboolean initial, int stage,
 	struct fp_print_data **ret, struct fp_img **_img)
 {
-	struct fp_img *img;
+	struct fp_img *img = NULL;
 	struct fp_img_dev *imgdev = dev->priv;
 	struct fp_print_data *print;
 	int r;
