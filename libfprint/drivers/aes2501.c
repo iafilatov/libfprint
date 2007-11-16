@@ -650,9 +650,6 @@ struct fp_img_driver aes2501_driver = {
 	.img_height = -1,
 	.img_width = 192,
 
-	/* temporarily lowered until image quality improves */
-	.bz3_threshold = 20,
-
 	.init = dev_init,
 	.exit = dev_exit,
 	.await_finger_on = await_finger_on,
