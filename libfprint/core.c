@@ -343,10 +343,10 @@ static void register_drivers(void)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(primitive_drivers); i++)
+	for (i = 0; i < G_N_ELEMENTS(primitive_drivers); i++)
 		register_driver(primitive_drivers[i]);
 
-	for (i = 0; i < ARRAY_SIZE(img_drivers); i++) {
+	for (i = 0; i < G_N_ELEMENTS(img_drivers); i++) {
 		struct fp_img_driver *imgdriver = img_drivers[i];
 		fpi_img_driver_setup(imgdriver);
 		register_driver(&imgdriver->driver);

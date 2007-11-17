@@ -142,7 +142,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	unsigned char *data;
 	unsigned char *ptr;
 
-	for (i = 0; i < ARRAY_SIZE(init_reqs); i++) {
+	for (i = 0; i < G_N_ELEMENTS(init_reqs); i++) {
 		r = write_reg(dev, init_reqs[i].reg, init_reqs[i].value);
 		if (r < 0)
 			return r;

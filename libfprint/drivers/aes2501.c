@@ -248,7 +248,7 @@ static int do_init(struct fp_img_dev *dev)
 	int i;
 
 	/* part 1, probably not needed */
-	r = write_regv(dev, init_1, ARRAY_SIZE(init_1));
+	r = write_regv(dev, init_1, G_N_ELEMENTS(init_1));
 	if (r < 0)
 		return r;
 
@@ -257,7 +257,7 @@ static int do_init(struct fp_img_dev *dev)
 		return r;
 
 	/* part 2 */
-	r = write_regv(dev, init_2, ARRAY_SIZE(init_2));
+	r = write_regv(dev, init_2, G_N_ELEMENTS(init_2));
 	if (r < 0)
 		return r;
 
@@ -269,7 +269,7 @@ static int do_init(struct fp_img_dev *dev)
 	fp_dbg("reg 0xaf = %x", buffer[0x5f]);
 	i = 0;
 	while (buffer[0x5f] == 0x6b) {
-		r = write_regv(dev, init_3, ARRAY_SIZE(init_3));
+		r = write_regv(dev, init_3, G_N_ELEMENTS(init_3));
 		if (r < 0)
 			return r;
 		r = read_regs(dev, buffer);
@@ -280,12 +280,12 @@ static int do_init(struct fp_img_dev *dev)
 	}
 
 	/* part 4 */
-	r = write_regv(dev, init_4, ARRAY_SIZE(init_4));
+	r = write_regv(dev, init_4, G_N_ELEMENTS(init_4));
 	if (r < 0)
 		return r;
 
 	/* part 5 */
-	return write_regv(dev, init_5, ARRAY_SIZE(init_5));
+	return write_regv(dev, init_5, G_N_ELEMENTS(init_5));
 }
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
@@ -343,7 +343,7 @@ static int detect_finger(struct fp_img_dev *dev)
 	int i;
 	int sum = 0;
 
-	r = write_regv(dev, finger_det_reqs, ARRAY_SIZE(finger_det_reqs));
+	r = write_regv(dev, finger_det_reqs, G_N_ELEMENTS(finger_det_reqs));
 	if (r < 0)
 		return r;
 
@@ -558,7 +558,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	/* FIXME can do better here in terms of buffer management? */
 	fp_dbg("");
 
-	r = write_regv(dev, capture_reqs_1, ARRAY_SIZE(capture_reqs_1));
+	r = write_regv(dev, capture_reqs_1, G_N_ELEMENTS(capture_reqs_1));
 	if (r < 0)
 		return r;
 
@@ -566,7 +566,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	if (r < 0)
 		return r;
 
-	r = write_regv(dev, capture_reqs_2, ARRAY_SIZE(capture_reqs_2));
+	r = write_regv(dev, capture_reqs_2, G_N_ELEMENTS(capture_reqs_2));
 	if (r < 0)
 		return r;
 
@@ -583,7 +583,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	for (nstrips = 0; nstrips < MAX_FRAMES; nstrips++) {
 		int threshold;
 
-		r = write_regv(dev, strip_scan_reqs, ARRAY_SIZE(strip_scan_reqs));
+		r = write_regv(dev, strip_scan_reqs, G_N_ELEMENTS(strip_scan_reqs));
 		if (r < 0)
 			goto err;
 		r = read_data(dev, buf, 1705);
