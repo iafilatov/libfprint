@@ -68,6 +68,9 @@ int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev)
 
 	if (width > 0 && imgdrv->enlarge_factor > 1)
 		width *= imgdrv->enlarge_factor;
+	else if (width == -1)
+		width = 0;
+
 	return width;
 }
 
@@ -77,8 +80,11 @@ int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev)
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
 	int height = imgdrv->img_height;
 
-    if (height > 0 && imgdrv->enlarge_factor > 1)
+	if (height > 0 && imgdrv->enlarge_factor > 1)
 		height *= imgdrv->enlarge_factor;
+	else if (height == -1)
+		height = 0;
+
 	return height;
 }
 
