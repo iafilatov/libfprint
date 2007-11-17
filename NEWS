@@ -1,3 +1,13 @@
+This file lists notable changes in each release. For the full history of all
+changes, see ChangeLog.
+
+2007-11-17: v0.0.2 release
+ * Detect reversed scans on AES2501 (Vasily Khoruzhick)
+ * Improved AES2501 scanning
+ * Compatibility with older ImageMagick versions
+ * Add UPEK TouchChip driver (Jan-Michael Brummer)
+ * Add binarization API
+
 2007-11-15: v0.0.1 release
  * Initial release
 
