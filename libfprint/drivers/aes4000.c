@@ -181,7 +181,7 @@ retry:
 	return 0;
 err:
 	g_free(data);
-	g_free(img);
+	fp_img_free(img);
 	return r;
 }
 

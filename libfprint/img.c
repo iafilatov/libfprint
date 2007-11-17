@@ -23,7 +23,6 @@
 #include <string.h>
 
 #include <glib.h>
-#include <magick/ImageMagick.h>
 
 #include "fp_internal.h"
 #include "nbis/include/bozorth.h"
@@ -90,6 +89,13 @@ struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize)
  */
 API_EXPORTED void fp_img_free(struct fp_img *img)
 {
+	if (!img)
+		return;
+
+	if (img->minutiae)
+		free_minutiae(img->minutiae);
+	if (img->binarized)
+		free(img->binarized);
 	g_free(img);
 }
 
@@ -227,55 +233,12 @@ API_EXPORTED void fp_img_standardize(struct fp_img *img)
 	}
 }
 
-static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
-{
-	Image *mimg;
-	Image *resized;
-	ExceptionInfo exception;
-	MagickBooleanType ret;
-	int new_width = img->width * factor;
-	int new_height = img->height * factor;
-	struct fp_img *newimg;
-
-	/* It is possible to implement resizing using a simple algorithm, however
-	 * we use ImageMagick because it applies some kind of smoothing to the
-	 * result, which improves matching performances in my experiments. */
-
-	if (!IsMagickInstantiated())
-		InitializeMagick(NULL);
-	
-	GetExceptionInfo(&exception);
-	mimg = ConstituteImage(img->width, img->height, "I", CharPixel, img->data,
-		&exception);
-
-	GetExceptionInfo(&exception);
-	resized = ResizeImage(mimg, new_width, new_height, 0, 1.0, &exception);
-
-	newimg = fpi_img_new(new_width * new_height);
-	newimg->width = new_width;
-	newimg->height = new_height;
-	newimg->flags = img->flags;
-
-	GetExceptionInfo(&exception);
-	ret = ExportImagePixels(resized, 0, 0, new_width, new_height, "I",
-		CharPixel, newimg->data, &exception);
-	if (ret != MagickTrue) {
-		fp_err("export failed");
-		return NULL;
-	}
-
-	DestroyImage(mimg);
-	DestroyImage(resized);
-
-	return newimg;
-}
-
 /* Based on write_minutiae_XYTQ and bz_load */
-static void minutiae_to_xyt(MINUTIAE *minutiae, int bwidth,
+static void minutiae_to_xyt(struct fp_minutiae *minutiae, int bwidth,
 	int bheight, unsigned char *buf)
 {
 	int i;
-	MINUTIA *minutia;
+	struct fp_minutia *minutia;
 	struct minutiae_struct c[MAX_FILE_MINUTIAE];
 	struct xyt_struct *xyt = (struct xyt_struct *) buf;
 
@@ -305,29 +268,20 @@ static void minutiae_to_xyt(MINUTIAE *minutiae, int bwidth,
 	xyt->nrows = nmin;
 }
 
-int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *_img,
-	struct fp_print_data **ret)
+int fpi_img_detect_minutiae(struct fp_img *img)
 {
-	MINUTIAE *minutiae;
+	struct fp_minutiae *minutiae;
 	int r;
 	int *direction_map, *low_contrast_map, *low_flow_map;
 	int *high_curve_map, *quality_map;
 	int map_w, map_h;
 	unsigned char *bdata;
 	int bw, bh, bd;
-	struct fp_print_data *print;
-	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(imgdev->dev->drv);
-	struct fp_img *img = _img;
-	int free_img = 0;
 	GTimer *timer;
 
-	if (imgdrv->enlarge_factor) {
-		/* FIXME: enlarge_factor should not exist! instead, MINDTCT should
-		 * actually look at the value of the pixels-per-mm parameter and
-		 * figure out itself when the image needs to be treated as if it
-		 * were bigger. */
-		img = im_resize(_img, imgdrv->enlarge_factor);
-		free_img = 1;
+	if (img->flags & FP_IMG_STANDARDIZATION_FLAGS) {
+		fp_err("cant detect minutiae for non-standardized image");
+		return -EINVAL;
 	}
 
 	/* 25.4 mm per inch */
@@ -340,34 +294,50 @@ int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *_img,
 	g_timer_stop(timer);
 	fp_dbg("minutiae scan completed in %f secs", g_timer_elapsed(timer, NULL));
 	g_timer_destroy(timer);
-	if (free_img)
-		g_free(img);
 	if (r) {
 		fp_err("get minutiae failed, code %d", r);
 		return r;
 	}
 	fp_dbg("detected %d minutiae", minutiae->num);
-	r = minutiae->num;
+	img->minutiae = minutiae;
+	img->binarized = bdata;
 
-	/* FIXME: space is wasted if we dont hit the max minutiae count. would
-	 * be good to make this dynamic. */
-	print = fpi_print_data_new(imgdev->dev, sizeof(struct xyt_struct));
-	print->type = PRINT_DATA_NBIS_MINUTIAE;
-	minutiae_to_xyt(minutiae, bw, bh, print->data);
-	/* FIXME: the print buffer at this point is endian-specific, and will
-	 * only work when loaded onto machines with identical endianness. not good!
-	 * data format should be platform-independant. */
-	*ret = print;
-
-	free_minutiae(minutiae);
 	free(quality_map);
 	free(direction_map);
 	free(low_contrast_map);
 	free(low_flow_map);
 	free(high_curve_map);
-	free(bdata);
+	return minutiae->num;
+}
 
-	return r;
+int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
+	struct fp_print_data **ret)
+{
+	struct fp_print_data *print;
+	int r;
+
+	if (!img->minutiae) {
+		r = fpi_img_detect_minutiae(img);
+		if (r < 0)
+			return r;
+		if (!img->minutiae) {
+			fp_err("no minutiae after successful detection?");
+			return -ENOENT;
+		}
+	}
+
+	/* FIXME: space is wasted if we dont hit the max minutiae count. would
+	 * be good to make this dynamic. */
+	print = fpi_print_data_new(imgdev->dev, sizeof(struct xyt_struct));
+	print->type = PRINT_DATA_NBIS_MINUTIAE;
+	minutiae_to_xyt(img->minutiae, img->width, img->height, print->data);
+
+	/* FIXME: the print buffer at this point is endian-specific, and will
+	 * only work when loaded onto machines with identical endianness. not good!
+	 * data format should be platform-independant. */
+	*ret = print;
+
+	return 0;
 }
 
 int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
@@ -393,3 +363,50 @@ int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 
 	return r;
 }
+
+/** \ingroup img
+ * Get a binarized form of a standardized scanned image. This is where the
+ * fingerprint image has been "enhanced" and is a set of pure black ridges
+ * on a pure white background. Internally, image processing happens on top
+ * of the binarized image.
+ *
+ * The image must have been \ref img_std "standardized" otherwise this function
+ * will fail.
+ *
+ * It is safe to binarize an image and free the original while continuing
+ * to use the binarized version.
+ *
+ * You cannot binarize an image twice.
+ *
+ * \param img a standardized image
+ * \returns a new image representing the binarized form of the original, or
+ * NULL on error. Must be freed with fp_img_free() after use.
+ */
+API_EXPORTED struct fp_img *fp_img_binarize(struct fp_img *img)
+{
+	struct fp_img *ret;
+	int height = img->height;
+	int width = img->width;
+	int imgsize = height * width;
+
+	if (img->flags & FP_IMG_BINARIZED_FORM) {
+		fp_err("image already binarized");
+		return NULL;
+	}
+
+	if (!img->binarized) {
+		int r = fpi_img_detect_minutiae(img);
+		if (r < 0)
+			return NULL;
+		if (!img->binarized)
+			fp_err("no minutiae after successful detection?");
+	}
+
+	ret = fpi_img_new(imgsize);
+	ret->flags |= FP_IMG_BINARIZED_FORM;
+	ret->width = width;
+	ret->height = height;
+	memcpy(ret->data, img->binarized, imgsize);
+	return ret;
+}
+

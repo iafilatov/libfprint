@@ -630,7 +630,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	*ret = img;
 	return 0;
 err:
-	g_free(img);
+	fp_img_free(img);
 	return r;
 }
 

@@ -43,6 +43,7 @@ identified are necessarily the best available for the purpose.
 
 #include <math.h>
 #include <stdio.h>
+#include <fp_internal.h>
 
 /*************************************************************************/
 /*        OUTPUT FILE EXTENSIONS                                         */
@@ -130,26 +131,8 @@ typedef struct rotgrids{
 #define DISAPPEARING    0
 #define APPEARING       1
 
-typedef struct minutia{
-   int x;
-   int y;
-   int ex;
-   int ey;
-   int direction;
-   double reliability;
-   int type;
-   int appearing;
-   int feature_id;
-   int *nbrs;
-   int *ridge_counts;
-   int num_nbrs;
-} MINUTIA;
-
-typedef struct minutiae{
-   int alloc;
-   int num;
-   MINUTIA **list;
-} MINUTIAE;
+typedef struct fp_minutia MINUTIA;
+typedef struct fp_minutiae MINUTIAE;
 
 typedef struct feature_pattern{
    int type;

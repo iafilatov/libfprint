@@ -18,7 +18,9 @@
  */
 
 #include <errno.h>
+
 #include <glib.h>
+#include <magick/ImageMagick.h>
 
 #include "fp_internal.h"
 
@@ -62,14 +64,65 @@ int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
-	return imgdrv->img_width;
+	int width = imgdrv->img_width;
+
+	if (width > 0 && imgdrv->enlarge_factor > 1)
+		width *= imgdrv->enlarge_factor;
+	return width;
 }
 
 int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev)
 {
 	struct fp_driver *drv = imgdev->dev->drv;
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
-	return imgdrv->img_height;
+	int height = imgdrv->img_height;
+
+    if (height > 0 && imgdrv->enlarge_factor > 1)
+		height *= imgdrv->enlarge_factor;
+	return height;
+}
+
+static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
+{
+	Image *mimg;
+	Image *resized;
+	ExceptionInfo exception;
+	MagickBooleanType ret;
+	int new_width = img->width * factor;
+	int new_height = img->height * factor;
+	struct fp_img *newimg;
+
+	/* It is possible to implement resizing using a simple algorithm, however
+	 * we use ImageMagick because it applies some kind of smoothing to the
+	 * result, which improves matching performances in my experiments. */
+
+	if (!IsMagickInstantiated())
+		InitializeMagick(NULL);
+	
+	GetExceptionInfo(&exception);
+	mimg = ConstituteImage(img->width, img->height, "I", CharPixel, img->data,
+		&exception);
+
+	GetExceptionInfo(&exception);
+	resized = ResizeImage(mimg, new_width, new_height, 0, 1.0, &exception);
+
+	newimg = fpi_img_new(new_width * new_height);
+	newimg->width = new_width;
+	newimg->height = new_height;
+	newimg->flags = img->flags;
+
+	GetExceptionInfo(&exception);
+	ret = ExportImagePixels(resized, 0, 0, new_width, new_height, "I",
+		CharPixel, newimg->data, &exception);
+	if (ret != MagickTrue) {
+		fp_err("export failed");
+		return NULL;
+	}
+
+	DestroyImage(mimg);
+	DestroyImage(resized);
+
+	return newimg;
 }
 
 int fpi_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
@@ -147,6 +200,16 @@ int fpi_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
 		goto err;
 	}
 
+	if (imgdrv->enlarge_factor > 1) {
+		/* FIXME: enlarge_factor should not exist! instead, MINDTCT should
+		 * actually look at the value of the pixels-per-mm parameter and
+		 * figure out itself when the image needs to be treated as if it
+		 * were bigger. */
+		struct fp_img *tmp = im_resize(img, imgdrv->enlarge_factor);
+		fp_img_free(img);
+		img = tmp;
+	}
+
 	*_img = img;
 	return 0;
 err:
@@ -178,10 +241,10 @@ int img_dev_enroll(struct fp_dev *dev, gboolean initial, int stage,
 	if (r)
 		return r;
 
-	r = fpi_img_detect_minutiae(imgdev, img, &print);
+	r = fpi_img_to_print_data(imgdev, img, &print);
 	if (r < 0)
 		return r;
-	if (r < MIN_ACCEPTABLE_MINUTIAE) {
+	if (img->minutiae->num < MIN_ACCEPTABLE_MINUTIAE) {
 		fp_dbg("not enough minutiae, %d/%d", r, MIN_ACCEPTABLE_MINUTIAE);
 		fp_print_data_free(print);
 		return FP_ENROLL_RETRY;
@@ -214,10 +277,10 @@ static int img_dev_verify(struct fp_dev *dev,
 	if (r)
 		return r;
 
-	r = fpi_img_detect_minutiae(imgdev, img, &print);
+	r = fpi_img_to_print_data(imgdev, img, &print);
 	if (r < 0)
 		return r;
-	if (r < MIN_ACCEPTABLE_MINUTIAE) {
+	if (img->minutiae->num < MIN_ACCEPTABLE_MINUTIAE) {
 		fp_dbg("not enough minutiae, %d/%d", r, MIN_ACCEPTABLE_MINUTIAE);
 		fp_print_data_free(print);
 		return FP_VERIFY_RETRY;

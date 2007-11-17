@@ -191,16 +191,43 @@ gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
 	enum fp_print_data_type type1, uint16_t driver_id2, uint32_t devtype2,
 	enum fp_print_data_type type2);
 
+struct fp_minutia {
+	int x;
+	int y;
+	int ex;
+	int ey;
+	int direction;
+	double reliability;
+	int type;
+	int appearing;
+	int feature_id;
+	int *nbrs;
+	int *ridge_counts;
+	int num_nbrs;
+};
+
+struct fp_minutiae {
+	int alloc;
+	int num;
+	struct fp_minutia **list;
+};
+
 /* bit values for fp_img.flags */
 #define FP_IMG_V_FLIPPED 		(1<<0)
 #define FP_IMG_H_FLIPPED 		(1<<1)
 #define FP_IMG_COLORS_INVERTED	(1<<2)
+#define FP_IMG_BINARIZED_FORM	(1<<3)
+
+#define FP_IMG_STANDARDIZATION_FLAGS (FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED \
+	| FP_IMG_COLORS_INVERTED)
 
 struct fp_img {
 	int width;
 	int height;
 	size_t length;
 	uint16_t flags;
+	struct fp_minutiae *minutiae;
+	unsigned char *binarized;
 	unsigned char data[0];
 };
 
@@ -208,7 +235,8 @@ struct fp_img *fpi_img_new(size_t length);
 struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *dev);
 struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
 gboolean fpi_img_is_sane(struct fp_img *img);
-int fpi_img_detect_minutiae(struct fp_img_dev *imgdev, struct fp_img *img,
+int fpi_img_detect_minutiae(struct fp_img *img);
+int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 	struct fp_print_data **ret);
 int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	struct fp_print_data *new_print);
