@@ -1,6 +1,11 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2007-11-19: v0.0.3 release
+ * Add API to access minutiae (Daniel Drake)
+ * Add API to delete enroll data (Daniel Drake)
+ * Add Authentec AES1610 driver (Anthony Bretaudeau)
+
 2007-11-17: v0.0.2 release
  * Detect reversed scans on AES2501 (Vasily Khoruzhick)
  * Improved AES2501 scanning
