@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include <glib.h>
+#include <glib/gstdio.h>
 
 #include "fp_internal.h"
 
@@ -358,6 +359,28 @@ API_EXPORTED int fp_print_data_load(struct fp_dev *dev,
 }
 
 /** \ingroup print_data
+ * Removes a stored print from disk previously saved with fp_print_data_save().
+ * \param dev the device that the print belongs to
+ * \param finger the finger of the file you are deleting
+ * \returns 0 on success, negative on error
+ */
+API_EXPORTED int fp_print_data_delete(struct fp_dev *dev,
+	enum fp_finger finger)
+{
+	int r;
+	gchar *path = get_path_to_print(dev, finger);
+
+	fp_dbg("remove finger %d at %s", finger, path);
+	r = g_unlink(path);
+	g_free(path);
+	if (r < 0)
+		fp_dbg("unlink failed with error %d", r);
+
+	/* FIXME: cleanup empty directory */
+	return r;
+}
+
+/** \ingroup print_data
  * Attempts to load a stored print based on a \ref dscv_print
  * "discovered print" record.
  *
@@ -637,5 +660,25 @@ API_EXPORTED uint32_t fp_dscv_print_get_devtype(struct fp_dscv_print *print)
 API_EXPORTED enum fp_finger fp_dscv_print_get_finger(struct fp_dscv_print *print)
 {
 	return print->finger;
+}
+
+/** \ingroup dscv_print
+ * Removes a discovered print from disk. After successful return of this
+ * function, functions such as fp_dscv_print_get_finger() will continue to
+ * operate as before, however calling fp_print_data_from_dscv_print() will
+ * fail for obvious reasons.
+ * \param print the discovered print to remove from disk
+ * \returns 0 on success, negative on error
+ */
+API_EXPORTED int fp_dscv_print_delete(struct fp_dscv_print *print)
+{
+	int r;
+	fp_dbg("remove at %s", print->path);
+	r = g_unlink(print->path);
+	if (r < 0)
+		fp_dbg("unlink failed with error %d", r);
+
+	/* FIXME: cleanup empty directory */
+	return r;
 }
 

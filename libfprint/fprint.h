@@ -80,6 +80,7 @@ void fp_dscv_prints_free(struct fp_dscv_print **prints);
 uint16_t fp_dscv_print_get_driver_id(struct fp_dscv_print *print);
 uint32_t fp_dscv_print_get_devtype(struct fp_dscv_print *print);
 enum fp_finger fp_dscv_print_get_finger(struct fp_dscv_print *print);
+int fp_dscv_print_delete(struct fp_dscv_print *print);
 
 /* Device handling */
 struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev);
@@ -199,6 +200,7 @@ int fp_print_data_load(struct fp_dev *dev, enum fp_finger finger,
 int fp_print_data_from_dscv_print(struct fp_dscv_print *print,
 	struct fp_print_data **data);
 int fp_print_data_save(struct fp_print_data *data, enum fp_finger finger);
+int fp_print_data_delete(struct fp_dev *dev, enum fp_finger finger);
 void fp_print_data_free(struct fp_print_data *data);
 size_t fp_print_data_get_data(struct fp_print_data *data, unsigned char **ret);
 struct fp_print_data *fp_print_data_from_data(unsigned char *buf,
