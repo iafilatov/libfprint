@@ -207,12 +207,30 @@ uint16_t fp_print_data_get_driver_id(struct fp_print_data *data);
 uint32_t fp_print_data_get_devtype(struct fp_print_data *data);
 
 /* Image handling */
+
+/** \ingroup img */
+struct fp_minutia {
+	int x;
+	int y;
+	int ex;
+	int ey;
+	int direction;
+	double reliability;
+	int type;
+	int appearing;
+	int feature_id;
+	int *nbrs;
+	int *ridge_counts;
+	int num_nbrs;
+};
+
 int fp_img_get_height(struct fp_img *img);
 int fp_img_get_width(struct fp_img *img);
 unsigned char *fp_img_get_data(struct fp_img *img);
 int fp_img_save_to_file(struct fp_img *img, char *path);
 void fp_img_standardize(struct fp_img *img);
 struct fp_img *fp_img_binarize(struct fp_img *img);
+struct fp_minutia **fp_img_get_minutiae(struct fp_img *img, int *nr_minutiae);
 void fp_img_free(struct fp_img *img);
 
 /* Library */

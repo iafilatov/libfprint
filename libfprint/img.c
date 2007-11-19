@@ -398,8 +398,10 @@ API_EXPORTED struct fp_img *fp_img_binarize(struct fp_img *img)
 		int r = fpi_img_detect_minutiae(img);
 		if (r < 0)
 			return NULL;
-		if (!img->binarized)
+		if (!img->binarized) {
 			fp_err("no minutiae after successful detection?");
+			return NULL;
+		}
 	}
 
 	ret = fpi_img_new(imgsize);
@@ -408,5 +410,49 @@ API_EXPORTED struct fp_img *fp_img_binarize(struct fp_img *img)
 	ret->height = height;
 	memcpy(ret->data, img->binarized, imgsize);
 	return ret;
+}
+
+/** \ingroup img
+ * Get a list of minutiae detected in an image. A minutia point is a feature
+ * detected on a fingerprint, typically where ridges end or split.
+ * libfprint's image processing code relies upon comparing sets of minutiae,
+ * so accurate placement of minutia points is critical for good imaging
+ * performance.
+ *
+ * The image must have been \ref img_std "standardized" otherwise this function
+ * will fail.
+ *
+ * You cannot pass a binarized image to this function. Instead, pass the
+ * original image.
+ *
+ * Returns a list of pointers to minutiae, where the list is of length
+ * indicated in the nr_minutiae output parameter. The returned list is only
+ * valid while the parent image has not been freed, and the minutiae data
+ * must not be modified or freed.
+ *
+ * \param img a standardized image
+ * \param nr_minutiae an output location to store minutiae list length
+ * \returns a list of minutiae points. Must not be modified or freed.
+ */
+API_EXPORTED struct fp_minutia **fp_img_get_minutiae(struct fp_img *img,
+	int *nr_minutiae)
+{
+	if (img->flags & FP_IMG_BINARIZED_FORM) {
+		fp_err("image is binarized");
+		return NULL;
+	}
+
+	if (!img->minutiae) {
+		int r = fpi_img_detect_minutiae(img);
+		if (r < 0)
+			return NULL;
+		if (!img->minutiae) {
+			fp_err("no minutiae after successful detection?");
+			return NULL;
+		}
+	}
+
+	*nr_minutiae = img->minutiae->num;
+	return img->minutiae->list;
 }
 
