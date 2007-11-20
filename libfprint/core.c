@@ -748,6 +748,18 @@ API_EXPORTED int fp_dev_supports_imaging(struct fp_dev *dev)
 }
 
 /** \ingroup dev
+ * Determines if a device is capable of \ref identification "identification"
+ * through fp_identify_finger() and similar. Not all devices support this
+ * functionality.
+ * \param dev the fingerprint device
+ * \returns 1 if the device is capable of identification, 0 otherwise.
+ */
+API_EXPORTED int fp_dev_supports_identification(struct fp_dev *dev)
+{
+	return dev->drv->identify != NULL;
+}
+
+/** \ingroup dev
  * Captures an \ref img "image" from a device. The returned image is the raw
  * image provided by the device, you may wish to \ref img_std "standardize" it.
  *
@@ -999,6 +1011,88 @@ API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 		break;
 	case FP_VERIFY_MATCH:
 		fp_dbg("result: match");
+		break;
+	case FP_VERIFY_RETRY:
+		fp_dbg("verify should retry");
+		break;
+	case FP_VERIFY_RETRY_TOO_SHORT:
+		fp_dbg("swipe was too short, verify should retry");
+		break;
+	case FP_VERIFY_RETRY_CENTER_FINGER:
+		fp_dbg("finger was not centered, verify should retry");
+		break;
+	case FP_VERIFY_RETRY_REMOVE_FINGER:
+		fp_dbg("scan failed, remove finger and retry");
+		break;
+	default:
+		fp_err("unrecognised return code %d", r);
+		return -EINVAL;
+	}
+
+	return r;
+}
+
+/** \ingroup dev
+ * Performs a new scan and attempts to identify the scanned finger against
+ * a collection of previously enrolled fingerprints.
+ * If the device is an imaging device, it can also return the image from
+ * the scan, even when identification fails with a RETRY code. It is legal to
+ * call this function even on non-imaging devices, just don't expect them to
+ * provide images.
+ *
+ * This function returns codes from #fp_verify_result. The return code
+ * fp_verify_result#FP_VERIFY_MATCH indicates that the scanned fingerprint
+ * does appear in the print gallery, and the match_offset output parameter
+ * will indicate the index into the print gallery array of the matched print.
+ *
+ * This function will not necessarily examine the whole print gallery, it
+ * will return as soon as it finds a matching print.
+ *
+ * Not all devices support identification. -ENOTSUP will be returned when
+ * this is the case.
+ *
+ * \param dev the device to perform the scan.
+ * \param print_gallery NULL-terminated array of pointers to the prints to
+ * identify against. Each one must have been previously enrolled with a device
+ * compatible to the device selected to perform the scan.
+ * \param match_offset output location to store the array index of the matched
+ * gallery print (if any was found). Only valid if FP_VERIFY_MATCH was
+ * returned.
+ * \param img location to store the scan image. accepts NULL for no image
+ * storage. If an image is returned, it must be freed with fp_img_free() after
+ * use.
+ * \return negative code on error, otherwise a code from #fp_verify_result
+ */
+API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset,
+	struct fp_img **img)
+{
+	struct fp_driver *drv = dev->drv;
+	struct fp_img *_img;
+	int r;
+
+	if (!drv->identify) {
+		fp_dbg("driver %s has no identify func", drv->name);
+		return -ENOTSUP;
+	}
+	fp_dbg("to be handled by %s", drv->name);
+	r = drv->identify(dev, print_gallery, match_offset, &_img);
+	if (r < 0) {
+		fp_dbg("identify error %d", r);
+		return r;
+	}
+
+	if (img)
+		*img = _img;
+	else
+		fp_img_free(_img);
+
+	switch (r) {
+	case FP_VERIFY_NO_MATCH:
+		fp_dbg("result: no match");
+		break;
+	case FP_VERIFY_MATCH:
+		fp_dbg("result: match at offset %zd", match_offset);
 		break;
 	case FP_VERIFY_RETRY:
 		fp_dbg("verify should retry");

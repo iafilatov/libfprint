@@ -113,6 +113,8 @@ struct fp_driver {
 		struct fp_print_data **print_data, struct fp_img **img);
 	int (*verify)(struct fp_dev *dev, struct fp_print_data *data,
 		struct fp_img **img);
+	int (*identify)(struct fp_dev *dev, struct fp_print_data **print_gallery,
+		size_t *match_offset, struct fp_img **img);
 };
 
 enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv);

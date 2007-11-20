@@ -150,30 +150,32 @@ static inline int fp_enroll_finger(struct fp_dev *dev,
 }
 
 /** \ingroup dev
- * Verification result codes returned from fp_verify_finger().
+ * Verification result codes returned from fp_verify_finger(). Return codes
+ * are also shared with fp_identify_finger().
  * Result codes with RETRY in the name suggest that the scan failed due to
  * user error. Applications will generally want to inform the user of the
  * problem and then retry the verify operation.
  */
 enum fp_verify_result {
-	/** The verification scan completed successfully, but the newly scanned
-	 * fingerprint does not match the fingerprint being verified against. */
+	/** The scan completed successfully, but the newly scanned fingerprint
+	 * does not match the fingerprint being verified against.
+	 * In the case of identification, this return code indicates that the
+	 * scanned finger could not be found in the print gallery. */
 	FP_VERIFY_NO_MATCH = 0,
-	/** The verification scan completed successfully and the newly scanned
-	 * fingerprint does match the fingerprint being verified. */
+	/** The scan completed successfully and the newly scanned fingerprint does
+	 * match the fingerprint being verified, or in the case of identification,
+	 * the scanned fingerprint was found in the print gallery. */
 	FP_VERIFY_MATCH = 1,
-	/** The verification scan did not succeed due to poor scan quality or
-	 * other general user scanning problem. */
+	/** The scan did not succeed due to poor scan quality or other general
+	 * user scanning problem. */
 	FP_VERIFY_RETRY = FP_ENROLL_RETRY,
-	/** The verification scan did not succeed because the finger swipe was
-	 * too short. */
+	/** The scan did not succeed because the finger swipe was too short. */
 	FP_VERIFY_RETRY_TOO_SHORT = FP_ENROLL_RETRY_TOO_SHORT,
-	/** The verification scan did not succeed because the finger was not
-	 * centered on the scanner. */
+	/** The scan did not succeed because the finger was not centered on the
+	 * scanner. */
 	FP_VERIFY_RETRY_CENTER_FINGER = FP_ENROLL_RETRY_CENTER_FINGER,
-	/** The verification scan did not succeed due to quality or pressure
-	 * problems; the user should remove their finger from the scanner before
-	 * retrying. */
+	/** The scan did not succeed due to quality or pressure problems; the user
+	 * should remove their finger from the scanner before retrying. */
 	FP_VERIFY_RETRY_REMOVE_FINGER = FP_ENROLL_RETRY_REMOVE_FINGER,
 };
 
@@ -181,7 +183,9 @@ int fp_verify_finger_img(struct fp_dev *dev,
 	struct fp_print_data *enrolled_print, struct fp_img **img);
 
 /** \ingroup dev
- * Performs a new scan and verify it against a previously enrolled print.
+ * Performs a new scan and verify it against a previously enrolled print. This
+ * function is just a shortcut to calling fp_verify_finger_img() with a NULL
+ * image output parameter.
  * \param dev the device to perform the scan.
  * \param enrolled_print the print to verify against. Must have been previously
  * enrolled with a device compatible to the device selected to perform the scan.
@@ -192,6 +196,32 @@ static inline int fp_verify_finger(struct fp_dev *dev,
 	struct fp_print_data *enrolled_print)
 {
 	return fp_verify_finger_img(dev, enrolled_print, NULL);
+}
+
+int fp_dev_supports_identification(struct fp_dev *dev);
+int fp_identify_finger_img(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset,
+	struct fp_img **img);
+
+/** \ingroup dev
+ * Performs a new scan and attempts to identify the scanned finger against a
+ * collection of previously enrolled fingerprints. This function is just a
+ * shortcut to calling fp_identify_finger_img() with a NULL image output
+ * parameter.
+ * \param dev the device to perform the scan.
+ * \param print_gallery NULL-terminated array of pointers to the prints to
+ * identify against. Each one must have been previously enrolled with a device
+ * compatible to the device selected to perform the scan.
+ * \param match_offset output location to store the array index of the matched
+ * gallery print (if any was found). Only valid if FP_VERIFY_MATCH was
+ * returned.
+ * \return negative code on error, otherwise a code from #fp_verify_result
+ * \sa fp_identify_finger_img()
+ */
+static inline int fp_identify_finger(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset)
+{
+	return fp_identify_finger_img(dev, print_gallery, match_offset, NULL);
 }
 
 /* Data handling */
