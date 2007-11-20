@@ -364,6 +364,25 @@ int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	return r;
 }
 
+int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
+	struct fp_print_data **gallery, int match_threshold, int *match_offset)
+{
+	struct xyt_struct *pstruct = (struct xyt_struct *) print->data;
+	struct fp_print_data *gallery_print;
+	int probe_len = bozorth_probe_init(pstruct);
+	size_t i = 0;
+
+	while (gallery_print = gallery[i++]) {
+		struct xyt_struct *gstruct = (struct xyt_struct *) gallery_print->data;
+		int r = bozorth_to_gallery(probe_len, pstruct, gstruct);
+		if (r >= match_threshold) {
+			*match_offset = i - 1;
+			return FP_VERIFY_MATCH;
+		}
+	}
+	return FP_VERIFY_NO_MATCH;
+}
+
 /** \ingroup img
  * Get a binarized form of a standardized scanned image. This is where the
  * fingerprint image has been "enhanced" and is a set of pure black ridges

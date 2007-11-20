@@ -81,10 +81,6 @@
  *
  * \section identification Identification
  *
- * libfprint supports enrollment and verification as described above. Although
- * libfprint does not yet support identification (it is planned), it is worth
- * introducing the concept to give you a complete picture.
- *
  * Identification is the process of comparing a freshly scanned fingerprint
  * to a <em>collection</em> of previously enrolled fingerprints. For example,
  * imagine there are 100 people in an organisation, and they all have enrolled

@@ -225,6 +225,8 @@ int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 	struct fp_print_data **ret);
 int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	struct fp_print_data *new_print);
+int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
+	struct fp_print_data **gallery, int match_threshold, int *match_offset);
 
 #endif
 

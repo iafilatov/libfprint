@@ -1,6 +1,5 @@
 LIBRARY
 =======
-identification
 test suite against NFIQ compliance set
 make library optionally asynchronous and maybe thread-safe
 nbis cleanups

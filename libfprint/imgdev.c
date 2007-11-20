@@ -305,6 +305,46 @@ static int img_dev_verify(struct fp_dev *dev,
 		return FP_VERIFY_NO_MATCH;
 }
 
+static int img_dev_identify(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset,
+	struct fp_img **_img)
+{
+	struct fp_img_dev *imgdev = dev->priv;
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(dev->drv);
+	struct fp_img *img = NULL;
+	struct fp_print_data *print;
+	int match_score = imgdrv->bz3_threshold;
+	int r;
+
+	r = fpi_imgdev_capture(imgdev, 0, &img);
+
+	/* If we got an image, standardize it and return it even if the scan
+	 * quality was too low for processing. */
+	if (img)
+		fp_img_standardize(img);
+	if (_img)
+		*_img = img;
+	if (r)
+		return r;
+
+	r = fpi_img_to_print_data(imgdev, img, &print);
+	if (r < 0)
+		return r;
+	if (img->minutiae->num < MIN_ACCEPTABLE_MINUTIAE) {
+		fp_dbg("not enough minutiae, %d/%d", r, MIN_ACCEPTABLE_MINUTIAE);
+		fp_print_data_free(print);
+		return FP_VERIFY_RETRY;
+	}
+
+	if (match_score == 0)
+		match_score = BOZORTH3_DEFAULT_THRESHOLD;
+
+	r = fpi_img_compare_print_data_to_gallery(print, print_gallery,
+		match_score, match_offset);
+	fp_print_data_free(print);
+	return r;
+}
+
 void fpi_img_driver_setup(struct fp_img_driver *idriver)
 {
 	idriver->driver.type = DRIVER_IMAGING;
@@ -312,5 +352,6 @@ void fpi_img_driver_setup(struct fp_img_driver *idriver)
 	idriver->driver.exit = img_dev_exit;
 	idriver->driver.enroll = img_dev_enroll;
 	idriver->driver.verify = img_dev_verify;
+	idriver->driver.identify = img_dev_identify;
 }
 
