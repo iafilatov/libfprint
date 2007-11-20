@@ -24,6 +24,7 @@
 #include <glib.h>
 #include <usb.h>
 
+#include <aeslib.h>
 #include <fp_internal.h>
 
 #define CTRL_TIMEOUT	1000
@@ -32,25 +33,6 @@
 #define DATA_BUFLEN		0x1259
 #define NR_SUBARRAYS	6
 #define SUBARRAY_LEN	768
-
-static int write_reg(struct fp_img_dev *dev, unsigned char reg,
-	unsigned char value)
-{
-	unsigned char data[] = { reg, value };
-	int r;
-
-	fp_dbg("%02x=%02x", reg, value);
-	r = usb_bulk_write(dev->udev, EP_OUT, data, sizeof(data), CTRL_TIMEOUT);
-	if (r < 0) {
-		fp_err("bulk write error %d", r);
-		return r;
-	} else if (r < sizeof(data)) {
-		fp_err("unexpected short write %d/%d", r, sizeof(data));
-		return -EIO;
-	}
-
-	return 0;
-}
 
 static void process_subarray(unsigned char *src, unsigned char *dst)
 {
@@ -66,26 +48,31 @@ static void process_subarray(unsigned char *src, unsigned char *dst)
 	}
 }
 
-static const struct aes4000_regwrite {
-	unsigned char reg;
-	unsigned char value;
-} init_reqs[] = {
+static const struct aes_regwrite init_reqs[] = {
 	/* master reset */
 	{ 0x80, 0x01 },
+	{ 0, 0 },
 	{ 0x80, 0x00 },
+	{ 0, 0 },
 
 	{ 0x81, 0x00 },
 	{ 0x80, 0x00 },
+	{ 0, 0 },
 
 	/* scan reset */
 	{ 0x80, 0x02 },
+	{ 0, 0 },
 	{ 0x80, 0x00 },
+	{ 0, 0 },
 
 	/* disable register buffering */
 	{ 0x80, 0x04 },
+	{ 0, 0 },
 	{ 0x80, 0x00 },
+	{ 0, 0 },
 
 	{ 0x81, 0x00 },
+	{ 0, 0 },
 	/* windows driver reads registers now (81 02) */
 	{ 0x80, 0x00 },
 	{ 0x81, 0x00 },
@@ -126,10 +113,13 @@ static const struct aes4000_regwrite {
 	{ 0x9d, 0x09 }, /* set some challenge word bits */
 	{ 0x9e, 0x53 }, /* clear challenge word bits */
 	{ 0x9f, 0x6b }, /* set some challenge word bits */
+	{ 0, 0 },
 
 	{ 0x80, 0x00 },
 	{ 0x81, 0x00 },
+	{ 0, 0 },
 	{ 0x81, 0x04 },
+	{ 0, 0 },
 	{ 0x81, 0x00 },
 };
 
@@ -142,11 +132,9 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	unsigned char *data;
 	unsigned char *ptr;
 
-	for (i = 0; i < G_N_ELEMENTS(init_reqs); i++) {
-		r = write_reg(dev, init_reqs[i].reg, init_reqs[i].value);
-		if (r < 0)
-			return r;
-	}
+	r = aes_write_regv(dev, init_reqs, G_N_ELEMENTS(init_reqs));
+	if (r < 0)
+		return r;
 
 	img = fpi_img_new_for_imgdev(dev);
 	data = g_malloc(DATA_BUFLEN);

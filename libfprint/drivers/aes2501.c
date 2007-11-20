@@ -28,6 +28,7 @@
 
 #include <usb.h>
 
+#include <aeslib.h>
 #include <fp_internal.h>
 #include "aes2501.h"
 
@@ -36,7 +37,6 @@
 #define EP_OUT			(2 | USB_ENDPOINT_OUT)
 
 #define BULK_TIMEOUT 4000
-#define MAX_REGWRITES_PER_REQUEST	16
 
 /*
  * The AES2501 is an imaging device using a swipe-type sensor. It samples
@@ -57,66 +57,6 @@
 /* FIXME reduce substantially */
 #define MAX_FRAMES		150
 
-struct aes2501_regwrite {
-	unsigned char reg;
-	unsigned char value;
-};
-
-static int do_write_regv(struct fp_img_dev *dev, struct aes2501_regwrite *regs,
-	unsigned int num)
-{
-	size_t alloc_size = num * 2;
-	unsigned char *data = g_malloc(alloc_size);
-	unsigned int i;
-	size_t offset = 0;
-	int r;
-
-	for (i = 0; i < num; i++) {
-		data[offset++] = regs[i].reg;
-		data[offset++] = regs[i].value;
-	}
-
-	r = usb_bulk_write(dev->udev, EP_OUT, data, alloc_size, BULK_TIMEOUT);
-	g_free(data);
-	if (r < 0) {
-		fp_err("bulk write error %d", r);
-		return r;
-	} else if (r < alloc_size) {
-		fp_err("unexpected short write %d/%d", r, alloc_size);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int write_regv(struct fp_img_dev *dev, struct aes2501_regwrite *regs,
-	unsigned int num)
-{
-	unsigned int i;
-	int skip = 0;
-	int add_offset = 0;
-	fp_dbg("write %d regs", num);
-
-	for (i = 0; i < num; i += add_offset + skip) {
-		int r, j;
-		int limit = MIN(num, i + MAX_REGWRITES_PER_REQUEST);
-		skip = 0;
-
-		for (j = i; j < limit; j++)
-			if (!regs[j].reg) {
-				skip = 1;
-				break;
-			}
-
-		add_offset = j - i;
-		r = do_write_regv(dev, &regs[i], add_offset);
-		if (r < 0)
-			return r;
-	}
-
-	return 0;
-}
-
 static int read_data(struct fp_img_dev *dev, unsigned char *data, size_t len)
 {
 	int r;
@@ -136,20 +76,20 @@ static int read_data(struct fp_img_dev *dev, unsigned char *data, size_t len)
 static int read_regs(struct fp_img_dev *dev, unsigned char *data)
 {
 	int r;
-	const struct aes2501_regwrite regwrite = {
+	const struct aes_regwrite regwrite = {
 		AES2501_REG_CTRL2, AES2501_CTRL2_READ_REGS
 	};
 
 	fp_dbg("");
 
-	r = write_regv(dev, &regwrite, 1);
+	r = aes_write_regv(dev, &regwrite, 1);
 	if (r < 0)
 		return r;
 	
 	return read_data(dev, data, 126);
 }
 
-static const struct aes2501_regwrite init_1[] = {
+static const struct aes_regwrite init_1[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
 	{ 0, 0 },
 	{ 0xb0, 0x27 }, /* Reserved? */
@@ -193,7 +133,7 @@ static const struct aes2501_regwrite init_1[] = {
 	{ AES2501_REG_LPONT, AES2501_LPONT_MIN_VALUE },
 };
 
-static const struct aes2501_regwrite init_2[] = {
+static const struct aes_regwrite init_2[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
 	{ AES2501_REG_EXCITCTRL, 0x40 },
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
@@ -203,7 +143,7 @@ static const struct aes2501_regwrite init_2[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_REG_UPDATE },
 };
 
-static const struct aes2501_regwrite init_3[] = {
+static const struct aes_regwrite init_3[] = {
 	{ 0xff, 0x00 },
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
 	{ AES2501_REG_AUTOCALOFFSET, 0x41 },
@@ -212,7 +152,7 @@ static const struct aes2501_regwrite init_3[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_REG_UPDATE },
 };
 
-static const struct aes2501_regwrite init_4[] = {
+static const struct aes_regwrite init_4[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
 	{ AES2501_REG_EXCITCTRL, 0x40 },
 	{ 0xb0, 0x27 },
@@ -222,7 +162,7 @@ static const struct aes2501_regwrite init_4[] = {
 	{ AES2501_REG_AUTOCALOFFSET, 0x41 },
 };
 
-static const struct aes2501_regwrite init_5[] = {
+static const struct aes_regwrite init_5[] = {
 	{ 0xb0, 0x27 },
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
 	{ AES2501_REG_EXCITCTRL, 0x40 },
@@ -248,7 +188,7 @@ static int do_init(struct fp_img_dev *dev)
 	int i;
 
 	/* part 1, probably not needed */
-	r = write_regv(dev, init_1, G_N_ELEMENTS(init_1));
+	r = aes_write_regv(dev, init_1, G_N_ELEMENTS(init_1));
 	if (r < 0)
 		return r;
 
@@ -257,7 +197,7 @@ static int do_init(struct fp_img_dev *dev)
 		return r;
 
 	/* part 2 */
-	r = write_regv(dev, init_2, G_N_ELEMENTS(init_2));
+	r = aes_write_regv(dev, init_2, G_N_ELEMENTS(init_2));
 	if (r < 0)
 		return r;
 
@@ -269,7 +209,7 @@ static int do_init(struct fp_img_dev *dev)
 	fp_dbg("reg 0xaf = %x", buffer[0x5f]);
 	i = 0;
 	while (buffer[0x5f] == 0x6b) {
-		r = write_regv(dev, init_3, G_N_ELEMENTS(init_3));
+		r = aes_write_regv(dev, init_3, G_N_ELEMENTS(init_3));
 		if (r < 0)
 			return r;
 		r = read_regs(dev, buffer);
@@ -280,12 +220,12 @@ static int do_init(struct fp_img_dev *dev)
 	}
 
 	/* part 4 */
-	r = write_regv(dev, init_4, G_N_ELEMENTS(init_4));
+	r = aes_write_regv(dev, init_4, G_N_ELEMENTS(init_4));
 	if (r < 0)
 		return r;
 
 	/* part 5 */
-	return write_regv(dev, init_5, G_N_ELEMENTS(init_5));
+	return aes_write_regv(dev, init_5, G_N_ELEMENTS(init_5));
 }
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
@@ -308,7 +248,7 @@ static void dev_exit(struct fp_img_dev *dev)
 	usb_release_interface(dev->udev, 0);
 }
 
-static const struct aes2501_regwrite finger_det_reqs[] = {
+static const struct aes_regwrite finger_det_reqs[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
 	{ AES2501_REG_EXCITCTRL, 0x40 },
 	{ AES2501_REG_DETCTRL,
@@ -343,7 +283,7 @@ static int detect_finger(struct fp_img_dev *dev)
 	int i;
 	int sum = 0;
 
-	r = write_regv(dev, finger_det_reqs, G_N_ELEMENTS(finger_det_reqs));
+	r = aes_write_regv(dev, finger_det_reqs, G_N_ELEMENTS(finger_det_reqs));
 	if (r < 0)
 		return r;
 
@@ -485,7 +425,7 @@ static unsigned int assemble(unsigned char *input, unsigned char *output,
 	return image_height;
 }
 
-static const struct aes2501_regwrite capture_reqs_1[] = {
+static const struct aes_regwrite capture_reqs_1[] = {
 	{ AES2501_REG_CTRL1, AES2501_CTRL1_MASTER_RESET },
 	{ 0, 0 },
 	{ AES2501_REG_EXCITCTRL, 0x40 },
@@ -519,7 +459,7 @@ static const struct aes2501_regwrite capture_reqs_1[] = {
 	{ AES2501_REG_LPONT, AES2501_LPONT_MIN_VALUE },
 };
 
-static const struct aes2501_regwrite capture_reqs_2[] = {
+static const struct aes_regwrite capture_reqs_2[] = {
 	{ AES2501_REG_IMAGCTRL,
 		AES2501_IMAGCTRL_TST_REG_ENABLE | AES2501_IMAGCTRL_HISTO_DATA_ENABLE |
 		AES2501_IMAGCTRL_IMG_DATA_DISABLE },
@@ -531,7 +471,7 @@ static const struct aes2501_regwrite capture_reqs_2[] = {
 	{ AES2501_REG_CTRL2, AES2501_CTRL2_SET_ONE_SHOT },
 };
 
-static const struct aes2501_regwrite strip_scan_reqs[] = {
+static const struct aes_regwrite strip_scan_reqs[] = {
 	{ AES2501_REG_IMAGCTRL,
 		AES2501_IMAGCTRL_TST_REG_ENABLE | AES2501_IMAGCTRL_HISTO_DATA_ENABLE },
 	{ AES2501_REG_STRTCOL, 0x00 },
@@ -558,7 +498,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	/* FIXME can do better here in terms of buffer management? */
 	fp_dbg("");
 
-	r = write_regv(dev, capture_reqs_1, G_N_ELEMENTS(capture_reqs_1));
+	r = aes_write_regv(dev, capture_reqs_1, G_N_ELEMENTS(capture_reqs_1));
 	if (r < 0)
 		return r;
 
@@ -566,7 +506,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	if (r < 0)
 		return r;
 
-	r = write_regv(dev, capture_reqs_2, G_N_ELEMENTS(capture_reqs_2));
+	r = aes_write_regv(dev, capture_reqs_2, G_N_ELEMENTS(capture_reqs_2));
 	if (r < 0)
 		return r;
 
@@ -583,7 +523,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	for (nstrips = 0; nstrips < MAX_FRAMES; nstrips++) {
 		int threshold;
 
-		r = write_regv(dev, strip_scan_reqs, G_N_ELEMENTS(strip_scan_reqs));
+		r = aes_write_regv(dev, strip_scan_reqs, G_N_ELEMENTS(strip_scan_reqs));
 		if (r < 0)
 			goto err;
 		r = read_data(dev, buf, 1705);

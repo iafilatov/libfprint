@@ -56,6 +56,8 @@ libfprint_la_SOURCES =	\
 	data.c		\
 	img.c		\
 	imgdev.c	\
+	aeslib.c	\
+	aeslib.h	\
 	$(DRIVER_SRC)	\
 	$(NBIS_SRC)
 

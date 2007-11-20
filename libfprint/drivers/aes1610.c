@@ -29,6 +29,7 @@
 
 #include <usb.h>
 
+#include <aeslib.h>
 #include <fp_internal.h>
 
 /* FIXME these need checking */
@@ -36,7 +37,6 @@
 #define EP_OUT			(2 | USB_ENDPOINT_OUT)
 
 #define BULK_TIMEOUT 4000
-#define MAX_REGWRITES_PER_REQUEST	16
 
 #define FIRST_AES1610_REG	0x1B
 #define LAST_AES1610_REG	0xFF
@@ -60,66 +60,6 @@
 /* FIXME reduce substantially */
 #define MAX_FRAMES		350
 
-struct aes1610_regwrite {
-	unsigned char reg;
-	unsigned char value;
-};
-
-static int do_write_regv(struct fp_img_dev *dev, const struct aes1610_regwrite *regs,
-	unsigned int num)
-{
-	size_t alloc_size = num * 2;
-	unsigned char *data = g_malloc(alloc_size);
-	unsigned int i;
-	size_t offset = 0;
-	int r;
-
-	for (i = 0; i < num; i++) {
-		data[offset++] = regs[i].reg;
-		data[offset++] = regs[i].value;
-	}
-
-	r = usb_bulk_write(dev->udev, EP_OUT, data, alloc_size, BULK_TIMEOUT);
-	g_free(data);
-	if (r < 0) {
-		fp_err("bulk write error %d", r);
-		return r;
-	} else if (r < (int) alloc_size) {
-		fp_err("unexpected short write %d/%d", r, alloc_size);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int write_regv(struct fp_img_dev *dev, const struct aes1610_regwrite *regs,
-	unsigned int num)
-{
-	unsigned int i;
-	int skip = 0;
-	int add_offset = 0;
-	fp_dbg("write %d regs", num);
-
-	for (i = 0; i < num; i += add_offset + skip) {
-		int r, j;
-		int limit = MIN(num, i + MAX_REGWRITES_PER_REQUEST);
-		skip = 0;
-
-		for (j = i; j < limit; j++)
-			if (!regs[j].reg) {
-				skip = 1;
-				break;
-			}
-
-		add_offset = j - i;
-		r = do_write_regv(dev, &regs[i], add_offset);
-		if (r < 0)
-			return r;
-	}
-
-	return 0;
-}
-
 static int read_data(struct fp_img_dev *dev, unsigned char *data, size_t len)
 {
 	int r;
@@ -136,18 +76,13 @@ static int read_data(struct fp_img_dev *dev, unsigned char *data, size_t len)
 	return 0;
 }
 
-static const struct aes1610_regwrite init[] = {
+static const struct aes_regwrite init[] = {
 	{ 0x82, 0x00 }
 };
 
-static const struct aes1610_regwrite stop_reader[] = {
+static const struct aes_regwrite stop_reader[] = {
 	{ 0xFF, 0x00 }
 };
-
-static int do_init(struct fp_img_dev *dev)
-{
-	return write_regv(dev, init, G_N_ELEMENTS(init));
-}
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
@@ -161,12 +96,12 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	/* FIXME check endpoints */
 
-	return do_init(dev);
+	return aes_write_regv(dev, init, G_N_ELEMENTS(init));
 }
 
 static int do_exit(struct fp_img_dev *dev)
 {
-	return write_regv(dev, stop_reader, G_N_ELEMENTS(stop_reader));
+	return aes_write_regv(dev, stop_reader, G_N_ELEMENTS(stop_reader));
 }
 
 static void dev_exit(struct fp_img_dev *dev)
@@ -175,7 +110,7 @@ static void dev_exit(struct fp_img_dev *dev)
 	usb_release_interface(dev->udev, 0);
 }
 
-static const struct aes1610_regwrite finger_det_reqs[] = {
+static const struct aes_regwrite finger_det_reqs[] = {
 	{ 0x80, 0x01 },
 	{ 0x80, 0x12 }, 
 	{ 0x85, 0x00 }, 
@@ -200,7 +135,7 @@ static const struct aes1610_regwrite finger_det_reqs[] = {
 	{ 0x81, 0x04 }
 };
 
-static const struct aes1610_regwrite finger_det_none[] = {
+static const struct aes_regwrite finger_det_none[] = {
 	{ 0x80, 0x01 },
 	{ 0x82, 0x00 }, 
 	{ 0x86, 0x00 }, 
@@ -215,7 +150,7 @@ static int detect_finger(struct fp_img_dev *dev)
 	int i;
 	int sum = 0;
 
-	r = write_regv(dev, finger_det_reqs, G_N_ELEMENTS(finger_det_reqs));
+	r = aes_write_regv(dev, finger_det_reqs, G_N_ELEMENTS(finger_det_reqs));
 	if (r < 0)
 		return r;
 
@@ -228,7 +163,7 @@ static int detect_finger(struct fp_img_dev *dev)
 		
 	/* We need to answer something if no finger has been detected */
 	if (sum <= 20) {
-		r = write_regv(dev, finger_det_none, G_N_ELEMENTS(finger_det_none));
+		r = aes_write_regv(dev, finger_det_none, G_N_ELEMENTS(finger_det_none));
 		if (r < 0)
 			return r;
 	}
@@ -327,7 +262,7 @@ static unsigned int assemble(unsigned char *input, unsigned char *output,
 	return image_height;
 }
 
-static const struct aes1610_regwrite capture_reqs[] = {
+static const struct aes_regwrite capture_reqs[] = {
 	{ 0x80, 0x01 },
 	{ 0x80, 0x12 },
 	{ 0x84, 0x01 },
@@ -453,7 +388,7 @@ static const struct aes1610_regwrite capture_reqs[] = {
 	{ 0x81, 0x01 }
 };
 
-static const struct aes1610_regwrite strip_scan_reqs[] = {
+static const struct aes_regwrite strip_scan_reqs[] = {
 	{ 0xBE, 0x23 },
 	{ 0x29, 0x06 },
 	{ 0x2A, 0x35 },
@@ -461,7 +396,7 @@ static const struct aes1610_regwrite strip_scan_reqs[] = {
 	{ 0xFF, 0x00 }
 };
 
-static const struct aes1610_regwrite capture_stop[] = {
+static const struct aes_regwrite capture_stop[] = {
 	{ 0x81,0x00 }
 };
 
@@ -482,7 +417,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	/* FIXME can do better here in terms of buffer management? */
 	fp_dbg("");
 
-	r = write_regv(dev, capture_reqs, G_N_ELEMENTS(capture_reqs));
+	r = aes_write_regv(dev, capture_reqs, G_N_ELEMENTS(capture_reqs));
 	if (r < 0)
 		return r;
   
@@ -507,7 +442,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	/* we start at 2 because we captured 2 frames above. the above captures
 	 * should possibly be moved into the loop below, or discarded altogether */
 	for (nstrips = 2; nstrips < MAX_FRAMES - 2; nstrips++) {
-		r = write_regv(dev, strip_scan_reqs, G_N_ELEMENTS(strip_scan_reqs));
+		r = aes_write_regv(dev, strip_scan_reqs, G_N_ELEMENTS(strip_scan_reqs));
 		if (r < 0)
 			goto err;
 		r = read_data(dev, buf, 665);
@@ -544,7 +479,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 			break;
 	}
 	
-	r = write_regv(dev, capture_stop, G_N_ELEMENTS(capture_stop));
+	r = aes_write_regv(dev, capture_stop, G_N_ELEMENTS(capture_stop));
 	if (r < 0)
 		goto err;
 	r = read_data(dev, buf, 665);
