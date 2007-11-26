@@ -93,3 +93,18 @@ int aes_write_regv(struct fp_img_dev *dev, struct aes_regwrite *regs,
 	return 0;
 }
 
+int aes_assemble_image(unsigned char *input, size_t width, size_t height,
+	unsigned char *output)
+{
+	size_t frame_size = width * height;
+	size_t row, column;
+
+	for (column = 0; column < width; column++) {
+		for (row = 0; row < height; row += 2) {
+			output[width * row + column] = (*input & 0x07) * 36;
+			output[width * (row + 1) + column] = ((*input & 0x70) >> 4) * 36;
+			input++;
+		}
+	}
+}
+

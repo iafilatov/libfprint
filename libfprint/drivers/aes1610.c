@@ -231,15 +231,8 @@ static unsigned int assemble(unsigned char *input, unsigned char *output,
 	if (reverse)
 		output += (num_strips - 1) * FRAME_SIZE;
 	for (frame = 0; frame < num_strips; frame++) {
-		int column;
-		for (column = 0; column < FRAME_WIDTH; column++) {
-			int row;
-			for (row = 0; row < (FRAME_HEIGHT / 2); row++) {
-				output[FRAME_WIDTH * ( 2 * row) + column] = *input & 0x0F;
-				output[FRAME_WIDTH * ( 2 * row + 1) + column] = *input >> 4;
-				input++;
-			}
-		}
+		aes_assemble_image(input, FRAME_WIDTH, FRAME_HEIGHT, output);
+		input += FRAME_WIDTH * (FRAME_HEIGHT / 2);
 
 		if (reverse)
 			output -= FRAME_SIZE;
@@ -410,6 +403,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	unsigned char *cooked;
 	unsigned char *imgptr;
 	unsigned char buf[665];
+	int final_size;
 	int sum;
 	unsigned int count_blank = 0;
 	int i;
@@ -511,10 +505,9 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 		fp_dbg("reversed scan direction");
 	}
 
-	for (i = 0; i < img->height * FRAME_WIDTH; i++)
-		img->data[i] = (cooked[i] << 4) | 0xf;
-
-	img = fpi_img_resize(img, img->height * FRAME_WIDTH);
+	final_size = img->height * FRAME_WIDTH;
+	memcpy(img->data, cooked, final_size);
+	img = fpi_img_resize(img, final_size);
 	*ret = img;
 	return 0;
 err:

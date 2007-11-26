@@ -30,5 +30,8 @@ struct aes_regwrite {
 int aes_write_regv(struct fp_img_dev *dev, struct aes_regwrite *regs,
 	unsigned int num);
 
+int aes_assemble_image(unsigned char *input, size_t width, size_t height,
+	unsigned char *output);
+
 #endif
 

@@ -34,20 +34,6 @@
 #define NR_SUBARRAYS	6
 #define SUBARRAY_LEN	768
 
-static void process_subarray(unsigned char *src, unsigned char *dst)
-{
-	int col, row;
-	int offset = -1;
-
-	for (col = 95; col >= 0; col--) {
-		for (row = 15; row >= 0; row -= 2) {
-			unsigned char val = src[++offset];
-			dst[(row * 96) + col] = (val & 0x7) * 36;
-			dst[((row - 1) * 96) + col] = ((val & 0x70) >> 4) * 36;
-		}
-	}
-}
-
 static const struct aes_regwrite init_reqs[] = {
 	/* master reset */
 	{ 0x80, 0x01 },
@@ -156,14 +142,14 @@ retry:
 		goto err;
 	}
 
-	for (i = NR_SUBARRAYS - 1; i >= 0; i--) {
+	for (i = 0; i < NR_SUBARRAYS; i++) {
 		fp_dbg("subarray header byte %02x", *ptr);
 		ptr++;
-		process_subarray(ptr, img->data + (i * 96 * 16));
+		aes_assemble_image(ptr, 96, 16, img->data + (i * 96 * 16));
 		ptr += SUBARRAY_LEN;
 	}
 
-	img->flags = FP_IMG_COLORS_INVERTED;
+	img->flags = FP_IMG_COLORS_INVERTED | FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
 	*ret = img;
 	g_free(data);
 	return 0;
