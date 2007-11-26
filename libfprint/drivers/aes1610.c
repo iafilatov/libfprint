@@ -58,7 +58,7 @@
 #define FRAME_SIZE		(FRAME_WIDTH * FRAME_HEIGHT)
 /* maximum number of frames to read during a scan */
 /* FIXME reduce substantially */
-#define MAX_FRAMES		150
+#define MAX_FRAMES		350
 
 struct aes1610_regwrite {
 	unsigned char reg;
@@ -243,24 +243,6 @@ static int await_finger_on(struct fp_img_dev *dev)
 		r = detect_finger(dev);
 	} while (r == 0);
 	return (r < 0) ? r : 0;
-}
-
-/* Read the value of a specific register from a register dump */
-static int regval_from_dump(unsigned char *data, uint8_t target)
-{
-	if (*data != FIRST_AES1610_REG) {
-		fp_err("not a register dump");
-		return -EILSEQ;
-	}
-
-	if (!(FIRST_AES1610_REG <= target || target >= LAST_AES1610_REG)) {
-		fp_err("out of range");
-		return -EINVAL;
-	}
-
-	target -= FIRST_AES1610_REG;
-	target *= 2;
-	return data[target + 1];
 }
 
 /* find overlapping parts of frames */
@@ -494,6 +476,7 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	unsigned char *imgptr;
 	unsigned char buf[665];
 	int sum;
+	unsigned int count_blank = 0;
 	int i;
 
 	/* FIXME can do better here in terms of buffer management? */
@@ -521,9 +504,9 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	memcpy(imgptr, buf + 1, 128*4);
 	imgptr += 128*4;
 
-	for (nstrips = 0; nstrips < MAX_FRAMES; nstrips++) {
-		int threshold;
-
+	/* we start at 2 because we captured 2 frames above. the above captures
+	 * should possibly be moved into the loop below, or discarded altogether */
+	for (nstrips = 2; nstrips < MAX_FRAMES - 2; nstrips++) {
 		r = write_regv(dev, strip_scan_reqs, G_N_ELEMENTS(strip_scan_reqs));
 		if (r < 0)
 			goto err;
@@ -552,6 +535,12 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 		}
 		fp_dbg("sum=%d", sum);
 		if (sum == 0)
+			count_blank++;
+		else
+			count_blank = 0;
+			
+		/* if we got 50 blank frames, assume scan has ended. */
+		if (count_blank >= 50)
 			break;
 	}
 	
@@ -563,12 +552,14 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 		goto err;
 	memcpy(imgptr, buf + 1, 128*4);
 	imgptr += 128*4;
+	nstrips++;
 
 	r = read_data(dev, buf, 665);
 	if (r < 0)
 		goto err;
 	memcpy(imgptr, buf + 1, 128*4);
 	imgptr += 128*4;
+	nstrips++;
 	
 	if (nstrips == MAX_FRAMES)
 		fp_warn("swiping finger too slow?");
@@ -616,7 +607,7 @@ struct fp_img_driver aes1610_driver = {
 	 * binarized scan quality is good, minutiae detection is accurate,
 	 * it's just that we get fewer minutiae than other scanners (less scanning
 	 * area) */
-	.bz3_threshold = 15,
+	.bz3_threshold = 10,
 
 	.init = dev_init,
 	.exit = dev_exit,
