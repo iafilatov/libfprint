@@ -25,16 +25,13 @@
 
 struct fp_dscv_dev *discover_device(struct fp_dscv_dev **discovered_devs)
 {
-	struct fp_dscv_dev *ddev = NULL;
-	int i;
-
-	for (i = 0; ddev = discovered_devs[i]; i++) {
-		struct fp_driver *drv = fp_dscv_dev_get_driver(ddev);
-		printf("Found device claimed by %s driver\n",
-			fp_driver_get_full_name(drv));
-		return ddev;
-	}
-
+	struct fp_dscv_dev *ddev = discovered_devs[0];
+	struct fp_driver *drv;
+	if (!ddev)
+		return NULL;
+	
+	drv = fp_dscv_dev_get_driver(ddev);
+	printf("Found device claimed by %s driver\n", fp_driver_get_full_name(drv));
 	return ddev;
 }
 
