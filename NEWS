@@ -1,6 +1,11 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2007-12-07: v0.0.5 release
+ * AES1610 imaging improvements
+ * Internal cleanups for Authentec drivers
+ * Add support for latest Microsoft Fingerprint Scanner hardware revision
+
 2007-11-22: v0.0.4 release
  * Enable AES1610 driver thanks to Michele B
  * Implement identification: one-to-many fingerprint matching (Daniel Drake)
