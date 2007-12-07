@@ -10,6 +10,16 @@ consumer fingerprint scanners and providing a single uniform API to application
 developers. The ultimate goal of the fprint project is to make fingerprint
 scanners widely and easily usable under common Linux environments.
 
+The academic university project runs off a codebase maintained separately
+from this one, although I try to keep them as similar as possible (I'm not
+hiding anything in the academic branch, it's just the open source release
+contains some commits excluded from the academic project).
+
+THE UNIVERSITY OF MANCHESTER DOES NOT ENDORSE THIS THIS SOFTWARE RELEASE AND
+IS IN NO WAY RESPONSIBLE FOR THE CODE CONTAINED WITHIN, OR ANY DAMAGES CAUSED
+BY USING OR DISTRIBUTING THE SOFTWARE. Development does not happen on
+university computers and the project is not hosted at the university either.
+
 For more information on libfprint, supported devices, API documentation, etc.,
 see the homepage:
 http://www.reactivated.net/fprint/Libfprint
