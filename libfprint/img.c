@@ -372,7 +372,7 @@ int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 	int probe_len = bozorth_probe_init(pstruct);
 	size_t i = 0;
 
-	while (gallery_print = gallery[i++]) {
+	while ((gallery_print = gallery[i++])) {
 		struct xyt_struct *gstruct = (struct xyt_struct *) gallery_print->data;
 		int r = bozorth_to_gallery(probe_len, pstruct, gstruct);
 		if (r >= match_threshold) {

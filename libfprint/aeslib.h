@@ -27,10 +27,10 @@ struct aes_regwrite {
 	unsigned char value;
 };
 
-int aes_write_regv(struct fp_img_dev *dev, struct aes_regwrite *regs,
+int aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
 	unsigned int num);
 
-int aes_assemble_image(unsigned char *input, size_t width, size_t height,
+void aes_assemble_image(unsigned char *input, size_t width, size_t height,
 	unsigned char *output);
 
 #endif

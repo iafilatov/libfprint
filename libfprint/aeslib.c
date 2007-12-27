@@ -32,8 +32,8 @@
 #define EP_IN			(1 | USB_ENDPOINT_IN)
 #define EP_OUT			(2 | USB_ENDPOINT_OUT)
 
-static int do_write_regv(struct fp_img_dev *dev, struct aes_regwrite *regs,
-	unsigned int num)
+static int do_write_regv(struct fp_img_dev *dev,
+	const struct aes_regwrite *regs, unsigned int num)
 {
 	size_t alloc_size = num * 2;
 	unsigned char *data = g_malloc(alloc_size);
@@ -59,7 +59,7 @@ static int do_write_regv(struct fp_img_dev *dev, struct aes_regwrite *regs,
 	return 0;
 }
 
-int aes_write_regv(struct fp_img_dev *dev, struct aes_regwrite *regs,
+int aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
 	unsigned int num)
 {
 	unsigned int i;
@@ -93,10 +93,9 @@ int aes_write_regv(struct fp_img_dev *dev, struct aes_regwrite *regs,
 	return 0;
 }
 
-int aes_assemble_image(unsigned char *input, size_t width, size_t height,
+void aes_assemble_image(unsigned char *input, size_t width, size_t height,
 	unsigned char *output)
 {
-	size_t frame_size = width * height;
 	size_t row, column;
 
 	for (column = 0; column < width; column++) {

@@ -24,3 +24,7 @@ aes4000 resampling
 PPMM parameter to get_minutiae seems to have no effect
 nbis minutiae should be stored in endian-independent format
 
+PORTABILITY
+===========
+OpenBSD can't do -Wshadow or visibility
+OpenBSD: add compat codes for ENOTSUP ENODATA and EPROTO

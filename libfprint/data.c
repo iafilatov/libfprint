@@ -477,7 +477,7 @@ static GSList *scan_dev_store_dir(char *devpath, uint16_t driver_id,
 		return list;
 	}
 
-	while (ent = g_dir_read_name(dir)) {
+	while ((ent = g_dir_read_name(dir))) {
 		/* ent is an 1 hex character fp_finger code */
 		guint64 val;
 		enum fp_finger finger;
@@ -518,7 +518,7 @@ static GSList *scan_driver_store_dir(char *drvpath, uint16_t driver_id,
 		return list;
 	}
 
-	while (ent = g_dir_read_name(dir)) {
+	while ((ent = g_dir_read_name(dir))) {
 		/* ent is an 8 hex character devtype */
 		guint64 val;
 		uint32_t devtype;
@@ -571,7 +571,7 @@ API_EXPORTED struct fp_dscv_print **fp_discover_prints(void)
 		return NULL;
 	}
 
-	while (ent = g_dir_read_name(dir)) {
+	while ((ent = g_dir_read_name(dir))) {
 		/* ent is a 4 hex digit driver_id */
 		gchar *endptr;
 		gchar *path;
@@ -620,7 +620,7 @@ API_EXPORTED void fp_dscv_prints_free(struct fp_dscv_print **prints)
 	if (!prints)
 		return;
 
-	for (i = 0; print = prints[i]; i++) {
+	for (i = 0; (print = prints[i]); i++) {
 		if (print)
 			g_free(print->path);
 		g_free(print);

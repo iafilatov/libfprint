@@ -36,7 +36,7 @@ typedef int sint32;
 typedef unsigned int uint32;
 
 /** scan command */
-static const sint8 anScanCommand[ 0x40 ] = {
+static const unsigned char anScanCommand[ 0x40 ] = {
 	0x0e, 0x00, 0x03, 0xa8, 0x00, 0xb6, 0xbb, 0xbb,
 	0xb8, 0xb7, 0xb8, 0xb5, 0xb8, 0xb9, 0xb8, 0xb9,
 	0xbb, 0xbb, 0xbe, 0xbb, 0x4e, 0x16, 0xf4, 0x77,
@@ -48,7 +48,7 @@ static const sint8 anScanCommand[ 0x40 ] = {
 };
 
 /** init command */
-static const sint8 anInitCommand[ 0x40 ] = {
+static const unsigned char anInitCommand[ 0x40 ] = {
 	0x03, 0x00, 0x00, 0x00, 0x02, 0xfb, 0x0f, 0x00,
 	0xc4, 0xf9, 0x2f, 0x01, 0x6d, 0x4f, 0x01, 0x10,
 	0x44, 0xf9, 0x2f, 0x01, 0x40, 0x00, 0x00, 0x00,
@@ -67,7 +67,7 @@ static const sint8 anInitCommand[ 0x40 ] = {
  * \param pnBuffer buffer pointer we want to store the read buffer
  * \return error code
  */
-static sint32 askScanner( struct fp_img_dev *dev, sint8 *pnRawString, sint32 nLen, sint8 *pnBuffer ) {
+static sint32 askScanner( struct fp_img_dev *dev, const unsigned char *pnRawString, sint32 nLen, sint8 *pnBuffer ) {
     sint8 anBuf[ 65535 ];
 	sint32 nRet;
 
@@ -357,7 +357,6 @@ static int capture( struct fp_img_dev *dev, gboolean unconditional, struct fp_im
 		nRet = -1;
 	}
 
-end:
 	g_free( pnData );
 
 	return nRet;

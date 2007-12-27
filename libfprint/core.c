@@ -367,7 +367,7 @@ static struct fp_driver *find_supporting_driver(struct usb_device *udev,
 				*usb_id = id;
 				return drv;
 			}
-	} while (elem = g_slist_next(elem));
+	} while ((elem = g_slist_next(elem)));
 	return NULL;
 }
 
@@ -439,7 +439,7 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 		int i = 0;
 		do {
 			list[i++] = elem->data;
-		} while (elem = g_slist_next(elem));
+		} while ((elem = g_slist_next(elem)));
 	}
 	list[dscv_count] = NULL; /* NULL-terminate */
 
@@ -541,7 +541,7 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev *
 	struct fp_dscv_dev *ddev;
 	int i;
 
-	for (i = 0; ddev = devs[i]; i++)
+	for (i = 0; (ddev = devs[i]); i++)
 		if (fp_dscv_dev_supports_print_data(ddev, data))
 			return ddev;
 	return NULL;
@@ -561,7 +561,7 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev *
 	struct fp_dscv_dev *ddev;
 	int i;
 
-	for (i = 0; ddev = devs[i]; i++)
+	for (i = 0; (ddev = devs[i]); i++)
 		if (fp_dscv_dev_supports_dscv_print(ddev, print))
 			return ddev;
 	return NULL;
@@ -1138,7 +1138,7 @@ API_EXPORTED void fp_exit(void)
 		do {
 			fp_dbg("naughty app left a device open on exit!");
 			do_close((struct fp_dev *) elem->data);
-		} while (elem = g_slist_next(elem));
+		} while ((elem = g_slist_next(elem)));
 		g_slist_free(opened_devices);
 		opened_devices = NULL;
 	}
