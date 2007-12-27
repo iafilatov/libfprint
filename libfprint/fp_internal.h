@@ -145,6 +145,7 @@ extern struct fp_img_driver uru4000_driver;
 extern struct fp_img_driver aes1610_driver;
 extern struct fp_img_driver aes2501_driver;
 extern struct fp_img_driver aes4000_driver;
+extern struct fp_img_driver fdu2000_driver;
 
 void fpi_img_driver_setup(struct fp_img_driver *idriver);
 

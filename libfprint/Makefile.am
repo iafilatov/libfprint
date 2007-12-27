@@ -6,8 +6,9 @@ URU4000_SRC = drivers/uru4000.c
 AES1610_SRC = drivers/aes1610.c
 AES2501_SRC = drivers/aes2501.c drivers/aes2501.h
 AES4000_SRC = drivers/aes4000.c
+FDU2000_SRC = drivers/fdu2000.c
 
-DRIVER_SRC = $(UPEKTS_SRC) $(URU4000_SRC) $(AES1610_SRC) $(AES2501_SRC) $(AES4000_SRC) $(UPEKTC_SRC)
+DRIVER_SRC = $(UPEKTS_SRC) $(URU4000_SRC) $(AES1610_SRC) $(AES2501_SRC) $(AES4000_SRC) $(UPEKTC_SRC) $(FDU2000_SRC)
 
 NBIS_SRC = \
 	nbis/include/bozorth.h \
