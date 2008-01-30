@@ -22,14 +22,14 @@
 #include <errno.h>
 
 #include <glib.h>
-#include <usb.h>
+#include <libusb.h>
 
 #include <aeslib.h>
 #include <fp_internal.h>
 
 #define CTRL_TIMEOUT	1000
-#define EP_IN			(1 | USB_ENDPOINT_IN)
-#define EP_OUT			(2 | USB_ENDPOINT_OUT)
+#define EP_IN			(1 | LIBUSB_ENDPOINT_IN)
+#define EP_OUT			(2 | LIBUSB_ENDPOINT_OUT)
 #define DATA_BUFLEN		0x1259
 #define NR_SUBARRAYS	6
 #define SUBARRAY_LEN	768
@@ -114,9 +114,14 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 {
 	int i;
 	int r;
+	int transferred;
 	struct fp_img *img;
 	unsigned char *data;
 	unsigned char *ptr;
+	struct libusb_bulk_transfer msg = {
+		.endpoint = EP_IN,
+		.length = DATA_BUFLEN,
+	};
 
 	r = aes_write_regv(dev, init_reqs, G_N_ELEMENTS(init_reqs));
 	if (r < 0)
@@ -125,18 +130,19 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	img = fpi_img_new_for_imgdev(dev);
 	data = g_malloc(DATA_BUFLEN);
 	ptr = data;
+	msg.data = data;
 
 	/* See the timeout explanation in the uru4000 driver for the reasoning
 	 * behind this silly loop. */
 retry:
-	r = usb_bulk_read(dev->udev, EP_IN, data, DATA_BUFLEN, 1000);
+	r = libusb_bulk_transfer(dev->udev, &msg, &transferred, 1000);
 	if (r == -ETIMEDOUT)
 		goto retry;
 
 	if (r < 0) {
 		fp_err("data read failed, error %d", r);
 		goto err;
-	} else if (r < DATA_BUFLEN) {
+	} else if (transferred < DATA_BUFLEN) {
 		fp_err("short data read (%d)", r);
 		r = -EIO;
 		goto err;
@@ -163,7 +169,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
 	int r;
 
-	r = usb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(dev->udev, 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0");
 		return r;
@@ -174,7 +180,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_exit(struct fp_img_dev *dev)
 {
-	usb_release_interface(dev->udev, 0);
+	libusb_release_interface(dev->udev, 0);
 }
 
 static const struct usb_id id_table[] = {

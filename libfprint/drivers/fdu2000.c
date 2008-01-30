@@ -21,7 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <usb.h>
+#include <libusb.h>
 
 #define FP_COMPONENT "fdu2000"
 #include <fp_internal.h>
@@ -53,9 +53,9 @@ memmem(const gpointer haystack, size_t haystack_len, const gpointer needle, size
 }
 #endif	/* HAVE_MEMMEM */
 
-#define EP_IMAGE	( 0x02 | USB_ENDPOINT_IN )
-#define EP_REPLY	( 0x01 | USB_ENDPOINT_IN )
-#define EP_CMD		( 0x01 | USB_ENDPOINT_OUT )
+#define EP_IMAGE	( 0x02 | LIBUSB_ENDPOINT_IN )
+#define EP_REPLY	( 0x01 | LIBUSB_ENDPOINT_IN )
+#define EP_CMD		( 0x01 | LIBUSB_ENDPOINT_OUT )
 #define BULK_TIMEOUT	200
 
 /* fdu_req[] index */
@@ -112,15 +112,26 @@ static const struct fdu2000_req {
  * Write a command and verify reponse
  */
 static gint
-bulk_write_safe(usb_dev_handle *dev, req_index rIndex) {
+bulk_write_safe(libusb_dev_handle *dev, req_index rIndex) {
 
 	gchar reponse[ACK_LEN];
 	gint r;
 	gchar *cmd = (gchar *)fdu_req[rIndex].cmd;
 	gchar *ack = (gchar *)fdu_req[rIndex].ack;
 	gint ack_len = fdu_req[rIndex].ack_len;
+	struct libusb_bulk_transfer wrmsg = {
+		.endpoint = EP_CMD,
+		.data = cmd,
+		.length = sizeof(cmd),
+	};
+	struct libusb_bulk_transfer readmsg = {
+		.endpoint = EP_REPLY,
+		.data = reponse,
+		.length = sizeof(reponse),
+	};
+	int trf;
 
-	r = usb_bulk_write(dev, EP_CMD, cmd, sizeof(cmd), BULK_TIMEOUT);
+	r = libusb_bulk_transfer(dev, &wrmsg, &trf, BULK_TIMEOUT);
 	if (r < 0)
 		return r;
 
@@ -128,8 +139,7 @@ bulk_write_safe(usb_dev_handle *dev, req_index rIndex) {
 		return 0;
 
 	/* Check reply from FP */
-	r = usb_bulk_read (dev, EP_REPLY,
-			reponse, sizeof(reponse), BULK_TIMEOUT);
+	r = libusb_bulk_transfer(dev, &readmsg, &trf, BULK_TIMEOUT);
 	if (r < 0)
 		return r;
 
@@ -149,15 +159,19 @@ capture(struct fp_img_dev *dev, gboolean unconditional,
 #define RAW_IMAGE_SIZE		(RAW_IMAGE_WIDTH * RAW_IMAGE_HEIGTH)
 
 	struct fp_img *img = NULL;
-	guint bytes, r;
+	int bytes, r;
 	const gchar SOF[] = { 0x0f, 0x0f, 0x0f, 0x0f, 0x00, 0x00, 0x0c, 0x07 };  // Start of frame
 	const gchar SOL[] = { 0x0f, 0x0f, 0x0f, 0x0f, 0x00, 0x00, 0x0b, 0x06 };  // Start of line + { L L } (L: Line num) (8 nibbles)
-	gchar *buffer;
+	gchar *buffer = g_malloc0(RAW_IMAGE_SIZE * 6);
 	gchar *image;
 	gchar *p;
 	guint offset;
+	struct libusb_bulk_transfer msg = {
+		.endpoint = EP_IMAGE,
+		.data = buffer,
+		.length = RAW_IMAGE_SIZE * 6,
+	};
 
-	buffer = g_malloc0(RAW_IMAGE_SIZE * 6);
 	image  = g_malloc0(RAW_IMAGE_SIZE);
 
 	if ((r = bulk_write_safe(dev->udev, LED_ON))) {
@@ -178,12 +192,8 @@ read:
 
 	/* Now we are ready to read from dev */
 
-	bytes = usb_bulk_read(dev->udev,
-			EP_IMAGE,
-			buffer, RAW_IMAGE_SIZE * 6,
-			BULK_TIMEOUT * 10);
-
-	if (bytes < 1)
+	r = libusb_bulk_transfer(dev->udev, &msg, &bytes, BULK_TIMEOUT * 10);
+	if (r < 0 || bytes < 1)
 		goto read;
 
 	/*
@@ -249,17 +259,17 @@ static
 gint dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
 	gint r;
-	if ( (r = usb_set_configuration(dev->udev, 1)) < 0 )
+	//if ( (r = usb_set_configuration(dev->udev, 1)) < 0 )
+	//	goto out;
+
+	if ( (r = libusb_claim_interface(dev->udev, 0)) < 0 )
 		goto out;
 
-	if ( (r = usb_claim_interface(dev->udev, 0)) < 0 )
-		goto out;
+	//if ( (r = usb_set_altinterface(dev->udev, 1)) < 0 )
+	//	goto out;
 
-	if ( (r = usb_set_altinterface(dev->udev, 1)) < 0 )
-		goto out;
-
-	if ( (r = usb_clear_halt(dev->udev, EP_CMD)) < 0 )
-		goto out;
+	//if ( (r = usb_clear_halt(dev->udev, EP_CMD)) < 0 )
+	//	goto out;
 
 	/* Make sure sensor mode is not capture_{ready|read} */
 	if ((r = bulk_write_safe(dev->udev, CAPTURE_END))) {
@@ -276,7 +286,6 @@ gint dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 out:
 	fp_err("could not init dev");
-	fp_err(usb_strerror());
 	return r;
 }
 
@@ -286,7 +295,7 @@ void dev_exit(struct fp_img_dev *dev)
 	if (bulk_write_safe(dev->udev, CAPTURE_END))
 		fp_err("Command: CAPTURE_END");
 
-	usb_release_interface(dev->udev, 0);
+	libusb_release_interface(dev->udev, 0);
 }
 
 static const struct usb_id id_table[] = {

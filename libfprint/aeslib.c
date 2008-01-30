@@ -21,6 +21,7 @@
 
 #include <errno.h>
 
+#include <libusb.h>
 #include <glib.h>
 
 #include "fp_internal.h"
@@ -29,8 +30,8 @@
 #define MAX_REGWRITES_PER_REQUEST	16
 
 #define BULK_TIMEOUT	4000
-#define EP_IN			(1 | USB_ENDPOINT_IN)
-#define EP_OUT			(2 | USB_ENDPOINT_OUT)
+#define EP_IN			(1 | LIBUSB_ENDPOINT_IN)
+#define EP_OUT			(2 | LIBUSB_ENDPOINT_OUT)
 
 static int do_write_regv(struct fp_img_dev *dev,
 	const struct aes_regwrite *regs, unsigned int num)
@@ -40,18 +41,24 @@ static int do_write_regv(struct fp_img_dev *dev,
 	unsigned int i;
 	size_t offset = 0;
 	int r;
+	int transferred;
+	struct libusb_bulk_transfer msg = {
+		.endpoint = EP_OUT,
+		.data = data,
+		.length = alloc_size,
+	};
 
 	for (i = 0; i < num; i++) {
 		data[offset++] = regs[i].reg;
 		data[offset++] = regs[i].value;
 	}
 
-	r = usb_bulk_write(dev->udev, EP_OUT, data, alloc_size, BULK_TIMEOUT);
+	r = libusb_bulk_transfer(dev->udev, &msg, &transferred, BULK_TIMEOUT);
 	g_free(data);
 	if (r < 0) {
 		fp_err("bulk write error %d", r);
 		return r;
-	} else if ((unsigned int) r < alloc_size) {
+	} else if ((unsigned int) transferred < alloc_size) {
 		fp_err("unexpected short write %d/%d", r, alloc_size);
 		return -EIO;
 	}

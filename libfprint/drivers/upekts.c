@@ -31,12 +31,12 @@
 #include <string.h>
 
 #include <glib.h>
-#include <usb.h>
+#include <libusb.h>
 
 #include <fp_internal.h>
 
-#define EP_IN (1 | USB_ENDPOINT_IN)
-#define EP_OUT (2 | USB_ENDPOINT_OUT)
+#define EP_IN (1 | LIBUSB_ENDPOINT_IN)
+#define EP_OUT (2 | LIBUSB_ENDPOINT_OUT)
 #define TIMEOUT 5000
 
 struct upekts_dev {
@@ -131,12 +131,18 @@ static int send_cmd(struct fp_dev *dev, unsigned char seq_a,
 	unsigned char seq_b, unsigned char *data, uint16_t len)
 {
 	int r;
+	int transferred;
 	uint16_t crc;
 
 	/* 9 bytes extra for: 4 byte 'Ciao', 1 byte A, 1 byte B | lenHI,
 	 * 1 byte lenLO, 2 byte CRC */
 	size_t urblen = len + 9;
 	unsigned char *buf;
+
+	struct libusb_bulk_transfer msg = {
+		.endpoint = EP_OUT,
+		.length = urblen,
+	};
 
 	if (!data && len > 0) {
 		fp_err("len>0 but no data?");
@@ -161,12 +167,13 @@ static int send_cmd(struct fp_dev *dev, unsigned char seq_a,
 	buf[urblen - 2] = crc >> 8;
 	buf[urblen - 1] = crc & 0xff;
 
-	r = usb_bulk_write(dev->udev, EP_OUT, buf, urblen, TIMEOUT);
+	msg.data = buf;
+	r = libusb_bulk_transfer(dev->udev, &msg, &transferred, TIMEOUT);
 	g_free(buf);
 	if (r < 0) {
 		fp_err("cmd write failed, code %d", r);
 		return r;
-	} else if ((unsigned int) r < urblen) {
+	} else if ((unsigned int) transferred < urblen) {
 		fp_err("cmd write too short (%d/%d)", r, urblen);
 		return -EIO;
 	}
@@ -217,12 +224,19 @@ static unsigned char *__read_msg(struct fp_dev *dev, size_t *data_len)
 	uint16_t computed_crc, msg_crc;
 	uint16_t len;
 	int r;
+	int transferred;
 
-	r = usb_bulk_read(dev->udev, EP_IN, buf, buf_size, TIMEOUT);
+	struct libusb_bulk_transfer msg = {
+		.endpoint = EP_IN,
+		.data = buf,
+		.length = buf_size,
+	};
+
+	r = libusb_bulk_transfer(dev->udev, &msg, &transferred, TIMEOUT);
 	if (r < 0) {
 		fp_err("msg read failed, code %d", r);
 		goto err;
-	} else if (r < 9) {
+	} else if (transferred < 9) {
 		fp_err("msg read too short (%d/%d)", r, buf_size);
 		goto err;
 	}
@@ -247,14 +261,19 @@ static unsigned char *__read_msg(struct fp_dev *dev, size_t *data_len)
 	 * to read the remainder. This is handled below. */
 	if (len > MAX_DATA_IN_READ_BUF) {
 		int needed = len - MAX_DATA_IN_READ_BUF;
+		struct libusb_bulk_transfer extend_msg = {
+			.endpoint = EP_IN,
+			.length = needed,
+		};
+
 		fp_dbg("didn't fit in buffer, need to extend by %d bytes", needed);
 		buf = g_realloc((gpointer) buf, MSG_READ_BUF_SIZE + needed);
-		r = usb_bulk_read(dev->udev, EP_IN, buf + MSG_READ_BUF_SIZE, needed,
-			TIMEOUT);
+		extend_msg.data = buf + MSG_READ_BUF_SIZE;
+		r = libusb_bulk_transfer(dev->udev, &extend_msg, &transferred, TIMEOUT);
 		if (r < 0) {
 			fp_err("extended msg read failed, code %d", r);
 			goto err;
-		} else if (r < needed) {
+		} else if (transferred < needed) {
 			fp_err("extended msg short read (%d/%d)", r, needed);
 			goto err;
 		}
@@ -427,8 +446,16 @@ static int do_init(struct fp_dev *dev)
 	uint8_t seq;
 	int r;
 
-	r = usb_control_msg(dev->udev, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		0x0c, 0x100, 0x400, &dummy, sizeof(dummy), TIMEOUT);
+	struct libusb_control_transfer msg = {
+		.requesttype = LIBUSB_TYPE_VENDOR | LIBUSB_RECIP_DEVICE,
+		.request = 0x0c,
+		.value = 0x0100,
+		.index = 0x0400,
+		.length = sizeof(dummy),
+		.data = &dummy,
+	};
+
+	r = libusb_control_transfer(dev->udev, &msg, TIMEOUT);
 	if (r < 0) {
 		fp_dbg("control write failed\n");
 		return r;
@@ -528,7 +555,7 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 	struct upekts_dev *upekdev = NULL;
 	int r;
 
-	r = usb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(dev->udev, 0);
 	if (r < 0)
 		return r;
 
@@ -542,7 +569,7 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 
 static void dev_exit(struct fp_dev *dev)
 {
-	usb_release_interface(dev->udev, 0);
+	libusb_release_interface(dev->udev, 0);
 	g_free(dev->priv);
 }
 

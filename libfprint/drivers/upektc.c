@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include <glib.h>
-#include <usb.h>
+#include <libusb.h>
 
 #include <fp_internal.h>
 
@@ -70,9 +70,20 @@ static const unsigned char anInitCommand[ 0x40 ] = {
 static sint32 askScanner( struct fp_img_dev *dev, const unsigned char *pnRawString, sint32 nLen, sint8 *pnBuffer ) {
     sint8 anBuf[ 65535 ];
 	sint32 nRet;
+	int transferred;
+	struct libusb_bulk_transfer msg1 = {
+		.endpoint = 3,
+		.data = pnRawString,
+		.length = 0x40,
+	};
+	struct libusb_bulk_transfer msg2 = {
+		.endpoint = 0x82,
+		.data = anBuf,
+		.length = nLen,
+	};
 
-	nRet = usb_bulk_write( dev -> udev, 0x00000003, pnRawString, 0x40, 1003 );
-	if ( nRet != 0x40 ) {
+	nRet = libusb_bulk_transfer(dev->udev, &msg1, &transferred, 1003);
+	if (transferred != 0x40) {
 		return -1;
 	}
 
@@ -80,10 +91,10 @@ static sint32 askScanner( struct fp_img_dev *dev, const unsigned char *pnRawStri
 		return 0;
 	}
 
-	nRet = usb_bulk_read( dev -> udev, 0x00000082, anBuf, nLen, 1003 );
-	if ( ( nRet == nLen ) && ( pnBuffer != NULL ) ) {
+	nRet = libusb_bulk_transfer(dev->udev, &msg2, &transferred, 1003);
+	if ( ( transferred == nLen ) && ( pnBuffer != NULL ) ) {
 		memcpy( pnBuffer, anBuf, nLen );
-		return nRet;
+		return transferred;
 	}
 
 	return nRet;
@@ -114,7 +125,7 @@ static sint32 ValidScan( sint8 *pnImage ) {
  * \return error code
  */
 static sint32 SetupSensor( struct fp_img_dev *dev ) {
-	usb_claim_interface( dev -> udev, 0 );
+	libusb_claim_interface(dev->udev, 0);
 
 	/* setup sensor */
 	if ( askScanner( dev, "\x03\x00\x00\x00\x02\xfe\x00\x01\xc0\xbd\xf0\xff\xff\xff\xff\xff\x00\xf0\xfd\x7f\x00\x60\xfd\x7f\x14\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\xcc\xf8\x2f\x01\x09\x48\xe7\x77\xf0\xfa\x2f\x01\x09\x48\xe7\x77\xe0\x3a\xe6\x77", 0x00, NULL ) < 0 ) {
@@ -365,7 +376,7 @@ static int capture( struct fp_img_dev *dev, gboolean unconditional, struct fp_im
 static int dev_init( struct fp_img_dev *dev, unsigned long driver_data ) {
 	int nResult;
 
-	nResult = usb_claim_interface( dev -> udev, 0 );
+	nResult = libusb_claim_interface(dev->udev, 0);
 	if ( nResult < 0 ) {
 		fp_err( "could not claim interface 0" );
 		return nResult;
@@ -377,7 +388,7 @@ static int dev_init( struct fp_img_dev *dev, unsigned long driver_data ) {
 }
 
 static void dev_exit( struct fp_img_dev *dev ) {
-	usb_release_interface( dev -> udev, 0 );
+	libusb_release_interface(dev->udev, 0);
 }
 
 static const struct usb_id id_table[] = {

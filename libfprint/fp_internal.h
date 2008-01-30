@@ -24,7 +24,7 @@
 #include <stdint.h>
 
 #include <glib.h>
-#include <usb.h>
+#include <libusb.h>
 
 #include <fprint.h>
 
@@ -64,7 +64,7 @@ void fpi_log(enum fpi_log_level, const char *component, const char *function,
 
 struct fp_dev {
 	struct fp_driver *drv;
-	usb_dev_handle *udev;
+	libusb_dev_handle *udev;
 	uint32_t devtype;
 	void *priv;
 
@@ -76,7 +76,7 @@ struct fp_dev {
 
 struct fp_img_dev {
 	struct fp_dev *dev;
-	usb_dev_handle *udev;
+	libusb_dev_handle *udev;
 	void *priv;
 };
 
@@ -153,7 +153,7 @@ void fpi_img_driver_setup(struct fp_img_driver *idriver);
 	container_of((drv), struct fp_img_driver, driver)
 
 struct fp_dscv_dev {
-	struct usb_device *udev;
+	libusb_dev *udev;
 	struct fp_driver *drv;
 	unsigned long driver_data;
 	uint32_t devtype;

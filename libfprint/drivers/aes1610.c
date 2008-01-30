@@ -27,14 +27,14 @@
 #include <errno.h>
 #include <string.h>
 
-#include <usb.h>
+#include <libusb.h>
 
 #include <aeslib.h>
 #include <fp_internal.h>
 
 /* FIXME these need checking */
-#define EP_IN			(1 | USB_ENDPOINT_IN)
-#define EP_OUT			(2 | USB_ENDPOINT_OUT)
+#define EP_IN			(1 | LIBUSB_ENDPOINT_IN)
+#define EP_OUT			(2 | LIBUSB_ENDPOINT_OUT)
 
 #define BULK_TIMEOUT 4000
 
@@ -63,13 +63,19 @@
 static int read_data(struct fp_img_dev *dev, unsigned char *data, size_t len)
 {
 	int r;
+	int transferred;
+	struct libusb_bulk_transfer msg = {
+		.endpoint = EP_IN,
+		.data = data,
+		.length = len,
+	};
 	fp_dbg("len=%zd", len);
 
-	r = usb_bulk_read(dev->udev, EP_IN, data, len, BULK_TIMEOUT);
+	r = libusb_bulk_transfer(dev->udev, &msg, &transferred, BULK_TIMEOUT);
 	if (r < 0) {
 		fp_err("bulk read error %d", r);
 		return r;
-	} else if (r < (int) len) {
+	} else if (transferred < len) {
 		fp_err("unexpected short read %d/%zd", r, len);
 		return -EIO;
 	}
@@ -88,7 +94,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
 	int r;
 
-	r = usb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(dev->udev, 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0");
 		return r;
@@ -107,7 +113,7 @@ static int do_exit(struct fp_img_dev *dev)
 static void dev_exit(struct fp_img_dev *dev)
 {
 	do_exit(dev);
-	usb_release_interface(dev->udev, 0);
+	libusb_release_interface(dev->udev, 0);
 }
 
 static const struct aes_regwrite finger_det_reqs[] = {

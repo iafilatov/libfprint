@@ -24,15 +24,15 @@
 #include <unistd.h>
 
 #include <openssl/aes.h>
-#include <usb.h>
+#include <libusb.h>
 
 #include <fp_internal.h>
 
-#define EP_INTR			(1 | USB_ENDPOINT_IN)
-#define EP_DATA			(2 | USB_ENDPOINT_IN)
+#define EP_INTR			(1 | LIBUSB_ENDPOINT_IN)
+#define EP_DATA			(2 | LIBUSB_ENDPOINT_IN)
 #define USB_RQ			0x04
-#define CTRL_IN			(USB_TYPE_VENDOR | USB_ENDPOINT_IN)
-#define CTRL_OUT		(USB_TYPE_VENDOR | USB_ENDPOINT_OUT)
+#define CTRL_IN			(LIBUSB_TYPE_VENDOR | LIBUSB_ENDPOINT_IN)
+#define CTRL_OUT		(LIBUSB_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT)
 #define CTRL_TIMEOUT	5000
 #define BULK_TIMEOUT	5000
 #define DATABLK1_RQLEN	0x10000
@@ -156,8 +156,16 @@ static int get_hwstat(struct fp_img_dev *dev, unsigned char *data)
 
 	/* The windows driver uses a request of 0x0c here. We use 0x04 to be
 	 * consistent with every other command we know about. */
-	r = usb_control_msg(dev->udev, CTRL_IN, USB_RQ, REG_HWSTAT, 0,
-		data, 1, CTRL_TIMEOUT);
+	struct libusb_control_transfer msg = {
+		.requesttype = CTRL_IN,
+		.request = USB_RQ,
+		.value = REG_HWSTAT,
+		.index = 0,
+		.length = 1,
+		.data = data,
+	};
+
+	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
 	if (r < 0) {
 		fp_err("error %d", r);
 		return r;
@@ -173,10 +181,17 @@ static int get_hwstat(struct fp_img_dev *dev, unsigned char *data)
 static int set_hwstat(struct fp_img_dev *dev, unsigned char data)
 {
 	int r;
-	fp_dbg("val=%02x", data);
+	struct libusb_control_transfer msg = {
+		.requesttype = CTRL_OUT,
+		.request = USB_RQ,
+		.value = REG_HWSTAT,
+		.index = 0,
+		.length = 1,
+		.data = &data,
+	};
 
-	r = usb_control_msg(dev->udev, CTRL_OUT, USB_RQ, REG_HWSTAT, 0,
-		&data, 1, CTRL_TIMEOUT);
+	fp_dbg("val=%02x", data);
+	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
 	if (r < 0) {
 		fp_err("error %d", r);
 		return r;
@@ -191,10 +206,17 @@ static int set_hwstat(struct fp_img_dev *dev, unsigned char data)
 static int set_mode(struct fp_img_dev *dev, unsigned char mode)
 {
 	int r;
+	struct libusb_control_transfer msg = {
+		.requesttype = CTRL_OUT,
+		.request = USB_RQ,
+		.value = REG_MODE,
+		.index = 0,
+		.length = 1,
+		.data = &mode,
+	};
 
 	fp_dbg("%02x", mode);
-	r = usb_control_msg(dev->udev, CTRL_OUT, USB_RQ, REG_MODE, 0, &mode, 1,
-		CTRL_TIMEOUT);
+	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
 	if (r < 0) {
 		fp_err("error %d", r);
 		return r;
@@ -209,11 +231,16 @@ static int set_mode(struct fp_img_dev *dev, unsigned char mode)
 static int read_challenge(struct fp_img_dev *dev, unsigned char *data)
 {
 	int r;
+	struct libusb_control_transfer msg = {
+		.requesttype = CTRL_IN,
+		.request = USB_RQ,
+		.value = REG_CHALLENGE,
+		.index = 0,
+		.length = CR_LENGTH,
+		.data = data,
+	};
 
-	/* The windows driver uses a request of 0x0c here. We use 0x04 to be
-	 * consistent with every other command we know about. */
-	r = usb_control_msg(dev->udev, CTRL_IN, USB_RQ, REG_CHALLENGE, 0,
-		data, CR_LENGTH, CTRL_TIMEOUT);
+	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
 	if (r < 0) {
 		fp_err("error %d", r);
 		return r;
@@ -228,9 +255,16 @@ static int read_challenge(struct fp_img_dev *dev, unsigned char *data)
 static int write_response(struct fp_img_dev *dev, unsigned char *data)
 {
 	int r;
+	struct libusb_control_transfer msg = {
+		.requesttype = CTRL_OUT,
+		.request = USB_RQ,
+		.value = REG_RESPONSE,
+		.index = 0,
+		.length = CR_LENGTH,
+		.data = data,
+	};
 
-	r = usb_control_msg(dev->udev, CTRL_OUT, USB_RQ, REG_RESPONSE, 0, data,
-		CR_LENGTH, CTRL_TIMEOUT);
+	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
 	if (r < 0) {
 		fp_err("error %d", r);
 		return r;
@@ -276,6 +310,12 @@ static int get_irq(struct fp_img_dev *dev, unsigned char *buf, int timeout)
 	uint16_t type;
 	int r;
 	int infinite_timeout = 0;
+	int transferred;
+	struct libusb_bulk_transfer msg = {
+		.endpoint = EP_INTR,
+		.data = buf,
+		.length = IRQ_LENGTH,
+	};
 
 	if (timeout == 0) {
 		infinite_timeout = 1;
@@ -289,7 +329,7 @@ static int get_irq(struct fp_img_dev *dev, unsigned char *buf, int timeout)
 	 * See http://thread.gmane.org/gmane.comp.lib.libusb.devel.general/1315 */
 
 retry:
-	r = usb_interrupt_read(dev->udev, EP_INTR, buf, IRQ_LENGTH, timeout);
+	r = libusb_interrupt_transfer(dev->udev, &msg, &transferred, timeout);
 	if (r == -ETIMEDOUT && infinite_timeout)
 		goto retry;
 
@@ -297,7 +337,7 @@ retry:
 		if (r != -ETIMEDOUT)
 			fp_err("interrupt read failed, error %d", r);
 		return r;
-	} else if (r < IRQ_LENGTH) {
+	} else if (transferred < IRQ_LENGTH) {
 		fp_err("received %d byte IRQ!?", r);
 		return -EIO;
 	}
@@ -394,6 +434,16 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	struct fp_img *img;
 	size_t image_size = DATABLK1_RQLEN + DATABLK2_EXPECT - CAPTURE_HDRLEN;
 	int hdr_skip = CAPTURE_HDRLEN;
+	int transferred;
+	struct libusb_bulk_transfer msg1 = {
+		.endpoint = EP_DATA,
+		.length = DATABLK1_RQLEN,
+	};
+	struct libusb_bulk_transfer msg2 = {
+		.endpoint = EP_DATA,
+		.length = DATABLK2_RQLEN,
+	};
+
 
 	r = set_mode(dev, MODE_CAPTURE);
 	if (r < 0)
@@ -409,24 +459,24 @@ static int capture(struct fp_img_dev *dev, gboolean unconditional,
 	 * asked for. */
 
 	img = fpi_img_new(DATABLK1_RQLEN + DATABLK2_RQLEN);
+	msg1.data = img->data;
+	msg2.data = img->data + DATABLK1_RQLEN;
 
-	r = usb_bulk_read(dev->udev, EP_DATA, img->data, DATABLK1_RQLEN,
-		BULK_TIMEOUT);
+	r = libusb_bulk_transfer(dev->udev, &msg1, &transferred, BULK_TIMEOUT);
 	if (r < 0) {
 		fp_err("part 1 capture failed, error %d", r);
 		goto err;
-	} else if (r < DATABLK1_RQLEN) {
+	} else if (transferred < DATABLK1_RQLEN) {
 		fp_err("part 1 capture too short (%d)", r);
 		r = -EIO;
 		goto err;
 	}
 
-	r = usb_bulk_read(dev->udev, EP_DATA, img->data + DATABLK1_RQLEN,
-		DATABLK2_RQLEN, BULK_TIMEOUT);
+	r = libusb_bulk_transfer(dev->udev, &msg2, &transferred, BULK_TIMEOUT);
 	if (r < 0) {
 		fp_err("part 2 capture failed, error %d", r);
 		goto err;
-	} else if (r != DATABLK2_EXPECT) {
+	} else if (transferred != DATABLK2_EXPECT) {
 		if (r == DATABLK2_EXPECT - CAPTURE_HDRLEN) {
 			/* this is rather odd, but it happens sometimes with my MS
 			 * keyboard */
@@ -457,9 +507,16 @@ static int fix_firmware(struct fp_img_dev *dev)
 	uint32_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
 	unsigned char val, new;
 	int r;
+	struct libusb_control_transfer msg = {
+		.requesttype = 0xc0,
+		.request = 0x0c,
+		.value = enc_addr,
+		.index = 0,
+		.data = &val,
+		.length = 1,
+	};
 
-	r = usb_control_msg(dev->udev, 0xc0, 0x0c, enc_addr, 0, &val, 1,
-		CTRL_TIMEOUT);
+	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
 	if (r < 0)
 		return r;
 	
@@ -472,8 +529,11 @@ static int fix_firmware(struct fp_img_dev *dev)
 	if (new == val)
 		return 0;
 
-	r = usb_control_msg(dev->udev, 0x40, 0x04, enc_addr, 0, &new, 1,
-		CTRL_TIMEOUT);
+	msg.requesttype = 0x40;
+	msg.request = 0x04;
+	msg.data = &new;
+
+	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
 	if (r < 0)
 		return r;
 
@@ -585,18 +645,18 @@ retry:
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
-	struct usb_config_descriptor *config;
-	struct usb_interface *iface = NULL;
-	struct usb_interface_descriptor *iface_desc;
-	struct usb_endpoint_descriptor *ep;
+	struct libusb_config_descriptor *config;
+	struct libusb_interface *iface = NULL;
+	struct libusb_interface_descriptor *iface_desc;
+	struct libusb_endpoint_descriptor *ep;
 	struct uru4k_dev *urudev;
 	int i;
 	int r;
 
 	/* Find fingerprint interface */
-	config = usb_device(dev->udev)->config;
+	config = libusb_dev_get_config(libusb_devh_get_dev(dev->udev));
 	for (i = 0; i < config->bNumInterfaces; i++) {
-		struct usb_interface *cur_iface = &config->interface[i];
+		struct libusb_interface *cur_iface = &config->interface[i];
 
 		if (cur_iface->num_altsetting < 1)
 			continue;
@@ -624,23 +684,23 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	ep = &iface_desc->endpoint[0];
 	if (ep->bEndpointAddress != EP_INTR
-			|| (ep->bmAttributes & USB_ENDPOINT_TYPE_MASK) !=
-				USB_ENDPOINT_TYPE_INTERRUPT) {
+			|| (ep->bmAttributes & LIBUSB_ENDPOINT_TYPE_MASK) !=
+				LIBUSB_ENDPOINT_TYPE_INTERRUPT) {
 		fp_err("unrecognised interrupt endpoint");
 		return -ENODEV;
 	}
 
 	ep = &iface_desc->endpoint[1];
 	if (ep->bEndpointAddress != EP_DATA
-			|| (ep->bmAttributes & USB_ENDPOINT_TYPE_MASK) !=
-				USB_ENDPOINT_TYPE_BULK) {
+			|| (ep->bmAttributes & LIBUSB_ENDPOINT_TYPE_MASK) !=
+				LIBUSB_ENDPOINT_TYPE_BULK) {
 		fp_err("unrecognised bulk endpoint");
 		return -ENODEV;
 	}
 
 	/* Device looks like a supported reader */
 
-	r = usb_claim_interface(dev->udev, iface_desc->bInterfaceNumber);
+	r = libusb_claim_interface(dev->udev, iface_desc->bInterfaceNumber);
 	if (r < 0) {
 		fp_err("interface claim failed");
 		return r;
@@ -658,7 +718,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	return 0;
 err:
-	usb_release_interface(dev->udev, iface_desc->bInterfaceNumber);
+	libusb_release_interface(dev->udev, iface_desc->bInterfaceNumber);
 	g_free(urudev);
 	return r;
 }
@@ -669,7 +729,7 @@ static void dev_exit(struct fp_img_dev *dev)
 
 	set_mode(dev, MODE_INIT);
 	set_hwstat(dev, 0x80);
-	usb_release_interface(dev->udev, urudev->interface);
+	libusb_release_interface(dev->udev, urudev->interface);
 	g_free(urudev);
 }
 

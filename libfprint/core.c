@@ -22,7 +22,7 @@
 #include <stdio.h>
 
 #include <glib.h>
-#include <usb.h>
+#include <libusb.h>
 
 #include "fp_internal.h"
 
@@ -351,18 +351,18 @@ static void register_drivers(void)
 	}
 }
 
-static struct fp_driver *find_supporting_driver(struct usb_device *udev,
+static struct fp_driver *find_supporting_driver(libusb_dev *udev,
 	const struct usb_id **usb_id)
 {
 	GSList *elem = registered_drivers;
+	struct libusb_dev_descriptor *dsc = libusb_dev_get_descriptor(udev);
 	
 	do {
 		struct fp_driver *drv = elem->data;
 		const struct usb_id *id;
 
 		for (id = drv->id_table; id->vendor; id++)
-			if (udev->descriptor.idVendor == id->vendor &&
-					udev->descriptor.idProduct == id->product) {
+			if (dsc->idVendor == id->vendor && dsc->idProduct == id->product) {
 				fp_dbg("driver %s supports USB device %04x:%04x",
 					drv->name, id->vendor, id->product);
 				*usb_id = id;
@@ -372,7 +372,7 @@ static struct fp_driver *find_supporting_driver(struct usb_device *udev,
 	return NULL;
 }
 
-static struct fp_dscv_dev *discover_dev(struct usb_device *udev)
+static struct fp_dscv_dev *discover_dev(libusb_dev *udev)
 {
 	const struct usb_id *usb_id;
 	struct fp_driver *drv = find_supporting_driver(udev, &usb_id);
@@ -408,23 +408,20 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 {
 	GSList *tmplist = NULL;
 	struct fp_dscv_dev **list;
-	struct usb_device *udev;
-	struct usb_bus *bus;
+	struct libusb_dev *udev;
 	int dscv_count = 0;
 
 	if (registered_drivers == NULL)
 		return NULL;
 
-	usb_find_busses();
-	usb_find_devices();
+	libusb_find_devices();
 
 	/* Check each device against each driver, temporarily storing successfully
 	 * discovered devices in a GSList.
 	 *
 	 * Quite inefficient but excusable as we'll only be dealing with small
 	 * sets of drivers against small sets of USB devices */
-	for (bus = usb_get_busses(); bus; bus = bus->next)
-		for (udev = bus->devices; udev; udev = udev->next) {
+	for (udev = libusb_get_devices(); udev; udev = libusb_dev_next(udev)) {
 			struct fp_dscv_dev *ddev = discover_dev(udev);
 			if (!ddev)
 				continue;
@@ -581,7 +578,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	struct fp_driver *drv = ddev->drv;
 	int r;
 
-	usb_dev_handle *udevh = usb_open(ddev->udev);
+	libusb_dev_handle *udevh = libusb_open(ddev->udev);
 	if (!udevh) {
 		fp_err("usb_open failed");
 		return NULL;
@@ -596,7 +593,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 		r = drv->init(dev, ddev->driver_data);
 		if (r) {
 			fp_err("device initialisation failed, driver=%s", drv->name);
-			usb_close(udevh);
+			libusb_close(udevh);
 			g_free(dev);
 			return NULL;
 		}
@@ -612,7 +609,7 @@ static void do_close(struct fp_dev *dev)
 {
 	if (dev->drv->exit)
 		dev->drv->exit(dev);
-	usb_close(dev->udev);
+	libusb_close(dev->udev);
 	g_free(dev);
 }
 
@@ -1119,8 +1116,13 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
  */
 API_EXPORTED int fp_init(void)
 {
+	int r;
 	fp_dbg("");
-	usb_init();
+
+	r = libusb_init();
+	if (r < 0)
+		return r;
+
 	register_drivers();
 	return 0;
 }
@@ -1147,5 +1149,6 @@ API_EXPORTED void fp_exit(void)
 	fpi_data_exit();
 	g_slist_free(registered_drivers);
 	registered_drivers = NULL;
+	libusb_exit();
 }
 
