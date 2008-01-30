@@ -325,16 +325,16 @@ static void register_driver(struct fp_driver *drv)
 }
 
 static struct fp_driver * const primitive_drivers[] = {
-	&upekts_driver,
+	/* &upekts_driver, */
 };
 
 static struct fp_img_driver * const img_drivers[] = {
-	&uru4000_driver,
+	/* &uru4000_driver,
 	&aes1610_driver,
 	&aes2501_driver,
 	&aes4000_driver,
 	&upektc_driver,
-	&fdu2000_driver,
+	&fdu2000_driver, */
 };
 
 static void register_drivers(void)
