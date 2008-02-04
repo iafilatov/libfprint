@@ -1,6 +1,6 @@
 /*
  * Core functions for libfprint
- * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
+ * Copyright (C) 2007-2008 Daniel Drake <dsd@gentoo.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -325,7 +325,6 @@ static void register_driver(struct fp_driver *drv)
 }
 
 static struct fp_driver * const primitive_drivers[] = {
-	/* &upekts_driver, */
 };
 
 static struct fp_img_driver * const img_drivers[] = {
@@ -578,6 +577,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	struct fp_driver *drv = ddev->drv;
 	int r;
 
+	fp_dbg("");
 	libusb_dev_handle *udevh = libusb_open(ddev->udev);
 	if (!udevh) {
 		fp_err("usb_open failed");
@@ -588,27 +588,43 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	dev->drv = drv;
 	dev->udev = udevh;
 	dev->__enroll_stage = -1;
+	dev->state = DEV_STATE_INITIALIZING;
 
-	if (drv->init) {
-		r = drv->init(dev, ddev->driver_data);
-		if (r) {
-			fp_err("device initialisation failed, driver=%s", drv->name);
-			libusb_close(udevh);
-			g_free(dev);
-			return NULL;
-		}
+	r = fpi_drv_init(dev, ddev->driver_data);
+	if (r) {
+		fp_err("device initialisation failed, driver=%s", drv->name);
+		goto err;
 	}
 
-	fp_dbg("");
+	while (dev->state == DEV_STATE_INITIALIZING)
+		if (libusb_poll() < 0)
+			goto err_deinit;
+	if (dev->state != DEV_STATE_INITIALIZED)
+		goto err_deinit;
+
 	opened_devices = g_slist_prepend(opened_devices, (gpointer) dev);
 	return dev;
+
+err_deinit:
+	fpi_drv_deinit(dev);
+	while (dev->state == DEV_STATE_DEINITIALIZING) {
+		if (libusb_poll() < 0)
+			break;
+	}
+err:
+	libusb_close(udevh);
+	g_free(dev);
+	return NULL;
 }
 
 /* performs close operation without modifying opened_devices list */
 static void do_close(struct fp_dev *dev)
 {
-	if (dev->drv->exit)
-		dev->drv->exit(dev);
+	fpi_drv_deinit(dev);
+	while (dev->state == DEV_STATE_DEINITIALIZING)
+		if (libusb_poll() < 0)
+			break;
+
 	libusb_close(dev->udev);
 	g_free(dev);
 }
@@ -751,7 +767,7 @@ API_EXPORTED int fp_dev_supports_imaging(struct fp_dev *dev)
  */
 API_EXPORTED int fp_dev_supports_identification(struct fp_dev *dev)
 {
-	return dev->drv->identify != NULL;
+	return dev->drv->identify_start != NULL;
 }
 
 /** \ingroup dev
@@ -824,6 +840,23 @@ API_EXPORTED int fp_dev_get_img_height(struct fp_dev *dev)
 	return fpi_imgdev_get_img_height(imgdev);
 }
 
+struct sync_enroll_data {
+	gboolean populated;
+	int result;
+	struct fp_print_data *data;
+	struct fp_img *img;
+};
+
+static void sync_enroll_cb(struct fp_dev *dev, int result,
+	struct fp_print_data *data, struct fp_img *img)
+{
+	struct sync_enroll_data *edata = dev->enroll_data;
+	edata->result = result;
+	edata->data = data;
+	edata->img = img;
+	edata->populated = TRUE;
+}
+
 /** \ingroup dev
  * Performs an enroll stage. See \ref enrolling for an explanation of enroll
  * stages.
@@ -881,44 +914,66 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 	struct fp_print_data **print_data, struct fp_img **img)
 {
 	struct fp_driver *drv = dev->drv;
-	struct fp_img *_img = NULL;
-	int ret;
 	int stage = dev->__enroll_stage;
-	gboolean initial = FALSE;
+	gboolean final = FALSE;
+	struct sync_enroll_data *edata;
+	int r;
 
-	if (!dev->nr_enroll_stages || !drv->enroll) {
+	if (!dev->nr_enroll_stages || !drv->enroll_start) {
 		fp_err("driver %s has 0 enroll stages or no enroll func",
 			drv->name);
 		return -ENOTSUP;
 	}
 
 	if (stage == -1) {
-		initial = TRUE;
-		dev->__enroll_stage = ++stage;
-	}
+		fp_dbg("starting enrollment");
+		r = fpi_drv_enroll_start(dev, sync_enroll_cb);
+		if (r < 0) {
+			fp_err("failed to start enrollment");
+			return r;
+		}
+		while (dev->state == DEV_STATE_ENROLL_STARTING) {
+			r = libusb_poll();
+			if (r < 0)
+				goto err;
+		}
 
-	if (stage >= dev->nr_enroll_stages) {
+		if (dev->state != DEV_STATE_ENROLLING) {
+			r = -EIO;
+			goto err;
+		}
+
+		dev->__enroll_stage = ++stage;
+		dev->enroll_data = g_malloc0(sizeof(struct sync_enroll_data));
+	} else if (stage >= dev->nr_enroll_stages) {
 		fp_err("exceeding number of enroll stages for device claimed by "
 			"driver %s (%d stages)", drv->name, dev->nr_enroll_stages);
 		dev->__enroll_stage = -1;
-		return -EINVAL;
+		r = -EINVAL;
+		final = TRUE;
+		goto out;
 	}
-	fp_dbg("%s will handle enroll stage %d/%d%s", drv->name, stage,
-		dev->nr_enroll_stages - 1, initial ? " (initial)" : "");
+	fp_dbg("%s will handle enroll stage %d/%d", drv->name, stage,
+		dev->nr_enroll_stages - 1);
 
-	ret = drv->enroll(dev, initial, stage, print_data, &_img);
-	if (ret < 0) {
-		fp_err("enroll failed with code %d", ret);
-		dev->__enroll_stage = -1;
-		return ret;
+	edata = dev->enroll_data;
+	while (!edata->populated) {
+		r = libusb_poll();
+		if (r < 0) {
+			g_free(edata);
+			goto err;
+		}
 	}
+
+	edata->populated = FALSE;
 
 	if (img)
-		*img = _img;
+		*img = edata->img;
 	else
-		fp_img_free(_img);
+		fp_img_free(edata->img);
 
-	switch (ret) {
+	r = edata->result;
+	switch (r) {
 	case FP_ENROLL_PASS:
 		fp_dbg("enroll stage passed");
 		dev->__enroll_stage = stage + 1;
@@ -926,6 +981,8 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 	case FP_ENROLL_COMPLETE:
 		fp_dbg("enroll complete");
 		dev->__enroll_stage = -1;
+		*print_data = edata->data;
+		final = TRUE;
 		break;
 	case FP_ENROLL_RETRY:
 		fp_dbg("enroll should retry");
@@ -942,13 +999,49 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 	case FP_ENROLL_FAIL:
 		fp_err("enroll failed");
 		dev->__enroll_stage = -1;
+		final = TRUE;
 		break;
 	default:
-		fp_err("unrecognised return code %d", ret);
+		fp_err("unrecognised return code %d", r);
 		dev->__enroll_stage = -1;
-		return -EINVAL;
+		r = -EINVAL;
+		final = TRUE;
+		break;
 	}
-	return ret;
+
+out:
+	if (final) {
+		fp_dbg("ending enrollment");
+		if (fpi_drv_enroll_stop(dev) == 0)
+			while (dev->state == DEV_STATE_ENROLL_STOPPING) {
+				if (libusb_poll() < 0)
+					break;
+			}
+		g_free(dev->enroll_data);
+	}
+
+	return r;
+
+err:
+	if (fpi_drv_enroll_stop(dev) == 0)
+		while (dev->state == DEV_STATE_ENROLL_STOPPING)
+			if (libusb_poll() < 0)
+				break;
+	return r;
+}
+
+struct sync_verify_data {
+	gboolean populated;
+	int result;
+	struct fp_img *img;
+};
+
+static void sync_verify_cb(struct fp_dev *dev, int result, struct fp_img *img)
+{
+	struct sync_verify_data *vdata = dev->sync_verify_data;
+	vdata->result = result;
+	vdata->img = img;
+	vdata->populated = TRUE;
 }
 
 /** \ingroup dev
@@ -970,7 +1063,7 @@ API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 	struct fp_print_data *enrolled_print, struct fp_img **img)
 {
 	struct fp_driver *drv = dev->drv;
-	struct fp_img *_img = NULL;
+	struct sync_verify_data *vdata;
 	int r;
 
 	if (!enrolled_print) {
@@ -978,9 +1071,9 @@ API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 		return -EINVAL;
 	}
 
-	if (!drv->verify) {
+	if (!drv->verify_start) {
 		fp_err("driver %s has no verify func", drv->name);
-		return -EINVAL;
+		return -ENOTSUP;
 	}
 
 	if (!fp_dev_supports_print_data(dev, enrolled_print)) {
@@ -989,17 +1082,39 @@ API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 	}
 
 	fp_dbg("to be handled by %s", drv->name);
-	r = drv->verify(dev, enrolled_print, &_img);
+	r = fpi_drv_verify_start(dev, sync_verify_cb, enrolled_print);
 	if (r < 0) {
-		fp_dbg("verify error %d", r);
+		fp_dbg("verify_start error %d", r);
 		return r;
+	}
+	while (dev->state == DEV_STATE_VERIFY_STARTING) {
+		r = libusb_poll();
+		if (r < 0)
+			goto err;
+	}
+	if (dev->state != DEV_STATE_VERIFYING) {
+		r = -EIO;
+		goto err;
+	}
+
+	dev->sync_verify_data = g_malloc0(sizeof(struct sync_verify_data));
+	vdata = dev->sync_verify_data;
+
+	while (!vdata->populated) {
+		r = libusb_poll();
+		if (r < 0) {
+			g_free(vdata);
+			goto err;
+		}
 	}
 
 	if (img)
-		*img = _img;
+		*img = vdata->img;
 	else
-		fp_img_free(_img);
+		fp_img_free(vdata->img);
 
+	r = vdata->result;
+	g_free(dev->sync_verify_data);
 	switch (r) {
 	case FP_VERIFY_NO_MATCH:
 		fp_dbg("result: no match");
@@ -1021,10 +1136,36 @@ API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 		break;
 	default:
 		fp_err("unrecognised return code %d", r);
-		return -EINVAL;
+		r = -EINVAL;
+	}
+
+err:
+	fp_dbg("ending verification");
+	if (fpi_drv_verify_stop(dev) == 0) {
+		while (dev->state == DEV_STATE_VERIFY_STOPPING) {
+			if (libusb_poll() < 0)
+				break;
+		}
 	}
 
 	return r;
+}
+
+struct sync_identify_data {
+	gboolean populated;
+	int result;
+	size_t match_offset;
+	struct fp_img *img;
+};
+
+static void sync_identify_cb(struct fp_dev *dev, int result,
+	size_t match_offset, struct fp_img *img)
+{
+	struct sync_identify_data *idata = dev->sync_identify_data;
+	idata->result = result;
+	idata->match_offset = match_offset;
+	idata->img = img;
+	idata->populated = TRUE;
 }
 
 /** \ingroup dev
@@ -1063,31 +1204,54 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 	struct fp_img **img)
 {
 	struct fp_driver *drv = dev->drv;
-	struct fp_img *_img;
+	struct sync_identify_data *idata;
 	int r;
 
-	if (!drv->identify) {
+	if (!drv->identify_start) {
 		fp_dbg("driver %s has no identify func", drv->name);
 		return -ENOTSUP;
 	}
 	fp_dbg("to be handled by %s", drv->name);
-	r = drv->identify(dev, print_gallery, match_offset, &_img);
+
+	r = fpi_drv_identify_start(dev, sync_identify_cb, print_gallery);
 	if (r < 0) {
-		fp_dbg("identify error %d", r);
+		fp_err("identify_start error %d", r);
 		return r;
+	}
+	while (dev->state == DEV_STATE_IDENTIFY_STARTING) {
+		r = libusb_poll();
+		if (r < 0)
+			goto err;
+	}
+	if (dev->state != DEV_STATE_IDENTIFYING) {
+		r = -EIO;
+		goto err;
+	}
+
+	dev->sync_identify_data = g_malloc0(sizeof(struct sync_identify_data));
+	idata = dev->sync_identify_data;
+
+	while (!idata->populated) {
+		r = libusb_poll();
+		if (r < 0) {
+			g_free(idata);
+			goto err;
+		}
 	}
 
 	if (img)
-		*img = _img;
+		*img = idata->img;
 	else
-		fp_img_free(_img);
+		fp_img_free(idata->img);
 
+	r = idata->result;
 	switch (r) {
 	case FP_VERIFY_NO_MATCH:
 		fp_dbg("result: no match");
 		break;
 	case FP_VERIFY_MATCH:
 		fp_dbg("result: match at offset %zd", match_offset);
+		*match_offset = idata->match_offset;
 		break;
 	case FP_VERIFY_RETRY:
 		fp_dbg("verify should retry");
@@ -1103,7 +1267,16 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 		break;
 	default:
 		fp_err("unrecognised return code %d", r);
-		return -EINVAL;
+		r = -EINVAL;
+	}
+	g_free(dev->sync_identify_data);
+
+err:
+	if (fpi_drv_identify_stop(dev) == 0) {
+		while (dev->state == DEV_STATE_IDENTIFY_STOPPING) {
+			if (libusb_poll() < 0)
+				break;
+		}
 	}
 
 	return r;

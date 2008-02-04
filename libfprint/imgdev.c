@@ -349,9 +349,9 @@ void fpi_img_driver_setup(struct fp_img_driver *idriver)
 {
 	idriver->driver.type = DRIVER_IMAGING;
 	idriver->driver.init = img_dev_init;
-	idriver->driver.exit = img_dev_exit;
-	idriver->driver.enroll = img_dev_enroll;
-	idriver->driver.verify = img_dev_verify;
-	idriver->driver.identify = img_dev_identify;
+	//idriver->driver.exit = img_dev_exit;
+	//idriver->driver.enroll = img_dev_enroll;
+	//idriver->driver.verify = img_dev_verify;
+	//idriver->driver.identify = img_dev_identify;
 }
 

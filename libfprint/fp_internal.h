@@ -1,6 +1,6 @@
 /*
  * Internal/private definitions for libfprint
- * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
+ * Copyright (C) 2007-2008 Daniel Drake <dsd@gentoo.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -62,6 +62,42 @@ void fpi_log(enum fpi_log_level, const char *component, const char *function,
 #define fp_warn(fmt...) _fpi_log(LOG_LEVEL_WARNING, fmt)
 #define fp_err(fmt...) _fpi_log(LOG_LEVEL_ERROR, fmt)
 
+#ifdef NDEBUG
+#define BUG_ON(condition) \
+	if ((condition)) fp_err("BUG at %s:%d", __FILE__, __LINE__)
+#else
+#define BUG_ON(condition)
+#endif
+
+enum fp_dev_state {
+	DEV_STATE_INITIAL = 0,
+	DEV_STATE_ERROR,
+	DEV_STATE_INITIALIZING,
+	DEV_STATE_INITIALIZED,
+	DEV_STATE_DEINITIALIZING,
+	DEV_STATE_DEINITIALIZED,
+	DEV_STATE_ENROLL_STARTING,
+	DEV_STATE_ENROLLING,
+	DEV_STATE_ENROLL_STOPPING,
+	DEV_STATE_VERIFY_STARTING,
+	DEV_STATE_VERIFYING,
+	DEV_STATE_VERIFY_DONE,
+	DEV_STATE_VERIFY_STOPPING,
+	DEV_STATE_IDENTIFY_STARTING,
+	DEV_STATE_IDENTIFYING,
+	DEV_STATE_IDENTIFY_DONE,
+	DEV_STATE_IDENTIFY_STOPPING,
+};
+
+typedef void (*fp_enroll_stage_cb)(struct fp_dev *dev, int result,
+	struct fp_print_data *data, struct fp_img *img);
+
+typedef void (*fp_verify_cb)(struct fp_dev *dev, int result,
+	struct fp_img *img);
+
+typedef void (*fp_identify_cb)(struct fp_dev *dev, int result,
+	size_t match_offset, struct fp_img *img);
+
 struct fp_dev {
 	struct fp_driver *drv;
 	libusb_dev_handle *udev;
@@ -70,8 +106,21 @@ struct fp_dev {
 
 	int nr_enroll_stages;
 
-	/* drivers should not mess with these */
+	/* read-only to drivers */
+	struct fp_print_data *verify_data;
+
+	/* drivers should not mess with any of the below */
+	enum fp_dev_state state;
+
+	/* FIXME: convert this to generic state operational data mechanism? */
 	int __enroll_stage;
+	fp_enroll_stage_cb enroll_cb;
+	void *enroll_data;
+	void *sync_verify_data;
+	fp_verify_cb verify_cb;
+	void *identify_data;
+	void *sync_identify_data;
+	fp_identify_cb identify_cb;
 };
 
 struct fp_img_dev {
@@ -108,13 +157,13 @@ struct fp_driver {
 	/* Device operations */
 	int (*discover)(const struct usb_id *usb_id, uint32_t *devtype);
 	int (*init)(struct fp_dev *dev, unsigned long driver_data);
-	void (*exit)(struct fp_dev *dev);
-	int (*enroll)(struct fp_dev *dev, gboolean initial, int stage,
-		struct fp_print_data **print_data, struct fp_img **img);
-	int (*verify)(struct fp_dev *dev, struct fp_print_data *data,
-		struct fp_img **img);
-	int (*identify)(struct fp_dev *dev, struct fp_print_data **print_gallery,
-		size_t *match_offset, struct fp_img **img);
+	void (*deinit)(struct fp_dev *dev);
+	int (*enroll_start)(struct fp_dev *dev);
+	int (*enroll_stop)(struct fp_dev *dev);
+	int (*verify_start)(struct fp_dev *dev);
+	int (*verify_stop)(struct fp_dev *dev, gboolean iterating);
+	int (*identify_start)(struct fp_dev *dev);
+	int (*identify_stop)(struct fp_dev *dev, gboolean iterating);
 };
 
 enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv);
@@ -229,6 +278,67 @@ int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	struct fp_print_data *new_print);
 int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 	struct fp_print_data **gallery, int match_threshold, int *match_offset);
+
+/* async drv <--> lib comms */
+
+struct fpi_ssm;
+typedef void (*ssm_completed_fn)(struct fpi_ssm *ssm);
+typedef void (*ssm_handler_fn)(struct fpi_ssm *ssm);
+
+/* sequential state machine: state machine that iterates sequentially over
+ * a predefined series of states. can be aborted by either completion or
+ * abortion error conditions. */
+struct fpi_ssm {
+	struct fp_dev *dev;
+	void *priv;
+	int nr_states;
+	int cur_state;
+	gboolean completed;
+	int error;
+	ssm_completed_fn callback;
+	ssm_handler_fn handler;
+};
+
+
+/* for library and drivers */
+struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
+	int nr_states);
+void fpi_ssm_free(struct fpi_ssm *machine);
+void fpi_ssm_start(struct fpi_ssm *machine, ssm_completed_fn callback);
+int fpi_ssm_has_completed(struct fpi_ssm *machine);
+
+/* for drivers */
+void fpi_ssm_next_state(struct fpi_ssm *machine);
+void fpi_ssm_mark_completed(struct fpi_ssm *machine);
+void fpi_ssm_mark_aborted(struct fpi_ssm *machine, int error);
+
+int fpi_drv_init(struct fp_dev *dev, unsigned long driver_data);
+void fpi_drvcb_init_complete(struct fp_dev *dev, int status);
+void fpi_drv_deinit(struct fp_dev *dev);
+void fpi_drvcb_deinit_complete(struct fp_dev *dev);
+
+int fpi_drv_enroll_start(struct fp_dev *dev, fp_enroll_stage_cb callback);
+void fpi_drvcb_enroll_started(struct fp_dev *dev, int status);
+void fpi_drvcb_enroll_stage_completed(struct fp_dev *dev, int result,
+	struct fp_print_data *data, struct fp_img *img);
+int fpi_drv_enroll_stop(struct fp_dev *dev);
+void fpi_drvcb_enroll_stopped(struct fp_dev *dev);
+
+int fpi_drv_verify_start(struct fp_dev *dev, fp_verify_cb callback,
+	struct fp_print_data *data);
+void fpi_drvcb_verify_started(struct fp_dev *dev, int status);
+void fpi_drvcb_report_verify_result(struct fp_dev *dev, int result,
+	struct fp_img *img);
+int fpi_drv_verify_stop(struct fp_dev *dev);
+void fpi_drvcb_verify_stopped(struct fp_dev *dev);
+
+int fpi_drv_identify_start(struct fp_dev *dev, fp_identify_cb callback,
+	struct fp_print_data **gallery);
+void fpi_drvcb_identify_started(struct fp_dev *dev, int status);
+void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
+	size_t match_offset, struct fp_img *img);
+int fpi_drv_identify_stop(struct fp_dev *dev);
+void fpi_drvcb_identify_stopped(struct fp_dev *dev);
 
 #endif
 
