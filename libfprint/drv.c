@@ -67,6 +67,7 @@ int fpi_drv_enroll_start(struct fp_dev *dev, fp_enroll_stage_cb callback)
 {
 	struct fp_driver *drv = dev->drv;
 	int r;
+	fp_dbg("");
 	if (!drv->enroll_start)
 		return -ENOTSUP;
 	dev->state = DEV_STATE_ENROLL_STARTING;
@@ -108,6 +109,7 @@ void fpi_drvcb_enroll_stage_completed(struct fp_dev *dev, int result,
 int fpi_drv_enroll_stop(struct fp_dev *dev)
 {
 	struct fp_driver *drv = dev->drv;
+	fp_dbg("");
 	dev->enroll_cb = NULL;
 
 	if (!drv->enroll_start)
@@ -328,7 +330,7 @@ struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
 	int nr_states)
 {
 	struct fpi_ssm *machine;
-	BUG_ON(nr_states < 1)
+	BUG_ON(nr_states < 1);
 
 	machine = g_malloc0(sizeof(*machine));
 	machine->handler = handler;

@@ -62,12 +62,14 @@ void fpi_log(enum fpi_log_level, const char *component, const char *function,
 #define fp_warn(fmt...) _fpi_log(LOG_LEVEL_WARNING, fmt)
 #define fp_err(fmt...) _fpi_log(LOG_LEVEL_ERROR, fmt)
 
-#ifdef NDEBUG
+#ifndef NDEBUG
 #define BUG_ON(condition) \
 	if ((condition)) fp_err("BUG at %s:%d", __FILE__, __LINE__)
 #else
 #define BUG_ON(condition)
 #endif
+
+#define BUG() BUG_ON(1)
 
 enum fp_dev_state {
 	DEV_STATE_INITIAL = 0,
@@ -123,9 +125,48 @@ struct fp_dev {
 	fp_identify_cb identify_cb;
 };
 
+enum fp_imgdev_state {
+	IMGDEV_STATE_INACTIVE,
+	IMGDEV_STATE_AWAIT_FINGER_ON,
+	IMGDEV_STATE_CAPTURE,
+	IMGDEV_STATE_AWAIT_FINGER_OFF,
+};
+
+enum fp_imgdev_action {
+	IMG_ACTION_NONE = 0,
+	IMG_ACTION_ENROLL,
+	IMG_ACTION_VERIFY,
+	IMG_ACTION_IDENTIFY,
+};
+
+enum fp_imgdev_enroll_state {
+	IMG_ACQUIRE_STATE_NONE = 0,
+	IMG_ACQUIRE_STATE_ACTIVATING,
+	IMG_ACQUIRE_STATE_AWAIT_FINGER_ON,
+	IMG_ACQUIRE_STATE_AWAIT_IMAGE,
+	IMG_ACQUIRE_STATE_AWAIT_FINGER_OFF,
+	IMG_ACQUIRE_STATE_DONE,
+	IMG_ACQUIRE_STATE_DEACTIVATING,
+};
+
+enum fp_imgdev_verify_state {
+	IMG_VERIFY_STATE_NONE = 0,
+	IMG_VERIFY_STATE_ACTIVATING 
+};
+
 struct fp_img_dev {
 	struct fp_dev *dev;
 	libusb_dev_handle *udev;
+	enum fp_imgdev_action action;
+	int action_state;
+
+	struct fp_print_data *acquire_data;
+	struct fp_img *acquire_img;
+	int action_result;
+
+	/* FIXME: better place to put this? */
+	size_t identify_match_offset;
+
 	void *priv;
 };
 
@@ -181,11 +222,10 @@ struct fp_img_driver {
 
 	/* Device operations */
 	int (*init)(struct fp_img_dev *dev, unsigned long driver_data);
-	void (*exit)(struct fp_img_dev *dev);
-	int (*await_finger_on)(struct fp_img_dev *dev);
-	int (*await_finger_off)(struct fp_img_dev *dev);
-	int (*capture)(struct fp_img_dev *dev, gboolean unconditional,
-		struct fp_img **image);
+	void (*deinit)(struct fp_img_dev *dev);
+	int (*activate)(struct fp_img_dev *dev, enum fp_imgdev_state state);
+	int (*change_state)(struct fp_img_dev *dev, enum fp_imgdev_state state);
+	void (*deactivate)(struct fp_img_dev *dev);
 };
 
 extern struct fp_driver upekts_driver;
@@ -277,7 +317,7 @@ int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	struct fp_print_data *new_print);
 int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
-	struct fp_print_data **gallery, int match_threshold, int *match_offset);
+	struct fp_print_data **gallery, int match_threshold, size_t *match_offset);
 
 /* async drv <--> lib comms */
 
@@ -339,6 +379,16 @@ void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
 	size_t match_offset, struct fp_img *img);
 int fpi_drv_identify_stop(struct fp_dev *dev);
 void fpi_drvcb_identify_stopped(struct fp_dev *dev);
+
+/* for image drivers */
+void fpi_imgdev_init_complete(struct fp_img_dev *imgdev, int status);
+void fpi_imgdev_deinit_complete(struct fp_img_dev *imgdev);
+void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status);
+void fpi_imgdev_deactivate_complete(struct fp_img_dev *imgdev);
+void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
+	gboolean present);
+void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img);
+void fpi_imgdev_session_error(struct fp_img_dev *imgdev, int error);
 
 #endif
 

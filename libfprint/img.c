@@ -334,7 +334,7 @@ int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 
 	/* FIXME: the print buffer at this point is endian-specific, and will
 	 * only work when loaded onto machines with identical endianness. not good!
-	 * data format should be platform-independant. */
+	 * data format should be platform-independent. */
 	*ret = print;
 
 	return 0;
@@ -365,7 +365,7 @@ int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 }
 
 int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
-	struct fp_print_data **gallery, int match_threshold, int *match_offset)
+	struct fp_print_data **gallery, int match_threshold, size_t *match_offset)
 {
 	struct xyt_struct *pstruct = (struct xyt_struct *) print->data;
 	struct fp_print_data *gallery_print;

@@ -798,7 +798,9 @@ API_EXPORTED int fp_dev_img_capture(struct fp_dev *dev, int unconditional,
 		return -ENOTSUP;
 	}
 
-	return fpi_imgdev_capture(imgdev, unconditional, image);
+	//return fpi_imgdev_capture(imgdev, unconditional, image);
+	/* FIXME reimplement async */
+	return -ENOTSUP;
 }
 
 /** \ingroup dev
