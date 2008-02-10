@@ -1,6 +1,6 @@
 /*
  * Shared functions between libfprint Authentec drivers
- * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
+ * Copyright (C) 2007-2008 Daniel Drake <dsd@gentoo.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -33,71 +33,127 @@
 #define EP_IN			(1 | LIBUSB_ENDPOINT_IN)
 #define EP_OUT			(2 | LIBUSB_ENDPOINT_OUT)
 
-static int do_write_regv(struct fp_img_dev *dev,
-	const struct aes_regwrite *regs, unsigned int num)
+struct write_regv_data {
+	struct fp_img_dev *imgdev;
+	unsigned int num_regs;
+	const struct aes_regwrite *regs;
+	unsigned int offset;
+	aes_write_regv_cb callback;
+};
+
+static void continue_write_regv(struct write_regv_data *wdata);
+
+/* libusb bulk callback for regv write completion transfer. continues the
+ * transaction */
+static void write_regv_trf_complete(libusb_dev_handle *devh,
+	libusb_urb_handle *urbh, enum libusb_urb_cb_status status,
+	unsigned char endpoint,	int rqlength, unsigned char *data,
+	int actual_length, void *user_data)
 {
+	struct write_regv_data *wdata = user_data;
+
+	g_free(data);
+	libusb_urb_handle_free(urbh);
+
+	if (status != FP_URB_COMPLETED)
+		wdata->callback(wdata->imgdev, -EIO);
+	else if (rqlength != actual_length)
+		wdata->callback(wdata->imgdev, -EPROTO);
+	else
+		continue_write_regv(wdata);
+}
+
+/* write from wdata->offset to upper_bound (inclusive) of wdata->regs */
+static int do_write_regv(struct write_regv_data *wdata, int upper_bound)
+{
+	unsigned int offset = wdata->offset;
+	unsigned int num = upper_bound - offset + 1;
 	size_t alloc_size = num * 2;
 	unsigned char *data = g_malloc(alloc_size);
 	unsigned int i;
-	size_t offset = 0;
-	int r;
-	int transferred;
+	size_t data_offset = 0;
+	struct libusb_urb_handle *urbh;
 	struct libusb_bulk_transfer msg = {
 		.endpoint = EP_OUT,
 		.data = data,
 		.length = alloc_size,
 	};
+	fp_dbg("write batch of %d regs", num);
 
-	for (i = 0; i < num; i++) {
-		data[offset++] = regs[i].reg;
-		data[offset++] = regs[i].value;
+	for (i = offset; i < offset + num; i++) {
+		const struct aes_regwrite *regwrite = &wdata->regs[i];
+		data[data_offset++] = regwrite->reg;
+		data[data_offset++] = regwrite->value;
 	}
 
-	r = libusb_bulk_transfer(dev->udev, &msg, &transferred, BULK_TIMEOUT);
-	g_free(data);
-	if (r < 0) {
-		fp_err("bulk write error %d", r);
-		return r;
-	} else if ((unsigned int) transferred < alloc_size) {
-		fp_err("unexpected short write %d/%d", r, alloc_size);
+	urbh = libusb_async_bulk_transfer(wdata->imgdev->udev, &msg,
+		write_regv_trf_complete, wdata, BULK_TIMEOUT);
+	if (!urbh) {
+		g_free(data);
 		return -EIO;
 	}
 
 	return 0;
 }
 
-int aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
-	unsigned int num)
+/* write the next batch of registers to be written, or if there are no more,
+ * indicate completion to the caller */
+static void continue_write_regv(struct write_regv_data *wdata)
 {
-	unsigned int i;
-	int skip = 0;
-	int add_offset = 0;
-	fp_dbg("write %d regs", num);
+	unsigned int offset = wdata->offset;
+	unsigned int regs_remaining;
+	unsigned int limit;
+	unsigned int upper_bound;
+	int i;
+	int r;
 
-	for (i = 0; i < num; i += add_offset + skip) {
-		int r, j;
-		int limit = MIN(num, i + MAX_REGWRITES_PER_REQUEST);
-		skip = 0;
-
-		if (!regs[i].reg) {
-			add_offset = 0;
-			skip = 1;
-			continue;
+	/* skip all zeros and ensure there is still work to do */
+	while (TRUE) {
+		if (offset >= wdata->num_regs) {
+			fp_dbg("all registers written");
+			wdata->callback(wdata->imgdev, 0);
+			return;
 		}
-
-		for (j = i; j < limit; j++)
-			if (!regs[j].reg) {
-				skip = 1;
-				break;
-			}
-
-		add_offset = j - i;
-		r = do_write_regv(dev, &regs[i], add_offset);
-		if (r < 0)
-			return r;
+		if (wdata->regs[offset].reg)
+			break;
+		offset++;
 	}
 
-	return 0;
+	regs_remaining = wdata->num_regs - offset;
+	limit = MIN(regs_remaining, MAX_REGWRITES_PER_REQUEST);
+	upper_bound = offset + limit;
+
+	/* determine if we can write the entire of the regs at once, or if there
+	 * is a zero dividing things up */
+	for (i = offset; i < offset + limit; i++)
+		if (!wdata->regs[i].reg) {
+			upper_bound = i - 1;
+			break;
+		}
+
+	r = do_write_regv(wdata, upper_bound);
+	if (r < 0) {
+		wdata->callback(wdata->imgdev, r);
+		return;
+	}
+
+	wdata->offset = upper_bound + 1;
+}
+
+/* write a load of registers to the device, combining multiple writes in a
+ * single URB up to a limit. insert writes to non-existent register 0 to force
+ * specific groups of writes to be separated by different URBs. */
+void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
+	unsigned int num_regs, aes_write_regv_cb callback)
+{
+	struct write_regv_data *wdata = g_malloc(sizeof(*wdata));
+	fp_dbg("write %d regs", num_regs);
+	wdata->imgdev = dev;
+	wdata->num_regs = num_regs;
+	wdata->regs = regs;
+	wdata->offset = 0;
+	wdata->callback = callback;
+	continue_write_regv(wdata);
 }
 
 void aes_assemble_image(unsigned char *input, size_t width, size_t height,
