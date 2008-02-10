@@ -1,6 +1,6 @@
 /*
  * AuthenTec AES4000 driver for libfprint
- * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
+ * Copyright (C) 2007-2008 Daniel Drake <dsd@gentoo.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -33,6 +33,10 @@
 #define DATA_BUFLEN		0x1259
 #define NR_SUBARRAYS	6
 #define SUBARRAY_LEN	768
+
+struct aes4k_dev {
+	libusb_urb_handle *img_trf;
+};
 
 static const struct aes_regwrite init_reqs[] = {
 	/* master reset */
@@ -109,45 +113,32 @@ static const struct aes_regwrite init_reqs[] = {
 	{ 0x81, 0x00 },
 };
 
-static int capture(struct fp_img_dev *dev, gboolean unconditional,
-	struct fp_img **ret)
+static void do_capture(struct fp_img_dev *dev);
+
+static void img_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
+	enum libusb_urb_cb_status status, unsigned char endpoint,
+	int rqlength, unsigned char *data, int actual_length, void *user_data)
 {
-	int i;
-	int r;
-	int transferred;
+	struct fp_img_dev *dev = user_data;
+	struct aes4k_dev *aesdev = dev->priv;
+	unsigned char *ptr = data;
 	struct fp_img *img;
-	unsigned char *data;
-	unsigned char *ptr;
-	struct libusb_bulk_transfer msg = {
-		.endpoint = EP_IN,
-		.length = DATA_BUFLEN,
-	};
+	int i;
 
-	r = aes_write_regv(dev, init_reqs, G_N_ELEMENTS(init_reqs));
-	if (r < 0)
-		return r;
-
-	img = fpi_img_new_for_imgdev(dev);
-	data = g_malloc(DATA_BUFLEN);
-	ptr = data;
-	msg.data = data;
-
-	/* See the timeout explanation in the uru4000 driver for the reasoning
-	 * behind this silly loop. */
-retry:
-	r = libusb_bulk_transfer(dev->udev, &msg, &transferred, 1000);
-	if (r == -ETIMEDOUT)
-		goto retry;
-
-	if (r < 0) {
-		fp_err("data read failed, error %d", r);
+	if (status == FP_URB_CANCELLED) {
 		goto err;
-	} else if (transferred < DATA_BUFLEN) {
-		fp_err("short data read (%d)", r);
-		r = -EIO;
+	} else if (status != FP_URB_COMPLETED) {
+		fpi_imgdev_session_error(dev, -EIO);
+		goto err;
+	} else if (rqlength != actual_length) {
+		fpi_imgdev_session_error(dev, -EPROTO);
 		goto err;
 	}
 
+	fpi_imgdev_report_finger_status(dev, TRUE);
+
+	img = fpi_img_new_for_imgdev(dev);
+	img->flags = FP_IMG_COLORS_INVERTED | FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
 	for (i = 0; i < NR_SUBARRAYS; i++) {
 		fp_dbg("subarray header byte %02x", *ptr);
 		ptr++;
@@ -155,14 +146,60 @@ retry:
 		ptr += SUBARRAY_LEN;
 	}
 
-	img->flags = FP_IMG_COLORS_INVERTED | FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
-	*ret = img;
-	g_free(data);
-	return 0;
+	fpi_imgdev_image_captured(dev, img);
+
+	/* FIXME: rather than assuming finger has gone, we should poll regs until
+	 * it really has, then restart the capture */
+	fpi_imgdev_report_finger_status(dev, FALSE);
+
+	do_capture(dev);
+
 err:
 	g_free(data);
-	fp_img_free(img);
-	return r;
+	aesdev->img_trf = NULL;
+	libusb_urb_handle_free(urbh);
+}
+
+static void do_capture(struct fp_img_dev *dev)
+{
+	struct aes4k_dev *aesdev = dev->priv;
+	struct libusb_bulk_transfer trf = {
+		.endpoint = EP_IN,
+		.length = DATA_BUFLEN,
+		.data = g_malloc(DATA_BUFLEN),
+	};
+
+	aesdev->img_trf = libusb_async_bulk_transfer(dev->udev, &trf, img_cb, dev,
+		0);
+	if (!aesdev->img_trf) {
+		g_free(trf.data);
+		fpi_imgdev_session_error(dev, -EIO);
+	}
+}
+
+static void init_reqs_cb(struct fp_img_dev *dev, int result)
+{
+	fpi_imgdev_activate_complete(dev, result);
+	if (result == 0)
+		do_capture(dev);
+}
+
+static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
+{
+	aes_write_regv(dev, init_reqs, G_N_ELEMENTS(init_reqs), init_reqs_cb);
+	return 0;
+}
+
+static void dev_deactivate(struct fp_img_dev *dev)
+{
+	struct aes4k_dev *aesdev = dev->priv;
+
+	/* FIXME: should wait for cancellation to complete before returning
+	 * from deactivation, otherwise app may legally exit before we've
+	 * cleaned up */
+	if (aesdev->img_trf)
+		libusb_urb_handle_cancel(dev->udev, aesdev->img_trf);
+	fpi_imgdev_deactivate_complete(dev);
 }
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
@@ -170,17 +207,22 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	r = libusb_claim_interface(dev->udev, 0);
-	if (r < 0) {
+	if (r < 0)
 		fp_err("could not claim interface 0");
-		return r;
-	}
 
-	return 0;
+	dev->priv = g_malloc0(sizeof(struct aes4k_dev));
+
+	if (r == 0)
+		fpi_imgdev_init_complete(dev, 0);
+
+	return r;
 }
 
-static void dev_exit(struct fp_img_dev *dev)
+static void dev_deinit(struct fp_img_dev *dev)
 {
+	g_free(dev->priv);
 	libusb_release_interface(dev->udev, 0);
+	fpi_imgdev_deinit_complete(dev);
 }
 
 static const struct usb_id id_table[] = {
@@ -204,7 +246,8 @@ struct fp_img_driver aes4000_driver = {
 	.bz3_threshold = 9,
 
 	.init = dev_init,
-	.exit = dev_exit,
-	.capture = capture,
+	.deinit = dev_deinit,
+	.activate = dev_activate,
+	.deactivate = dev_deactivate,
 };
 
