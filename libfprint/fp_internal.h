@@ -349,6 +349,7 @@ int fpi_ssm_has_completed(struct fpi_ssm *machine);
 
 /* for drivers */
 void fpi_ssm_next_state(struct fpi_ssm *machine);
+void fpi_ssm_jump_to_state(struct fpi_ssm *machine, int state);
 void fpi_ssm_mark_completed(struct fpi_ssm *machine);
 void fpi_ssm_mark_aborted(struct fpi_ssm *machine, int error);
 

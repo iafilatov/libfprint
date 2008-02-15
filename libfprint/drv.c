@@ -297,6 +297,11 @@ void fpi_drvcb_identify_stopped(struct fp_dev *dev)
  * There is also an implicit error state and an implicit accepting state
  * (both with implicit edges from every state).
  *
+ * You can also jump to any arbitrary state (while marking completion of the
+ * current state) while the machine is running. In other words there are
+ * implicit edges linking one state to every other state. OK, we're stretching
+ * the "state machine" description at this point.
+ *
  * To create a ssm, you pass a state handler function and the total number of
  * states (4 in the above example).
  *
@@ -377,7 +382,7 @@ void fpi_ssm_mark_completed(struct fpi_ssm *machine)
 /* Mark a ssm as aborted with error. */
 void fpi_ssm_mark_aborted(struct fpi_ssm *machine, int error)
 {
-	fp_dbg("error %d", error);
+	fp_dbg("error %d from state %d", error, machine->cur_state);
 	BUG_ON(error == 0);
 	machine->error = error;
 	fpi_ssm_mark_completed(machine);
@@ -393,5 +398,13 @@ void fpi_ssm_next_state(struct fpi_ssm *machine)
 	} else {
 		__ssm_call_handler(machine);
 	}
+}
+
+void fpi_ssm_jump_to_state(struct fpi_ssm *machine, int state)
+{
+	BUG_ON(machine->completed);
+	BUG_ON(state >= machine->nr_states);
+	machine->cur_state = state;
+	__ssm_call_handler(machine);
 }
 
