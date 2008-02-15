@@ -39,6 +39,7 @@ struct write_regv_data {
 	const struct aes_regwrite *regs;
 	unsigned int offset;
 	aes_write_regv_cb callback;
+	void *user_data;
 };
 
 static void continue_write_regv(struct write_regv_data *wdata);
@@ -56,9 +57,9 @@ static void write_regv_trf_complete(libusb_dev_handle *devh,
 	libusb_urb_handle_free(urbh);
 
 	if (status != FP_URB_COMPLETED)
-		wdata->callback(wdata->imgdev, -EIO);
+		wdata->callback(wdata->imgdev, -EIO, wdata->user_data);
 	else if (rqlength != actual_length)
-		wdata->callback(wdata->imgdev, -EPROTO);
+		wdata->callback(wdata->imgdev, -EPROTO, wdata->user_data);
 	else
 		continue_write_regv(wdata);
 }
@@ -110,7 +111,7 @@ static void continue_write_regv(struct write_regv_data *wdata)
 	while (TRUE) {
 		if (offset >= wdata->num_regs) {
 			fp_dbg("all registers written");
-			wdata->callback(wdata->imgdev, 0);
+			wdata->callback(wdata->imgdev, 0, wdata->user_data);
 			return;
 		}
 		if (wdata->regs[offset].reg)
@@ -133,7 +134,7 @@ static void continue_write_regv(struct write_regv_data *wdata)
 
 	r = do_write_regv(wdata, upper_bound);
 	if (r < 0) {
-		wdata->callback(wdata->imgdev, r);
+		wdata->callback(wdata->imgdev, r, wdata->user_data);
 		return;
 	}
 
@@ -144,7 +145,7 @@ static void continue_write_regv(struct write_regv_data *wdata)
  * single URB up to a limit. insert writes to non-existent register 0 to force
  * specific groups of writes to be separated by different URBs. */
 void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
-	unsigned int num_regs, aes_write_regv_cb callback)
+	unsigned int num_regs, aes_write_regv_cb callback, void *user_data)
 {
 	struct write_regv_data *wdata = g_malloc(sizeof(*wdata));
 	fp_dbg("write %d regs", num_regs);
@@ -153,6 +154,7 @@ void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
 	wdata->regs = regs;
 	wdata->offset = 0;
 	wdata->callback = callback;
+	wdata->user_data = user_data;
 	continue_write_regv(wdata);
 }
 

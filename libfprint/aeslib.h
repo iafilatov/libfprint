@@ -27,10 +27,11 @@ struct aes_regwrite {
 	unsigned char value;
 };
 
-typedef void (*aes_write_regv_cb)(struct fp_img_dev *dev, int result);
+typedef void (*aes_write_regv_cb)(struct fp_img_dev *dev, int result,
+	void *user_data);
 
 void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
-	unsigned int num_regs, aes_write_regv_cb callback);
+	unsigned int num_regs, aes_write_regv_cb callback, void *user_data);
 
 void aes_assemble_image(unsigned char *input, size_t width, size_t height,
 	unsigned char *output);

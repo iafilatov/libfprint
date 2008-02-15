@@ -177,7 +177,7 @@ static void do_capture(struct fp_img_dev *dev)
 	}
 }
 
-static void init_reqs_cb(struct fp_img_dev *dev, int result)
+static void init_reqs_cb(struct fp_img_dev *dev, int result, void *user_data)
 {
 	fpi_imgdev_activate_complete(dev, result);
 	if (result == 0)
@@ -186,7 +186,7 @@ static void init_reqs_cb(struct fp_img_dev *dev, int result)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	aes_write_regv(dev, init_reqs, G_N_ELEMENTS(init_reqs), init_reqs_cb);
+	aes_write_regv(dev, init_reqs, G_N_ELEMENTS(init_reqs), init_reqs_cb, NULL);
 	return 0;
 }
 
