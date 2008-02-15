@@ -78,7 +78,6 @@ static int do_write_regv(struct write_regv_data *wdata, int upper_bound)
 		.data = data,
 		.length = alloc_size,
 	};
-	fp_dbg("write batch of %d regs", num);
 
 	for (i = offset; i < offset + num; i++) {
 		const struct aes_regwrite *regwrite = &wdata->regs[i];
@@ -119,13 +118,14 @@ static void continue_write_regv(struct write_regv_data *wdata)
 		offset++;
 	}
 
+	wdata->offset = offset;
 	regs_remaining = wdata->num_regs - offset;
 	limit = MIN(regs_remaining, MAX_REGWRITES_PER_REQUEST);
-	upper_bound = offset + limit;
+	upper_bound = offset + limit - 1;
 
 	/* determine if we can write the entire of the regs at once, or if there
 	 * is a zero dividing things up */
-	for (i = offset; i < offset + limit; i++)
+	for (i = offset; i <= upper_bound; i++)
 		if (!wdata->regs[i].reg) {
 			upper_bound = i - 1;
 			break;
