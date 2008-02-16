@@ -598,7 +598,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	}
 
 	while (dev->state == DEV_STATE_INITIALIZING)
-		if (libusb_poll() < 0)
+		if (fp_handle_events() < 0)
 			goto err_deinit;
 	if (dev->state != DEV_STATE_INITIALIZED)
 		goto err_deinit;
@@ -609,7 +609,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 err_deinit:
 	fpi_drv_deinit(dev);
 	while (dev->state == DEV_STATE_DEINITIALIZING) {
-		if (libusb_poll() < 0)
+		if (fp_handle_events() < 0)
 			break;
 	}
 err:
@@ -623,7 +623,7 @@ static void do_close(struct fp_dev *dev)
 {
 	fpi_drv_deinit(dev);
 	while (dev->state == DEV_STATE_DEINITIALIZING)
-		if (libusb_poll() < 0)
+		if (fp_handle_events() < 0)
 			break;
 
 	libusb_close(dev->udev);
@@ -936,7 +936,7 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 			return r;
 		}
 		while (dev->state == DEV_STATE_ENROLL_STARTING) {
-			r = libusb_poll();
+			r = fp_handle_events();
 			if (r < 0)
 				goto err;
 		}
@@ -961,7 +961,7 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 
 	edata = dev->enroll_data;
 	while (!edata->populated) {
-		r = libusb_poll();
+		r = fp_handle_events();
 		if (r < 0) {
 			g_free(edata);
 			goto err;
@@ -1017,7 +1017,7 @@ out:
 		fp_dbg("ending enrollment");
 		if (fpi_drv_enroll_stop(dev) == 0)
 			while (dev->state == DEV_STATE_ENROLL_STOPPING) {
-				if (libusb_poll() < 0)
+				if (fp_handle_events() < 0)
 					break;
 			}
 		g_free(dev->enroll_data);
@@ -1028,7 +1028,7 @@ out:
 err:
 	if (fpi_drv_enroll_stop(dev) == 0)
 		while (dev->state == DEV_STATE_ENROLL_STOPPING)
-			if (libusb_poll() < 0)
+			if (fp_handle_events() < 0)
 				break;
 	return r;
 }
@@ -1091,7 +1091,7 @@ API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 		return r;
 	}
 	while (dev->state == DEV_STATE_VERIFY_STARTING) {
-		r = libusb_poll();
+		r = fp_handle_events();
 		if (r < 0)
 			goto err;
 	}
@@ -1104,7 +1104,7 @@ API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 	vdata = dev->sync_verify_data;
 
 	while (!vdata->populated) {
-		r = libusb_poll();
+		r = fp_handle_events();
 		if (r < 0) {
 			g_free(vdata);
 			goto err;
@@ -1146,7 +1146,7 @@ err:
 	fp_dbg("ending verification");
 	if (fpi_drv_verify_stop(dev) == 0) {
 		while (dev->state == DEV_STATE_VERIFY_STOPPING) {
-			if (libusb_poll() < 0)
+			if (fp_handle_events() < 0)
 				break;
 		}
 	}
@@ -1222,7 +1222,7 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 		return r;
 	}
 	while (dev->state == DEV_STATE_IDENTIFY_STARTING) {
-		r = libusb_poll();
+		r = fp_handle_events();
 		if (r < 0)
 			goto err;
 	}
@@ -1235,7 +1235,7 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 	idata = dev->sync_identify_data;
 
 	while (!idata->populated) {
-		r = libusb_poll();
+		r = fp_handle_events();
 		if (r < 0) {
 			g_free(idata);
 			goto err;
@@ -1277,7 +1277,7 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 err:
 	if (fpi_drv_identify_stop(dev) == 0) {
 		while (dev->state == DEV_STATE_IDENTIFY_STOPPING) {
-			if (libusb_poll() < 0)
+			if (fp_handle_events() < 0)
 				break;
 		}
 	}
@@ -1323,8 +1323,10 @@ API_EXPORTED void fp_exit(void)
 	}
 
 	fpi_data_exit();
+	fpi_poll_exit();
 	g_slist_free(registered_drivers);
 	registered_drivers = NULL;
 	libusb_exit();
 }
+
 

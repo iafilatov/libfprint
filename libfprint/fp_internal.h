@@ -319,6 +319,14 @@ int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 	struct fp_print_data **gallery, int match_threshold, size_t *match_offset);
 
+/* polling and timeouts */
+
+void fpi_poll_exit(void);
+
+typedef void (*fpi_timeout_fn)(void *data);
+
+int fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback, void *data);
+
 /* async drv <--> lib comms */
 
 struct fpi_ssm;

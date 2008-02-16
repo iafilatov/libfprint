@@ -21,6 +21,7 @@
 #define __FPRINT_H__
 
 #include <stdint.h>
+#include <sys/time.h>
 
 /* structs that applications are not allowed to peek into */
 struct fp_dscv_dev;
@@ -264,6 +265,10 @@ void fp_img_standardize(struct fp_img *img);
 struct fp_img *fp_img_binarize(struct fp_img *img);
 struct fp_minutia **fp_img_get_minutiae(struct fp_img *img, int *nr_minutiae);
 void fp_img_free(struct fp_img *img);
+
+/* Polling and timing */
+int fp_handle_events_timeout(struct timeval *timeout);
+int fp_handle_events(void);
 
 /* Library */
 int fp_init(void);
