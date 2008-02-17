@@ -331,8 +331,8 @@ static struct fp_driver * const primitive_drivers[] = {
 static struct fp_img_driver * const img_drivers[] = {
 	&aes4000_driver,
 	&aes2501_driver,
-	/* &uru4000_driver,
-	&aes1610_driver,
+	&uru4000_driver,
+	/* &aes1610_driver,
 	&upektc_driver,
 	&fdu2000_driver, */
 };

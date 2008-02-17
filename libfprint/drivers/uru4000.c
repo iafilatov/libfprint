@@ -1,6 +1,6 @@
 /*
  * Digital Persona U.are.U 4000/4000B driver for libfprint
- * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
+ * Copyright (C) 2007-2008 Daniel Drake <dsd@gentoo.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -35,9 +35,8 @@
 #define CTRL_OUT		(LIBUSB_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT)
 #define CTRL_TIMEOUT	5000
 #define BULK_TIMEOUT	5000
-#define DATABLK1_RQLEN	0x10000
-#define DATABLK2_RQLEN	0xb340
-#define DATABLK2_EXPECT	0xb1c0
+#define DATABLK_RQLEN	0x1b340
+#define DATABLK_EXPECT	0x1b1c0
 #define CAPTURE_HDRLEN	64
 #define IRQ_LENGTH		64
 #define CR_LENGTH		16
@@ -113,9 +112,27 @@ static const struct uru4k_dev_profile {
 	},
 };
 
+typedef void (*irq_cb_fn)(struct fp_img_dev *dev, int status, uint16_t type,
+	void *user_data);
+typedef void (*irqs_stopped_cb_fn)(struct fp_img_dev *dev);
+
 struct uru4k_dev {
 	const struct uru4k_dev_profile *profile;
 	uint8_t interface;
+	enum fp_imgdev_state activate_state;
+	unsigned char last_hwstat_rd;
+
+	libusb_urb_handle *irq_transfer;
+	libusb_urb_handle *img_transfer;
+
+	irq_cb_fn irq_cb;
+	void *irq_cb_data;
+	irqs_stopped_cb_fn irqs_stopped_cb;
+
+	int rebootpwr_ctr;
+	int powerup_ctr;
+	unsigned char powerup_hwstat;
+
 	AES_KEY aeskey;
 };
 
@@ -124,6 +141,60 @@ static const unsigned char crkey[] = {
 	0x79, 0xac, 0x91, 0x79, 0x5c, 0xa1, 0x47, 0x8e,
 	0x98, 0xe0, 0x0f, 0x3c, 0x59, 0x8f, 0x5f, 0x4b,
 };
+
+typedef void (*set_reg_cb_fn)(struct fp_img_dev *dev, int status,
+	void *user_data);
+
+struct set_reg_data {
+	struct fp_img_dev *dev;
+	set_reg_cb_fn callback;
+	void *user_data;
+};
+
+static void set_reg_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
+	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
+	unsigned char *data, int actual_length, void *user_data)
+{
+	struct set_reg_data *srdata = user_data;
+	int r = 0;
+	
+	if (status != FP_URB_COMPLETED)
+		r = -EIO;
+	else if (setup->wLength != actual_length)
+		r = -EPROTO;
+
+	libusb_urb_handle_free(urbh);
+	srdata->callback(srdata->dev, r, srdata->user_data);
+	g_free(srdata);
+}
+
+static int set_reg(struct fp_img_dev *dev, unsigned char reg,
+	unsigned char value, set_reg_cb_fn callback, void *user_data)
+{
+	struct set_reg_data *srdata = g_malloc(sizeof(*srdata));
+	struct libusb_urb_handle *urbh;
+	struct libusb_control_transfer trf = {
+		.requesttype = CTRL_OUT,
+		.request = USB_RQ,
+		.value = reg,
+		.index = 0,
+		.length = 1,
+		.data = &value,
+	};
+
+	srdata->dev = dev;
+	srdata->callback = callback;
+	srdata->user_data = user_data;
+
+	trf.data[0] = value;
+	urbh = libusb_async_control_transfer(dev->udev, &trf, set_reg_cb, srdata,
+		CTRL_TIMEOUT);
+	if (!urbh) {
+		g_free(srdata);
+		return -EIO;
+	}
+	return 0;
+}
 
 /*
  * HWSTAT
@@ -150,130 +221,68 @@ static const unsigned char crkey[] = {
  * and interrupt to the host. Maybe?
  */
 
-static int get_hwstat(struct fp_img_dev *dev, unsigned char *data)
+typedef void (*challenge_response_cb)(struct fp_img_dev *dev, int result,
+	void *user_data);
+
+struct c_r_data {
+	struct fp_img_dev *dev;
+	challenge_response_cb callback;
+	void *user_data;
+};
+
+static void response_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
+	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
+	unsigned char *data, int actual_length, void *user_data)
 {
-	int r;
+	struct c_r_data *crdata = user_data;
+	int r = 0;
+	
+	if (status == FP_URB_COMPLETED)
+		r = -EIO;
+	else if (actual_length != setup->wLength)
+		r = -EPROTO;
 
-	/* The windows driver uses a request of 0x0c here. We use 0x04 to be
-	 * consistent with every other command we know about. */
-	struct libusb_control_transfer msg = {
-		.requesttype = CTRL_IN,
-		.request = USB_RQ,
-		.value = REG_HWSTAT,
-		.index = 0,
-		.length = 1,
-		.data = data,
-	};
-
-	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
-	if (r < 0) {
-		fp_err("error %d", r);
-		return r;
-	} else if (r < 1) {
-		fp_err("read too short (%d)", r);
-		return -EIO;
-	}
-
-	fp_dbg("val=%02x", *data);
-	return 0;
+	libusb_urb_handle_free(urbh);
+	crdata->callback(crdata->dev, r, crdata->user_data);
 }
 
-static int set_hwstat(struct fp_img_dev *dev, unsigned char data)
+static void challenge_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
+	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
+	unsigned char *data, int actual_length, void *user_data)
 {
-	int r;
-	struct libusb_control_transfer msg = {
-		.requesttype = CTRL_OUT,
-		.request = USB_RQ,
-		.value = REG_HWSTAT,
-		.index = 0,
-		.length = 1,
-		.data = &data,
-	};
+	struct c_r_data *crdata = user_data;
+	struct fp_img_dev *dev = crdata->dev;
+	struct uru4k_dev *urudev = dev->priv;
+	unsigned char respdata[CR_LENGTH];
 
-	fp_dbg("val=%02x", data);
-	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
-	if (r < 0) {
-		fp_err("error %d", r);
-		return r;
-	} else if (r < 1) {
-		fp_err("read too short (%d)", r);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int set_mode(struct fp_img_dev *dev, unsigned char mode)
-{
-	int r;
-	struct libusb_control_transfer msg = {
-		.requesttype = CTRL_OUT,
-		.request = USB_RQ,
-		.value = REG_MODE,
-		.index = 0,
-		.length = 1,
-		.data = &mode,
-	};
-
-	fp_dbg("%02x", mode);
-	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
-	if (r < 0) {
-		fp_err("error %d", r);
-		return r;
-	} else if (r < 1) {
-		fp_err("write too short (%d)", r);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int read_challenge(struct fp_img_dev *dev, unsigned char *data)
-{
-	int r;
-	struct libusb_control_transfer msg = {
-		.requesttype = CTRL_IN,
-		.request = USB_RQ,
-		.value = REG_CHALLENGE,
-		.index = 0,
-		.length = CR_LENGTH,
-		.data = data,
-	};
-
-	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
-	if (r < 0) {
-		fp_err("error %d", r);
-		return r;
-	} else if (r < CR_LENGTH) {
-		fp_err("read too short (%d)", r);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int write_response(struct fp_img_dev *dev, unsigned char *data)
-{
-	int r;
-	struct libusb_control_transfer msg = {
+	struct libusb_urb_handle *resp_urbh;
+	struct libusb_control_transfer trf_write_response = {
 		.requesttype = CTRL_OUT,
 		.request = USB_RQ,
 		.value = REG_RESPONSE,
 		.index = 0,
-		.length = CR_LENGTH,
-		.data = data,
+		.data = respdata,
+		.length = sizeof(respdata),
 	};
 
-	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
-	if (r < 0) {
-		fp_err("error %d", r);
-		return r;
-	} else if (r < 1) {
-		fp_err("write too short (%d)", r);
-		return -EIO;
+	if (status != FP_URB_COMPLETED) {
+		crdata->callback(crdata->dev, -EIO, crdata->user_data);
+		goto out;
+	} else if (setup->wLength != actual_length) {
+		crdata->callback(crdata->dev, -EPROTO, crdata->user_data);
+		goto out;
 	}
 
-	return 0;
+	/* produce response from challenge */
+	AES_encrypt(data, respdata, &urudev->aeskey);
+
+	/* submit response */
+	resp_urbh = libusb_async_control_transfer(dev->udev, &trf_write_response,
+		response_cb, crdata, CTRL_TIMEOUT);
+	if (!resp_urbh)
+		crdata->callback(crdata->dev, -EIO, crdata->user_data);
+out:
+	libusb_urb_handle_free(urbh);
 }
 
 /*
@@ -281,367 +290,743 @@ static int write_response(struct fp_img_dev *dev, unsigned char *data)
  * authentication scheme, where the device challenges the authenticity of the
  * driver.
  */
-static int auth_cr(struct fp_img_dev *dev)
+static int do_challenge_response(struct fp_img_dev *dev,
+	challenge_response_cb callback, void *user_data)
 {
-	struct uru4k_dev *urudev = dev->priv;
-	unsigned char challenge[CR_LENGTH];
-	unsigned char response[CR_LENGTH];
-	int r;
-
-	fp_dbg("");
-
-	r = read_challenge(dev, challenge);
-	if (r < 0) {
-		fp_err("error %d reading challenge", r);
-		return r;
-	}
-
-	AES_encrypt(challenge, response, &urudev->aeskey);
-
-	r = write_response(dev, response);
-	if (r < 0)
-		fp_err("error %d writing response", r);
-
-	return r;
-}
-
-static int get_irq(struct fp_img_dev *dev, unsigned char *buf, int timeout)
-{
-	uint16_t type;
-	int r;
-	int infinite_timeout = 0;
-	int transferred;
-	struct libusb_bulk_transfer msg = {
-		.endpoint = EP_INTR,
-		.data = buf,
-		.length = IRQ_LENGTH,
+	struct c_r_data *crdata = g_malloc(sizeof(*crdata));
+	struct libusb_urb_handle *urbh;
+	struct libusb_control_transfer trf_read_challenge = {
+		.requesttype = CTRL_IN,
+		.request = USB_RQ,
+		.value = REG_CHALLENGE,
+		.index = 0,
+		.length = CR_LENGTH,
 	};
 
-	if (timeout == 0) {
-		infinite_timeout = 1;
-		timeout = 1000;
-	}
+	fp_dbg("");
+	crdata->dev = dev;
+	crdata->callback = callback;
+	crdata->user_data = user_data;
 
-	/* Darwin and Linux behave inconsistently with regard to infinite timeouts.
-	 * Linux accepts a timeout value of 0 as infinite timeout, whereas darwin
-	 * returns -ETIMEDOUT immediately when a 0 timeout is used. We use a
-	 * looping hack until libusb is fixed.
-	 * See http://thread.gmane.org/gmane.comp.lib.libusb.devel.general/1315 */
-
-retry:
-	r = libusb_interrupt_transfer(dev->udev, &msg, &transferred, timeout);
-	if (r == -ETIMEDOUT && infinite_timeout)
-		goto retry;
-
-	if (r < 0) {
-		if (r != -ETIMEDOUT)
-			fp_err("interrupt read failed, error %d", r);
-		return r;
-	} else if (transferred < IRQ_LENGTH) {
-		fp_err("received %d byte IRQ!?", r);
+	urbh = libusb_async_control_transfer(dev->udev, &trf_read_challenge,
+		challenge_cb, crdata, CTRL_TIMEOUT);
+	if (!urbh) {
+		g_free(crdata);
 		return -EIO;
 	}
+	return 0;
+}
 
-	type = GUINT16_FROM_BE(*((uint16_t *) buf));
-	fp_dbg("irq type %04x", type);
+/***** INTERRUPT HANDLING *****/
+
+#define IRQ_HANDLER_IS_RUNNING(urudev) ((urudev)->irq_transfer)
+
+static int start_irq_handler(struct fp_img_dev *dev);
+
+static void irq_handler(libusb_dev_handle *devh, libusb_urb_handle *urbh,
+	enum libusb_urb_cb_status status, unsigned char endpoint,
+	int rqlength, unsigned char *data, int actual_length, void *user_data)
+{
+	struct fp_img_dev *dev = user_data;
+	struct uru4k_dev *urudev = dev->priv;
+	uint16_t type;
+	int r = 0;
+
+	libusb_urb_handle_free(urbh);
+
+	if (status == FP_URB_CANCELLED) {
+		fp_dbg("cancelled");
+		if (urudev->irqs_stopped_cb)
+			urudev->irqs_stopped_cb(dev);
+		urudev->irqs_stopped_cb = NULL;
+		goto out;
+	} else if (status != FP_URB_COMPLETED) {
+		r = -EIO;
+		goto err;
+	} else if (actual_length != rqlength) {
+		fp_err("short interrupt read? %d", actual_length);
+		r = -EPROTO;
+		goto err;
+	}
+
+	type = GUINT16_FROM_BE(*((uint16_t *) data));
+	g_free(data);
+	fp_dbg("recv irq type %04x", type);
 
 	/* The 0800 interrupt seems to indicate imminent failure (0 bytes transfer)
-	 * of the next scan. I think I've stopped it from coming up, not sure
-	 * though! */
+	 * of the next scan. It still appears on occasion. */
 	if (type == IRQDATA_DEATH)
 		fp_warn("oh no! got the interrupt OF DEATH! expect things to go bad");
 
-	return 0;
-}
-
-enum get_irq_status {
-	GET_IRQ_SUCCESS = 0,
-	GET_IRQ_OVERFLOW = 1,
-};
-
-static int get_irq_with_type(struct fp_img_dev *dev,
-	uint16_t irqtype, int timeout)
-{
-	uint16_t hdr;
-	int discarded = 0;
-	unsigned char irqbuf[IRQ_LENGTH];
-
-	fp_dbg("type=%04x", irqtype);
-
-	do {
-		int r = get_irq(dev, irqbuf, timeout);
-		if (r < 0)
-			return r;
-
-		hdr = GUINT16_FROM_BE(*((uint16_t *) irqbuf));
-		if (hdr == irqtype)
-			break;
-		discarded++;
-	} while (discarded < 3);
-
-	if (discarded > 0)
-		fp_dbg("discarded %d interrupts", discarded);
-
-	if (hdr == irqtype) {
-		return GET_IRQ_SUCCESS;
-	} else {
-		/* I've seen several cases where we're waiting for the 56aa powerup
-		 * interrupt, but instead we just get three 0200 interrupts and then
-		 * nothing. My theory is that the device can only queue 3 interrupts,
-		 * or something. So, if we discard 3, ask the caller to retry whatever
-		 * it was doing. */
-		fp_dbg("possible IRQ overflow detected!");
-		return GET_IRQ_OVERFLOW;
-	}
-}
-
-static int await_finger_on(struct fp_img_dev *dev)
-{
-	int r;
-
-retry:
-	r = set_mode(dev, MODE_AWAIT_FINGER_ON);
-	if (r < 0)
-		return r;
-
-	r = get_irq_with_type(dev, IRQDATA_FINGER_ON, 0);
-	if (r == GET_IRQ_OVERFLOW)
-		goto retry;
+	if (urudev->irq_cb)
+		urudev->irq_cb(dev, 0, type, urudev->irq_cb_data);
 	else
-		return r;
-}
+		fp_dbg("ignoring interrupt");
 
-static int await_finger_off(struct fp_img_dev *dev)
-{
-	int r;
+	r = start_irq_handler(dev);
+	if (r == 0)
+		return;
 
-retry:
-	r = set_mode(dev, MODE_AWAIT_FINGER_OFF);
-	if (r < 0)
-		return r;
-	
-	r = get_irq_with_type(dev, IRQDATA_FINGER_OFF, 0);
-	if (r == GET_IRQ_OVERFLOW)
-		goto retry;
-	else
-		return r;
-}
-
-static int capture(struct fp_img_dev *dev, gboolean unconditional,
-	struct fp_img **ret)
-{
-	int r;
-	struct fp_img *img;
-	size_t image_size = DATABLK1_RQLEN + DATABLK2_EXPECT - CAPTURE_HDRLEN;
-	int hdr_skip = CAPTURE_HDRLEN;
-	int transferred;
-	struct libusb_bulk_transfer msg1 = {
-		.endpoint = EP_DATA,
-		.length = DATABLK1_RQLEN,
-	};
-	struct libusb_bulk_transfer msg2 = {
-		.endpoint = EP_DATA,
-		.length = DATABLK2_RQLEN,
-	};
-
-
-	r = set_mode(dev, MODE_CAPTURE);
-	if (r < 0)
-		return r;
-
-	/* The image is split up into 2 blocks over 2 USB transactions, which are
-	 * joined contiguously. The image is prepended by a 64 byte header which
-	 * we completely ignore.
-	 *
-	 * We mimic the windows driver behaviour by requesting 0xb340 bytes in the
-	 * 2nd request, but we only expect 0xb1c0 in response. However, our buffers
-	 * must be set up on the offchance that we receive as much data as we
-	 * asked for. */
-
-	img = fpi_img_new(DATABLK1_RQLEN + DATABLK2_RQLEN);
-	msg1.data = img->data;
-	msg2.data = img->data + DATABLK1_RQLEN;
-
-	r = libusb_bulk_transfer(dev->udev, &msg1, &transferred, BULK_TIMEOUT);
-	if (r < 0) {
-		fp_err("part 1 capture failed, error %d", r);
-		goto err;
-	} else if (transferred < DATABLK1_RQLEN) {
-		fp_err("part 1 capture too short (%d)", r);
-		r = -EIO;
-		goto err;
-	}
-
-	r = libusb_bulk_transfer(dev->udev, &msg2, &transferred, BULK_TIMEOUT);
-	if (r < 0) {
-		fp_err("part 2 capture failed, error %d", r);
-		goto err;
-	} else if (transferred != DATABLK2_EXPECT) {
-		if (r == DATABLK2_EXPECT - CAPTURE_HDRLEN) {
-			/* this is rather odd, but it happens sometimes with my MS
-			 * keyboard */
-			fp_dbg("got image with no header!");
-			hdr_skip = 0;
-		} else {
-			fp_err("unexpected part 2 capture size (%d)", r);
-			r = -EIO;
-			goto err;
-		}
-	}
-
-	/* remove header and shrink allocation */
-	g_memmove(img->data, img->data + hdr_skip, image_size);
-	img = fpi_img_resize(img, image_size);
-	img->flags = FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED | FP_IMG_COLORS_INVERTED;
-
-	*ret = img;
-	return 0;
+	data = NULL;
 err:
-	fp_img_free(img);
-	return r;
+	if (urudev->irq_cb)
+		urudev->irq_cb(dev, r, 0, urudev->irq_cb_data);
+out:
+	g_free(data);
+	urudev->irq_transfer = NULL;
 }
 
-static int fix_firmware(struct fp_img_dev *dev)
+static int start_irq_handler(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = dev->priv;
+	struct libusb_urb_handle *urbh;
+	struct libusb_bulk_transfer trf = {
+		.endpoint = EP_INTR,
+		.length = IRQ_LENGTH,
+		.data = g_malloc(IRQ_LENGTH),
+	};
+
+	urbh = libusb_async_interrupt_transfer(dev->udev, &trf, irq_handler, dev,
+		0);
+	urudev->irq_transfer = urbh;
+	if (!urbh) {
+		g_free(trf.data);
+		return -EIO;
+	}
+	return 0;
+}
+
+static void stop_irq_handler(struct fp_img_dev *dev, irqs_stopped_cb_fn cb)
+{
+	struct uru4k_dev *urudev = dev->priv;
+	struct libusb_urb_handle *urbh = urudev->irq_transfer;
+	if (urbh) {
+		libusb_urb_handle_cancel(dev->udev, urbh);
+		urudev->irqs_stopped_cb = cb;
+	}
+}
+
+/***** IMAGING LOOP *****/
+
+static int start_imaging_loop(struct fp_img_dev *dev);
+
+static void image_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
+	enum libusb_urb_cb_status status, unsigned char endpoint,
+	int rqlength, unsigned char *data, int actual_length, void *user_data)
+{
+	struct fp_img_dev *dev = user_data;
+	struct uru4k_dev *urudev = dev->priv;
+	int hdr_skip = CAPTURE_HDRLEN;
+	int image_size = DATABLK_EXPECT - CAPTURE_HDRLEN;
+	struct fp_img *img;
+	int r = 0;
+
+	libusb_urb_handle_free(urbh);
+	if (status == FP_URB_CANCELLED) {
+		fp_dbg("cancelled");
+		urudev->img_transfer = NULL;
+		g_free(data);
+		return;
+	} else if (status != FP_URB_COMPLETED) {
+		r = -EIO;
+		goto out;
+	}
+
+	if (actual_length == image_size) {
+		/* no header! this is rather odd, but it happens sometimes with my MS
+		 * keyboard */
+		fp_dbg("got image with no header!");
+		hdr_skip = 0;
+	} else if (actual_length != DATABLK_EXPECT) {
+		fp_err("unexpected image capture size (%d)", actual_length);
+		r = -EPROTO;
+		goto out;
+	}
+
+	img = fpi_img_new(image_size);
+	memcpy(img->data, data + hdr_skip, image_size);
+	img->flags = FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED | FP_IMG_COLORS_INVERTED;
+	fpi_imgdev_image_captured(dev, img);
+
+out:
+	g_free(data);
+	if (r == 0)
+		r = start_imaging_loop(dev);
+
+	if (r)
+		fpi_imgdev_session_error(dev, r);
+}
+
+static int start_imaging_loop(struct fp_img_dev *dev)
+{
+	struct uru4k_dev *urudev = dev->priv;
+	struct libusb_urb_handle *urbh;
+	struct libusb_bulk_transfer trf = {
+		.endpoint = EP_DATA,
+		.length = DATABLK_RQLEN,
+		.data = g_malloc(DATABLK_RQLEN),
+	};
+
+	urbh = libusb_async_bulk_transfer(dev->udev, &trf, image_cb, dev, 0);
+	urudev->img_transfer = urbh;
+	if (!urbh) {
+		g_free(trf.data);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void stop_imaging_loop(struct fp_img_dev *dev)
+{
+	struct uru4k_dev *urudev = dev->priv;
+	libusb_urb_handle *urbh = urudev->img_transfer;
+	if (urbh)
+		libusb_urb_handle_cancel(dev->udev, urbh);
+	/* FIXME: should probably wait for cancellation to complete */
+}
+
+/***** STATE CHANGING *****/
+
+static void finger_presence_irq_cb(struct fp_img_dev *dev, int status,
+	uint16_t type, void *user_data)
+{
+	if (status)
+		fpi_imgdev_session_error(dev, status);
+	else if (type == IRQDATA_FINGER_ON)
+		fpi_imgdev_report_finger_status(dev, TRUE);
+	else if (type == IRQDATA_FINGER_OFF)
+		fpi_imgdev_report_finger_status(dev, FALSE);
+	else
+		fp_warn("ignoring unexpected interrupt %04x", type);
+}
+
+static void change_state_set_reg_cb(struct fp_img_dev *dev, int status,
+	void *user_data)
+{
+	if (status)
+		fpi_imgdev_session_error(dev, status);
+}
+
+static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
+{
+	struct uru4k_dev *urudev = dev->priv;
+
+	stop_imaging_loop(dev);
+
+	switch (state) {
+	case IMGDEV_STATE_AWAIT_FINGER_ON:
+		if (!IRQ_HANDLER_IS_RUNNING(urudev))
+			return -EIO;
+		urudev->irq_cb = finger_presence_irq_cb;
+		return set_reg(dev, REG_MODE, MODE_AWAIT_FINGER_ON,
+			change_state_set_reg_cb, NULL);
+
+	case IMGDEV_STATE_CAPTURE:
+		urudev->irq_cb = NULL;
+		start_imaging_loop(dev);
+		return set_reg(dev, REG_MODE, MODE_CAPTURE, change_state_set_reg_cb,
+			NULL);
+
+	case IMGDEV_STATE_AWAIT_FINGER_OFF:
+		if (!IRQ_HANDLER_IS_RUNNING(urudev))
+			return -EIO;
+		urudev->irq_cb = finger_presence_irq_cb;
+		return set_reg(dev, REG_MODE, MODE_AWAIT_FINGER_OFF,
+			change_state_set_reg_cb, NULL);
+
+	default:
+		fp_err("unrecognised state %d", state);
+		return -EINVAL;
+	}
+}
+
+/***** GENERIC STATE MACHINE HELPER FUNCTIONS *****/
+
+static void sm_set_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
+{
+	struct fpi_ssm *ssm = user_data;
+
+	if (result)
+		fpi_ssm_mark_aborted(ssm, result);
+	else
+		fpi_ssm_next_state(ssm);
+}
+
+static void sm_set_reg(struct fpi_ssm *ssm, unsigned char reg,
+	unsigned char value)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	int r = set_reg(dev, reg, value, sm_set_reg_cb, ssm);
+	if (r < 0)
+		fpi_ssm_mark_aborted(ssm, r);
+}
+
+static void sm_set_mode(struct fpi_ssm *ssm, unsigned char mode)
+{
+	fp_dbg("mode %02x", mode);
+	sm_set_reg(ssm, REG_MODE, mode);
+}
+
+static void sm_set_hwstat(struct fpi_ssm *ssm, unsigned char value)
+{
+	fp_dbg("set %02x", value);
+	sm_set_reg(ssm, REG_HWSTAT, value);
+}
+
+static void sm_get_hwstat_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
+	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
+	unsigned char *data, int actual_length, void *user_data)
+{
+	struct fpi_ssm *ssm = user_data;
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
+
+	if (status != FP_URB_COMPLETED) {
+		fpi_ssm_mark_aborted(ssm, -EIO);
+	} else if (setup->wLength != actual_length) {
+		fpi_ssm_mark_aborted(ssm, -EPROTO);
+	} else {
+		urudev->last_hwstat_rd = *data;
+		fp_dbg("value %02x", urudev->last_hwstat_rd);
+		fpi_ssm_next_state(ssm);
+	}
+	libusb_urb_handle_free(urbh);
+}
+
+static void sm_get_hwstat(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct libusb_urb_handle *urbh;
+
+	/* The windows driver uses a request of 0x0c here. We use 0x04 to be
+	 * consistent with every other command we know about. */
+	/* FIXME is the above comment still true? */
+	struct libusb_control_transfer trf = {
+		.requesttype = CTRL_IN,
+		.request = USB_RQ,
+		.value = REG_HWSTAT,
+		.index = 0,
+		.length = 1,
+	};
+
+	urbh = libusb_async_control_transfer(dev->udev, &trf, sm_get_hwstat_cb,
+		ssm, CTRL_TIMEOUT);
+	if (!urbh)
+		fpi_ssm_mark_aborted(ssm, -EIO);
+}
+
+static void sm_fix_fw_read_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
+	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
+	unsigned char *data, int actual_length, void *user_data)
+{
+	struct fpi_ssm *ssm = user_data;
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
+	unsigned char new;
+	unsigned char fwenc;
 	uint32_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
-	unsigned char val, new;
-	int r;
-	struct libusb_control_transfer msg = {
+
+	if (status != FP_URB_COMPLETED) {
+		fpi_ssm_mark_aborted(ssm, -EIO);
+		goto out;
+	} else if (actual_length != setup->wLength) {
+		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		goto out;
+	}
+
+	fwenc = data[0];
+	fp_dbg("firmware encryption byte at %x reads %02x", enc_addr, fwenc);
+	if (fwenc != 0x07 && fwenc != 0x17)
+		fp_dbg("strange encryption byte value, please report this");
+
+	new = fwenc & 0xef;
+	if (new == fwenc) {
+		fpi_ssm_next_state(ssm);
+	} else {
+		fp_dbg("fixed encryption byte to %02x", new);
+		sm_set_reg(ssm, enc_addr, new);
+	}
+
+out:
+	libusb_urb_handle_free(urbh);
+}
+
+static void sm_fix_firmware(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
+	uint32_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
+
+	struct libusb_urb_handle *urbh;
+	struct libusb_control_transfer trf_read_fw = {
 		.requesttype = 0xc0,
 		.request = 0x0c,
 		.value = enc_addr,
 		.index = 0,
-		.data = &val,
 		.length = 1,
 	};
-
-	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
-	if (r < 0)
-		return r;
 	
-	fp_dbg("encryption byte at %x reads %02x", enc_addr, val);
-	if (val != 0x07 && val != 0x17)
-		fp_dbg("strange encryption byte value, please report this");
-
-	new = val & 0xef;
-	//new = 0x17;
-	if (new == val)
-		return 0;
-
-	msg.requesttype = 0x40;
-	msg.request = 0x04;
-	msg.data = &new;
-
-	r = libusb_control_transfer(dev->udev, &msg, CTRL_TIMEOUT);
-	if (r < 0)
-		return r;
-
-	fp_dbg("fixed encryption byte to %02x", new);
-	return 1;
+	urbh = libusb_async_control_transfer(dev->udev, &trf_read_fw,
+		sm_fix_fw_read_cb, ssm, CTRL_TIMEOUT);
+	if (!urbh)
+		fpi_ssm_mark_aborted(ssm, -EIO);
 }
 
-static int do_init(struct fp_img_dev *dev)
+/***** INITIALIZATION *****/
+
+/* After closing an app and setting hwstat to 0x80, my ms keyboard gets in a
+ * confused state and returns hwstat 0x85. On next app run, we don't get the
+ * 56aa interrupt. This is the best way I've found to fix it: mess around
+ * with hwstat until it starts returning more recognisable values. This
+ * doesn't happen on my other devices: uru4000, uru4000b, ms fp rdr v2 
+ *
+ * The windows driver copes with this OK, but then again it uploads firmware
+ * right after reading the 0x85 hwstat, allowing some time to pass before it
+ * attempts to tweak hwstat again...
+ *
+ * This is implemented with a reboot power state machine. the ssm runs during
+ * initialization if bits 2 and 7 are set in hwstat. it masks off the 4 high
+ * hwstat bits then checks that bit 1 is set. if not, it pauses before reading
+ * hwstat again. machine completes when reading hwstat shows bit 1 is set,
+ * and fails after 100 tries. */
+
+enum rebootpwr_states {
+	REBOOTPWR_SET_HWSTAT = 0,
+	REBOOTPWR_GET_HWSTAT,
+	REBOOTPWR_CHECK_HWSTAT,
+	REBOOTPWR_PAUSE,
+	REBOOTPWR_NUM_STATES,
+};
+
+static void rebootpwr_pause_cb(void *data)
 {
-	unsigned char status;
-	unsigned char tmp;
+	struct fpi_ssm *ssm = data;
+	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
-	gboolean need_auth_cr = urudev->profile->auth_cr;
-	int timeouts = 0;
-	int i;
+
+	if (!--urudev->rebootpwr_ctr) {
+		fp_err("could not reboot device power");
+		fpi_ssm_mark_aborted(ssm, -EIO);
+	} else {
+		fpi_ssm_jump_to_state(ssm, REBOOTPWR_GET_HWSTAT);
+	}
+}
+
+static void rebootpwr_run_state(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
 	int r;
 
-retry:
-	r = get_hwstat(dev, &status);
-	if (r < 0)
-		return r;
-
-	/* After closing an app and setting hwstat to 0x80, my ms keyboard
-	 * gets in a confused state and returns hwstat 0x85. On next app run,
-	 * we don't get the 56aa interrupt. This is the best way I've found to
-	 * fix it: mess around with hwstat until it starts returning more
-	 * recognisable values. This doesn't happen on my other devices:
-	 * uru4000, uru4000b, ms fp rdr v2 
-	 * The windows driver copes with this OK, but then again it uploads
-	 * firmware right after reading the 0x85 hwstat, allowing some time
-	 * to pass before it attempts to tweak hwstat again... */
-	if ((status & 0x84) == 0x84) {
-		fp_dbg("rebooting device power");
-		r = set_hwstat(dev, status & 0xf);
+	switch (ssm->cur_state) {
+	case REBOOTPWR_SET_HWSTAT:
+		urudev->rebootpwr_ctr = 100;
+		sm_set_hwstat(ssm, urudev->last_hwstat_rd & 0xf);
+		break;
+	case REBOOTPWR_GET_HWSTAT:
+		sm_get_hwstat(ssm);
+		break;
+	case REBOOTPWR_CHECK_HWSTAT:
+		if (urudev->last_hwstat_rd & 0x1)
+			fpi_ssm_mark_completed(ssm);
+		else
+			fpi_ssm_next_state(ssm);
+		break;
+	case REBOOTPWR_PAUSE:
+		r = fpi_timeout_add(10, rebootpwr_pause_cb, ssm);
 		if (r < 0)
-			return r;
-
-		for (i = 0; i < 100; i++) {
-			r = get_hwstat(dev, &status);
-			if (r < 0)
-				return r;
-			if (status & 0x1)
-				break;
-			usleep(10000);
-		}
-		if ((status & 0x1) == 0) {
-			fp_err("could not reboot device power");
-			return -EIO;
-		}
+			fpi_ssm_mark_aborted(ssm, r);
+		break;
 	}
-	
-	if ((status & 0x80) == 0) {
-		status |= 0x80;
-		r = set_hwstat(dev, status);
-		if (r < 0)
-			return r;
-	}
+}
 
+/* After messing with the device firmware in it's low-power state, we have to
+ * power it back up and wait for interrupt notification. It's not quite as easy
+ * as that: the combination of both modifying firmware *and* doing C-R auth on
+ * my ms fp v2 device causes us not to get to get the 56aa interrupt and
+ * for the hwstat write not to take effect. We have to loop a few times,
+ * authenticating each time, until the device wakes up.
+ *
+ * This is implemented as the powerup state machine below. Pseudo-code:
 
-	r = fix_firmware(dev);
-	if (r < 0)
-		return r;
-
-	/* Power up device and wait for interrupt notification */
-	/* The combination of both modifying firmware *and* doing C-R auth on
-	 * my ms fp v2 device causes us not to get to get the 56aa interrupt and
-	 * for the hwstat write not to take effect. We loop a few times,
-	 * authenticating each time, until the device wakes up. */
-	for (i = 0; i < 100; i++) { /* max 1 sec */
-		r = set_hwstat(dev, status & 0xf);
-		if (r < 0)
-			return r;
-
-		r = get_hwstat(dev, &tmp);
-		if (r < 0)
-			return r;
-
-		if ((tmp & 0x80) == 0)
+	status = get_hwstat();
+	for (i = 0; i < 100; i++) {
+		set_hwstat(status & 0xf);
+		if ((get_hwstat() & 0x80) == 0)
 			break;
 
 		usleep(10000);
-
-		if (need_auth_cr) {
-			r = auth_cr(dev);
-			if (r < 0)
-				return r;
-		}
+		if (need_auth_cr)
+			auth_cr();
 	}
 
-	if (tmp & 0x80) {
-		fp_err("could not power up device");
-		return -EIO;
-	}
+	if (tmp & 0x80)
+		error("could not power up device");
 
-	r = get_irq_with_type(dev, IRQDATA_SCANPWR_ON, 300);
-	if (r == GET_IRQ_OVERFLOW) {
-		goto retry;
-	} else if (r == -ETIMEDOUT) {
-		timeouts++;
-		if (timeouts <= 3) {
-			fp_dbg("scan power up timeout, retrying...");
-			goto retry;
-		} else {
-			fp_err("could not power up scanner after 3 attempts");
-		}
+ */
+
+enum powerup_states {
+	POWERUP_INIT = 0,
+	POWERUP_SET_HWSTAT,
+	POWERUP_GET_HWSTAT,
+	POWERUP_CHECK_HWSTAT,
+	POWERUP_PAUSE,
+	POWERUP_CHALLENGE_RESPONSE,
+	POWERUP_NUM_STATES,
+};
+
+static void powerup_pause_cb(void *data)
+{
+	struct fpi_ssm *ssm = data;
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
+
+	if (!--urudev->powerup_ctr) {
+		fp_err("could not power device up");
+		fpi_ssm_mark_aborted(ssm, -EIO);
+	} else if (!urudev->profile->auth_cr) {
+		fpi_ssm_jump_to_state(ssm, POWERUP_SET_HWSTAT);
+	} else {
+		fpi_ssm_next_state(ssm);
 	}
-	return r;
 }
+
+static void powerup_challenge_response_cb(struct fp_img_dev *dev, int result,
+	void *data)
+{
+	struct fpi_ssm *ssm = data;
+	if (result)
+		fpi_ssm_mark_aborted(ssm, result);
+	else
+		fpi_ssm_jump_to_state(ssm, POWERUP_SET_HWSTAT);
+}
+
+static void powerup_run_state(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
+	int r;
+
+	switch (ssm->cur_state) {
+	case POWERUP_INIT:
+		urudev->powerup_ctr = 100;
+		urudev->powerup_hwstat = urudev->last_hwstat_rd & 0xf;
+		fpi_ssm_next_state(ssm);
+		break;
+	case POWERUP_SET_HWSTAT:
+		sm_set_hwstat(ssm, urudev->powerup_hwstat);
+		break;
+	case POWERUP_GET_HWSTAT:
+		sm_get_hwstat(ssm);
+		break;
+	case POWERUP_CHECK_HWSTAT:
+		if ((urudev->last_hwstat_rd & 0x80) == 0)
+			fpi_ssm_mark_completed(ssm);
+		else
+			fpi_ssm_next_state(ssm);
+		break;
+	case POWERUP_PAUSE:
+		r = fpi_timeout_add(10, powerup_pause_cb, ssm);
+		if (r < 0)
+			fpi_ssm_mark_aborted(ssm, r);
+		break;
+	case POWERUP_CHALLENGE_RESPONSE:
+		r = do_challenge_response(dev, powerup_challenge_response_cb, ssm);
+		if (r < 0)
+			fpi_ssm_mark_aborted(ssm, r);
+		break;
+	}
+}
+
+/*
+ * This is the main initialization state machine. As pseudo-code:
+
+	status = get_hwstat();
+
+	// correct device power state
+	if ((status & 0x84) == 0x84)
+		run_reboot_sm();
+
+	// power device down
+	if ((status & 0x80) == 0)
+		set_hwstat(status | 0x80);
+
+	// disable encryption
+	fwenc = read_firmware_encryption_byte();
+	new = fwenc & 0xef;
+	if (new != fwenc)
+		write_firmware_encryption_byte(new);
+
+	// power device up
+	run_powerup_sm();
+	await_irq(IRQDATA_SCANPWR_ON);
+ */
+
+enum init_states {
+	INIT_GET_HWSTAT = 0,
+	INIT_CHECK_HWSTAT_REBOOT,
+	INIT_REBOOT_POWER,
+	INIT_CHECK_HWSTAT_POWERDOWN,
+	INIT_FIX_FIRMWARE,
+	INIT_POWERUP,
+	INIT_AWAIT_SCAN_POWER,
+	INIT_DONE,
+	INIT_NUM_STATES,
+};
+
+static void init_scanpwr_irq_cb(struct fp_img_dev *dev, int status,
+	uint16_t type, void *user_data)
+{
+	struct fpi_ssm *ssm = user_data;
+
+	if (status)
+		fpi_ssm_mark_aborted(ssm, status);
+	else if (type != IRQDATA_SCANPWR_ON)
+		fp_dbg("ignoring interrupt");
+	else if (ssm->cur_state != INIT_AWAIT_SCAN_POWER)
+		fp_err("ignoring scanpwr interrupt due to being in wrong state %d",
+			ssm->cur_state);
+	else
+		fpi_ssm_next_state(ssm);
+}
+
+static void init_run_state(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
+
+	switch (ssm->cur_state) {
+	case INIT_GET_HWSTAT:
+		sm_get_hwstat(ssm);
+		break;
+	case INIT_CHECK_HWSTAT_REBOOT:
+		if ((urudev->last_hwstat_rd & 0x84) == 0x84)
+			fpi_ssm_next_state(ssm);
+		else
+			fpi_ssm_jump_to_state(ssm, INIT_CHECK_HWSTAT_POWERDOWN);
+		break;
+	case INIT_REBOOT_POWER: ;
+		struct fpi_ssm *rebootsm = fpi_ssm_new(dev->dev, rebootpwr_run_state,
+			REBOOTPWR_NUM_STATES);
+		rebootsm->priv = dev;
+		fpi_ssm_start_subsm(ssm, rebootsm);
+		break;
+	case INIT_CHECK_HWSTAT_POWERDOWN:
+		if ((urudev->last_hwstat_rd & 0x80) == 0)
+			sm_set_hwstat(ssm, urudev->last_hwstat_rd | 0x80);
+		else
+			fpi_ssm_next_state(ssm);
+		break;
+	case INIT_FIX_FIRMWARE:
+		sm_fix_firmware(ssm);
+		break;
+	case INIT_POWERUP: ;
+		struct fpi_ssm *powerupsm = fpi_ssm_new(dev->dev, powerup_run_state,
+			POWERUP_NUM_STATES);
+		powerupsm->priv = dev;
+		fpi_ssm_start_subsm(ssm, powerupsm);
+		break;
+	case INIT_AWAIT_SCAN_POWER:
+		/* FIXME: should timeout and maybe retry entire sm? */
+		if (!IRQ_HANDLER_IS_RUNNING(urudev)) {
+			fpi_ssm_mark_aborted(ssm, -EIO);
+		} else {
+			urudev->irq_cb_data = ssm;
+			urudev->irq_cb = init_scanpwr_irq_cb;
+		}
+		break;
+	case INIT_DONE:
+		urudev->irq_cb_data = NULL;
+		urudev->irq_cb = NULL;
+		fpi_ssm_mark_completed(ssm);
+		break;
+	}
+}
+
+static void activate_initsm_complete(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
+	int r = ssm->error;
+	fpi_ssm_free(ssm);
+
+	if (r) {
+		fpi_imgdev_activate_complete(dev, r);
+		return;
+	}
+
+	r = dev_change_state(dev, urudev->activate_state);
+	fpi_imgdev_activate_complete(dev, r);
+}
+
+/* FIXME: having state parameter here is kinda useless, will we ever
+ * see a scenario where the parameter is useful so early on in the activation
+ * process? asynchronity means that it'll only be used in a later function
+ * call. */
+static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
+{
+	struct uru4k_dev *urudev = dev->priv;
+	struct fpi_ssm *ssm;
+	int r;
+
+	r = start_irq_handler(dev);
+	if (r < 0)
+		return r;
+
+	urudev->activate_state = state;
+	ssm = fpi_ssm_new(dev->dev, init_run_state, INIT_NUM_STATES);
+	ssm->priv = dev;
+	fpi_ssm_start(ssm, activate_initsm_complete);
+	return 0;
+}
+
+/***** DEINITIALIZATION *****/
+
+enum deinit_states {
+	DEINIT_SET_MODE_INIT = 0,
+	DEINIT_POWERDOWN,
+	DEINIT_NUM_STATES,
+};
+
+static void deinit_run_state(struct fpi_ssm *ssm)
+{
+	switch (ssm->cur_state) {
+	case DEINIT_SET_MODE_INIT:
+		sm_set_mode(ssm, MODE_INIT);
+		break;
+	case DEINIT_POWERDOWN:
+		sm_set_hwstat(ssm, 0x80);
+		break;
+	}
+}
+
+static void deactivate_irqs_stopped(struct fp_img_dev *dev)
+{
+	fpi_imgdev_deactivate_complete(dev);
+}
+
+static void deactivate_deinitsm_complete(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	fpi_ssm_free(ssm);
+	stop_irq_handler(dev, deactivate_irqs_stopped);
+}
+
+static void dev_deactivate(struct fp_img_dev *dev)
+{
+	struct uru4k_dev *urudev = dev->priv;
+	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, deinit_run_state,
+		DEINIT_NUM_STATES);
+
+	stop_imaging_loop(dev);
+	urudev->irq_cb = NULL;
+	urudev->irq_cb_data = NULL;
+	ssm->priv = dev;
+	fpi_ssm_start(ssm, deactivate_deinitsm_complete);
+}
+
+/***** LIBRARY STUFF *****/
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
@@ -711,26 +1096,16 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	urudev->interface = iface_desc->bInterfaceNumber;
 	AES_set_encrypt_key(crkey, 128, &urudev->aeskey);
 	dev->priv = urudev;
-
-	r = do_init(dev);
-	if (r < 0)
-		goto err;
-
+	fpi_imgdev_init_complete(dev, 0);
 	return 0;
-err:
-	libusb_release_interface(dev->udev, iface_desc->bInterfaceNumber);
-	g_free(urudev);
-	return r;
 }
 
-static void dev_exit(struct fp_img_dev *dev)
+static void dev_deinit(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = dev->priv;
-
-	set_mode(dev, MODE_INIT);
-	set_hwstat(dev, 0x80);
 	libusb_release_interface(dev->udev, urudev->interface);
 	g_free(urudev);
+	fpi_imgdev_deinit_complete(dev);
 }
 
 static const struct usb_id id_table[] = {
@@ -768,9 +1143,9 @@ struct fp_img_driver uru4000_driver = {
 	.img_width = 384,
 
 	.init = dev_init,
-	.exit = dev_exit,
-	.await_finger_on = await_finger_on,
-	.await_finger_off = await_finger_off,
-	.capture = capture,
+	.deinit = dev_deinit,
+	.activate = dev_activate,
+	.deactivate = dev_deactivate,
+	.change_state = dev_change_state,
 };
 
