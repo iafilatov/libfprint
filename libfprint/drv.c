@@ -17,6 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#define FP_COMPONENT "drv"
+
 #include <errno.h>
 
 #include "fp_internal.h"
@@ -185,7 +187,8 @@ int fpi_drv_verify_stop(struct fp_dev *dev)
 	gboolean iterating = (dev->state == DEV_STATE_VERIFYING);
 
 	fp_dbg("");
-	BUG_ON(dev->state != DEV_STATE_VERIFYING
+	BUG_ON(dev->state != DEV_STATE_ERROR
+		&& dev->state != DEV_STATE_VERIFYING
 		&& dev->state != DEV_STATE_VERIFY_DONE);
 	dev->verify_cb = NULL;
 
@@ -243,7 +246,8 @@ void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
 	size_t match_offset, struct fp_img *img)
 {
 	fp_dbg("result %d", result);
-	BUG_ON(dev->state != DEV_STATE_IDENTIFYING);
+	BUG_ON(dev->state != DEV_STATE_IDENTIFYING
+		&& dev->state != DEV_STATE_ERROR);
 	if (result < 0 || result == FP_VERIFY_NO_MATCH
 			|| result == FP_VERIFY_MATCH) {
 		dev->state = DEV_STATE_IDENTIFY_DONE;
