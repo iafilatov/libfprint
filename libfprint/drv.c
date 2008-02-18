@@ -360,6 +360,7 @@ void fpi_ssm_free(struct fpi_ssm *machine)
 /* Invoke the state handler */
 static void __ssm_call_handler(struct fpi_ssm *machine)
 {
+	fp_dbg("%p entering state %d", machine, machine->cur_state);
 	machine->handler(machine);
 }
 
@@ -374,11 +375,33 @@ void fpi_ssm_start(struct fpi_ssm *ssm, ssm_completed_fn callback)
 	__ssm_call_handler(ssm);
 }
 
+static void __subsm_complete(struct fpi_ssm *ssm)
+{
+	struct fpi_ssm *parent = ssm->parentsm;
+	BUG_ON(!parent);
+	if (ssm->error)
+		fpi_ssm_mark_aborted(parent, ssm->error);
+	else
+		fpi_ssm_next_state(parent);
+	fpi_ssm_free(ssm);
+}
+
+/* start a SSM as a child of another. if the child completes successfully, the
+ * parent will be advanced to the next state. if the child aborts, the parent
+ * will be aborted with the same error code. the child will be automatically
+ * freed upon completion/abortion. */
+void fpi_ssm_start_subsm(struct fpi_ssm *parent, struct fpi_ssm *child)
+{
+	child->parentsm = parent;
+	fpi_ssm_start(child, __subsm_complete);
+}
+
 /* Mark a ssm as completed successfully. */
 void fpi_ssm_mark_completed(struct fpi_ssm *machine)
 {
 	BUG_ON(machine->completed);
 	machine->completed = TRUE;
+	fp_dbg("%p completed with status %d", machine, machine->error);
 	if (machine->callback)
 		machine->callback(machine);
 }

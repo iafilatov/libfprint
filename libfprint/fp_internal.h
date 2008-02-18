@@ -338,6 +338,7 @@ typedef void (*ssm_handler_fn)(struct fpi_ssm *ssm);
  * abortion error conditions. */
 struct fpi_ssm {
 	struct fp_dev *dev;
+	struct fpi_ssm *parentsm;
 	void *priv;
 	int nr_states;
 	int cur_state;
@@ -353,6 +354,7 @@ struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
 	int nr_states);
 void fpi_ssm_free(struct fpi_ssm *machine);
 void fpi_ssm_start(struct fpi_ssm *machine, ssm_completed_fn callback);
+void fpi_ssm_start_subsm(struct fpi_ssm *parent, struct fpi_ssm *child);
 int fpi_ssm_has_completed(struct fpi_ssm *machine);
 
 /* for drivers */
