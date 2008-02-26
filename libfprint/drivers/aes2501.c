@@ -907,7 +907,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	dev->priv = g_malloc0(sizeof(struct aes2501_dev));
-	fpi_imgdev_init_complete(dev, 0);
+	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
 
@@ -915,7 +915,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 {
 	g_free(dev->priv);
 	libusb_release_interface(dev->udev, 0);
-	fpi_imgdev_deinit_complete(dev);
+	fpi_imgdev_close_complete(dev);
 }
 
 static const struct usb_id id_table[] = {
@@ -934,8 +934,8 @@ struct fp_img_driver aes2501_driver = {
 	.img_height = -1,
 	.img_width = 192,
 
-	.init = dev_init,
-	.deinit = dev_deinit,
+	.open = dev_init,
+	.close = dev_deinit,
 	.activate = dev_activate,
 	.deactivate = dev_deactivate,
 };

@@ -1096,7 +1096,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	urudev->interface = iface_desc->bInterfaceNumber;
 	AES_set_encrypt_key(crkey, 128, &urudev->aeskey);
 	dev->priv = urudev;
-	fpi_imgdev_init_complete(dev, 0);
+	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
 
@@ -1105,7 +1105,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 	struct uru4k_dev *urudev = dev->priv;
 	libusb_release_interface(dev->udev, urudev->interface);
 	g_free(urudev);
-	fpi_imgdev_deinit_complete(dev);
+	fpi_imgdev_close_complete(dev);
 }
 
 static const struct usb_id id_table[] = {
@@ -1142,8 +1142,8 @@ struct fp_img_driver uru4000_driver = {
 	.img_height = 289,
 	.img_width = 384,
 
-	.init = dev_init,
-	.deinit = dev_deinit,
+	.open = dev_init,
+	.close = dev_deinit,
 	.activate = dev_activate,
 	.deactivate = dev_deactivate,
 	.change_state = dev_change_state,

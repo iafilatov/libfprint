@@ -54,12 +54,14 @@ libfprint_la_LIBADD = -lm $(LIBUSB_LIBS) $(GLIB_LIBS) $(IMAGEMAGICK_LIBS) $(CRYP
 
 libfprint_la_SOURCES =	\
 	fp_internal.h	\
+	async.c		\
 	core.c		\
 	data.c		\
 	drv.c		\
 	img.c		\
 	imgdev.c	\
 	poll.c		\
+	sync.c		\
 	aeslib.c	\
 	aeslib.h	\
 	$(DRIVER_SRC)	\

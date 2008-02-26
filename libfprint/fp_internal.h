@@ -91,15 +91,6 @@ enum fp_dev_state {
 	DEV_STATE_IDENTIFY_STOPPING,
 };
 
-typedef void (*fp_enroll_stage_cb)(struct fp_dev *dev, int result,
-	struct fp_print_data *data, struct fp_img *img);
-
-typedef void (*fp_verify_cb)(struct fp_dev *dev, int result,
-	struct fp_img *img);
-
-typedef void (*fp_identify_cb)(struct fp_dev *dev, int result,
-	size_t match_offset, struct fp_img *img);
-
 struct fp_dev {
 	struct fp_driver *drv;
 	libusb_dev_handle *udev;
@@ -114,15 +105,29 @@ struct fp_dev {
 	/* drivers should not mess with any of the below */
 	enum fp_dev_state state;
 
-	/* FIXME: convert this to generic state operational data mechanism? */
 	int __enroll_stage;
-	fp_enroll_stage_cb enroll_cb;
-	void *enroll_data;
-	void *sync_verify_data;
+
+	/* async I/O callbacks and data */
+	/* FIXME: convert this to generic state operational data mechanism? */
+	fp_dev_open_cb open_cb;
+	void *open_cb_data;
+	fp_dev_close_cb close_cb;
+	void *close_cb_data;
+	fp_enroll_stage_cb enroll_stage_cb;
+	void *enroll_stage_cb_data;
+	fp_enroll_stop_cb enroll_stop_cb;
+	void *enroll_stop_cb_data;
 	fp_verify_cb verify_cb;
-	void *identify_data;
-	void *sync_identify_data;
+	void *verify_cb_data;
+	fp_verify_stop_cb verify_stop_cb;
+	void *verify_stop_cb_data;
 	fp_identify_cb identify_cb;
+	void *identify_cb_data;
+	fp_identify_stop_cb identify_stop_cb;
+	void *identify_stop_cb_data;
+
+	/* FIXME: better place to put this? */
+	struct fp_print_data **identify_gallery;
 };
 
 enum fp_imgdev_state {
@@ -197,8 +202,8 @@ struct fp_driver {
 
 	/* Device operations */
 	int (*discover)(const struct usb_id *usb_id, uint32_t *devtype);
-	int (*init)(struct fp_dev *dev, unsigned long driver_data);
-	void (*deinit)(struct fp_dev *dev);
+	int (*open)(struct fp_dev *dev, unsigned long driver_data);
+	void (*close)(struct fp_dev *dev);
 	int (*enroll_start)(struct fp_dev *dev);
 	int (*enroll_stop)(struct fp_dev *dev);
 	int (*verify_start)(struct fp_dev *dev);
@@ -221,8 +226,8 @@ struct fp_img_driver {
 	int bz3_threshold;
 
 	/* Device operations */
-	int (*init)(struct fp_img_dev *dev, unsigned long driver_data);
-	void (*deinit)(struct fp_img_dev *dev);
+	int (*open)(struct fp_img_dev *dev, unsigned long driver_data);
+	void (*close)(struct fp_img_dev *dev);
 	int (*activate)(struct fp_img_dev *dev, enum fp_imgdev_state state);
 	int (*change_state)(struct fp_img_dev *dev, enum fp_imgdev_state state);
 	void (*deactivate)(struct fp_img_dev *dev);
@@ -235,6 +240,8 @@ extern struct fp_img_driver aes1610_driver;
 extern struct fp_img_driver aes2501_driver;
 extern struct fp_img_driver aes4000_driver;
 extern struct fp_img_driver fdu2000_driver;
+
+extern GSList *opened_devices;
 
 void fpi_img_driver_setup(struct fp_img_driver *idriver);
 
@@ -363,37 +370,27 @@ void fpi_ssm_jump_to_state(struct fpi_ssm *machine, int state);
 void fpi_ssm_mark_completed(struct fpi_ssm *machine);
 void fpi_ssm_mark_aborted(struct fpi_ssm *machine, int error);
 
-int fpi_drv_init(struct fp_dev *dev, unsigned long driver_data);
-void fpi_drvcb_init_complete(struct fp_dev *dev, int status);
-void fpi_drv_deinit(struct fp_dev *dev);
-void fpi_drvcb_deinit_complete(struct fp_dev *dev);
+void fpi_drvcb_open_complete(struct fp_dev *dev, int status);
+void fpi_drvcb_close_complete(struct fp_dev *dev);
 
-int fpi_drv_enroll_start(struct fp_dev *dev, fp_enroll_stage_cb callback);
 void fpi_drvcb_enroll_started(struct fp_dev *dev, int status);
 void fpi_drvcb_enroll_stage_completed(struct fp_dev *dev, int result,
 	struct fp_print_data *data, struct fp_img *img);
-int fpi_drv_enroll_stop(struct fp_dev *dev);
 void fpi_drvcb_enroll_stopped(struct fp_dev *dev);
 
-int fpi_drv_verify_start(struct fp_dev *dev, fp_verify_cb callback,
-	struct fp_print_data *data);
 void fpi_drvcb_verify_started(struct fp_dev *dev, int status);
 void fpi_drvcb_report_verify_result(struct fp_dev *dev, int result,
 	struct fp_img *img);
-int fpi_drv_verify_stop(struct fp_dev *dev);
 void fpi_drvcb_verify_stopped(struct fp_dev *dev);
 
-int fpi_drv_identify_start(struct fp_dev *dev, fp_identify_cb callback,
-	struct fp_print_data **gallery);
 void fpi_drvcb_identify_started(struct fp_dev *dev, int status);
 void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
 	size_t match_offset, struct fp_img *img);
-int fpi_drv_identify_stop(struct fp_dev *dev);
 void fpi_drvcb_identify_stopped(struct fp_dev *dev);
 
 /* for image drivers */
-void fpi_imgdev_init_complete(struct fp_img_dev *imgdev, int status);
-void fpi_imgdev_deinit_complete(struct fp_img_dev *imgdev);
+void fpi_imgdev_open_complete(struct fp_img_dev *imgdev, int status);
+void fpi_imgdev_close_complete(struct fp_img_dev *imgdev);
 void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status);
 void fpi_imgdev_deactivate_complete(struct fp_img_dev *imgdev);
 void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,

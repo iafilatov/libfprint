@@ -840,7 +840,7 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 	dev->priv = upekdev;
 	dev->nr_enroll_stages = 3;
 
-	fpi_drvcb_init_complete(dev, 0);
+	fpi_drvcb_open_complete(dev, 0);
 	return 0;
 }
 
@@ -848,7 +848,7 @@ static void dev_exit(struct fp_dev *dev)
 {
 	libusb_release_interface(dev->udev, 0);
 	g_free(dev->priv);
-	fpi_drvcb_deinit_complete(dev);
+	fpi_drvcb_close_complete(dev);
 }
 
 static const unsigned char enroll_init[] = {
@@ -1415,8 +1415,8 @@ struct fp_driver upekts_driver = {
 	.name = FP_COMPONENT,
 	.full_name = "UPEK TouchStrip",
 	.id_table = id_table,
-	.init = dev_init,
-	.deinit = dev_exit,
+	.open = dev_init,
+	.close = dev_exit,
 	.enroll_start = enroll_start,
 	.enroll_stop = enroll_stop,
 	.verify_start = verify_start,

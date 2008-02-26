@@ -27,7 +27,7 @@
 #define MIN_ACCEPTABLE_MINUTIAE 10
 #define BOZORTH3_DEFAULT_THRESHOLD 40
 
-static int img_dev_init(struct fp_dev *dev, unsigned long driver_data)
+static int img_dev_open(struct fp_dev *dev, unsigned long driver_data)
 {
 	struct fp_img_dev *imgdev = g_malloc0(sizeof(*imgdev));
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(dev->drv);
@@ -40,12 +40,12 @@ static int img_dev_init(struct fp_dev *dev, unsigned long driver_data)
 	/* for consistency in driver code, allow udev access through imgdev */
 	imgdev->udev = dev->udev;
 
-	if (imgdrv->init) {
-		r = imgdrv->init(imgdev, driver_data);
+	if (imgdrv->open) {
+		r = imgdrv->open(imgdev, driver_data);
 		if (r)
 			goto err;
 	} else {
-		fpi_drvcb_init_complete(dev, 0);
+		fpi_drvcb_open_complete(dev, 0);
 	}
 
 	return 0;
@@ -54,25 +54,25 @@ err:
 	return r;
 }
 
-void fpi_imgdev_init_complete(struct fp_img_dev *imgdev, int status)
+void fpi_imgdev_open_complete(struct fp_img_dev *imgdev, int status)
 {
-	fpi_drvcb_init_complete(imgdev->dev, status);
+	fpi_drvcb_open_complete(imgdev->dev, status);
 }
 
-static void img_dev_deinit(struct fp_dev *dev)
+static void img_dev_close(struct fp_dev *dev)
 {
 	struct fp_img_dev *imgdev = dev->priv;
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(dev->drv);
 
-	if (imgdrv->deinit)
-		imgdrv->deinit(imgdev);
+	if (imgdrv->close)
+		imgdrv->close(imgdev);
 	else
-		fpi_drvcb_deinit_complete(dev);
+		fpi_drvcb_close_complete(dev);
 }
 
-void fpi_imgdev_deinit_complete(struct fp_img_dev *imgdev)
+void fpi_imgdev_close_complete(struct fp_img_dev *imgdev)
 {
-	fpi_drvcb_deinit_complete(imgdev->dev);
+	fpi_drvcb_close_complete(imgdev->dev);
 	g_free(imgdev);
 }
 
@@ -173,6 +173,9 @@ void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
 	gboolean present)
 {
 	int r = imgdev->action_result;
+	struct fp_print_data *data = imgdev->acquire_data;
+	struct fp_img *img = imgdev->acquire_img;
+
 	fp_dbg(present ? "finger on sensor" : "finger removed");
 
 	if (present && imgdev->action_state == IMG_ACQUIRE_STATE_AWAIT_FINGER_ON) {
@@ -185,25 +188,29 @@ void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
 		return;
 	}
 
+	/* clear these before reporting results to avoid complications with
+	 * call cascading in and out of the library */
+	imgdev->acquire_img = NULL;
+	imgdev->acquire_data = NULL;
+
+	/* finger removed, report results */
 	switch (imgdev->action) {
 	case IMG_ACTION_ENROLL:
-		fpi_drvcb_enroll_stage_completed(imgdev->dev, r, imgdev->acquire_data,
-			imgdev->acquire_img);
+		fp_dbg("reporting enroll result");
+		fpi_drvcb_enroll_stage_completed(imgdev->dev, r, data, img);
 		break;
 	case IMG_ACTION_VERIFY:
-		fpi_drvcb_report_verify_result(imgdev->dev, r, imgdev->acquire_img);
-		fp_print_data_free(imgdev->acquire_data);
+		fpi_drvcb_report_verify_result(imgdev->dev, r, img);
+		fp_print_data_free(data);
 		break;
 	case IMG_ACTION_IDENTIFY:
 		fpi_drvcb_report_identify_result(imgdev->dev, r,
-			imgdev->identify_match_offset, imgdev->acquire_img);
-		fp_print_data_free(imgdev->acquire_data);
+			imgdev->identify_match_offset, img);
+		fp_print_data_free(data);
 	default:
 		fp_err("unhandled action %d", imgdev->action);
 		break;
 	}
-	imgdev->acquire_img = NULL;
-	imgdev->acquire_data = NULL;
 }
 
 static void verify_process_img(struct fp_img_dev *imgdev)
@@ -237,7 +244,7 @@ static void identify_process_img(struct fp_img_dev *imgdev)
 		match_score = BOZORTH3_DEFAULT_THRESHOLD;
 
 	r = fpi_img_compare_print_data_to_gallery(imgdev->acquire_data,
-		imgdev->dev->identify_data, match_score, &match_offset);
+		imgdev->dev->identify_gallery, match_score, &match_offset);
 
 	imgdev->action_result = r;
 	imgdev->identify_match_offset = match_offset;
@@ -486,8 +493,8 @@ static int img_dev_identify_stop(struct fp_dev *dev, gboolean iterating)
 void fpi_img_driver_setup(struct fp_img_driver *idriver)
 {
 	idriver->driver.type = DRIVER_IMAGING;
-	idriver->driver.init = img_dev_init;
-	idriver->driver.deinit = img_dev_deinit;
+	idriver->driver.open = img_dev_open;
+	idriver->driver.close = img_dev_close;
 	idriver->driver.enroll_start = img_dev_enroll_start;
 	idriver->driver.enroll_stop = img_dev_enroll_stop;
 	idriver->driver.verify_start = img_dev_verify_start;
