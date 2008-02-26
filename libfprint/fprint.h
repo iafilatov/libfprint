@@ -267,8 +267,20 @@ struct fp_minutia **fp_img_get_minutiae(struct fp_img *img, int *nr_minutiae);
 void fp_img_free(struct fp_img *img);
 
 /* Polling and timing */
+
+struct fp_pollfd {
+	int fd;
+	short events;
+};
+
 int fp_handle_events_timeout(struct timeval *timeout);
 int fp_handle_events(void);
+size_t fp_get_pollfds(struct fp_pollfd **pollfds);
+
+typedef void (*fp_pollfd_added_cb)(int fd, short events);
+typedef void (*fp_pollfd_removed_cb)(int fd);
+void fp_set_pollfd_notifiers(fp_pollfd_added_cb added_cb,
+	fp_pollfd_removed_cb removed_cb);
 
 /* Library */
 int fp_init(void);

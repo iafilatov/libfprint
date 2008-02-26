@@ -61,17 +61,15 @@
  * is expiring soonest at the head. */
 static GSList *active_timers = NULL;
 
+/* notifiers for added or removed poll fds */
+static fp_pollfd_added_cb fd_added_cb = NULL;
+static fp_pollfd_removed_cb fd_removed_cb = NULL;
+
 struct fpi_timeout {
 	struct timeval expiry;
 	fpi_timeout_fn callback;
 	void *data;
 };
-
-void fpi_poll_exit(void)
-{
-	g_slist_free(active_timers);
-	active_timers = NULL;
-}
 
 static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
 {
@@ -243,5 +241,73 @@ API_EXPORTED int fp_handle_events(void)
 	tv.tv_sec = 2;
 	tv.tv_usec = 0;
 	return fp_handle_events_timeout(&tv);
+}
+
+/** \ingroup poll
+ * Retrieve a list of file descriptors that should be polled for events
+ * interesting to libfprint. This function is only for users who wish to
+ * combine libfprint's file descriptor set with other event sources - more
+ * simplistic users will be able to call fp_handle_events() or a variant
+ * directly.
+ *
+ * \param pollfds output location for a list of pollfds. If non-NULL, must be
+ * released with free() when done.
+ * \returns the number of pollfds in the resultant list, or negative on error.
+ */
+API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
+{
+	struct libusb_pollfd *usbfds;
+	struct fp_pollfd *ret;
+	size_t cnt;
+	size_t i;
+
+	cnt = libusb_get_pollfds(&usbfds);
+	if (cnt <= 0) {
+		*pollfds = NULL;
+		return cnt;
+	}
+
+	ret = g_malloc(sizeof(struct libusb_pollfd) * cnt);
+	for (i = 0; i < cnt; i++) {
+		ret[i].fd = usbfds[i].fd;
+		ret[i].events = usbfds[i].events;
+	}
+
+	*pollfds = ret;
+	return cnt;
+}
+
+/* FIXME: docs */
+API_EXPORTED void fp_set_pollfd_notifiers(fp_pollfd_added_cb added_cb,
+	fp_pollfd_removed_cb removed_cb)
+{
+	fd_added_cb = added_cb;
+	fd_removed_cb = removed_cb;
+}
+
+static void add_pollfd(int fd, short events)
+{
+	if (fd_added_cb)
+		fd_added_cb(fd, events);
+}
+
+static void remove_pollfd(int fd)
+{
+	if (fd_removed_cb)
+		fd_removed_cb(fd);
+}
+
+void fpi_poll_init(void)
+{
+	libusb_set_pollfd_notifiers(add_pollfd, remove_pollfd);
+}
+
+void fpi_poll_exit(void)
+{
+	g_slist_free(active_timers);
+	active_timers = NULL;
+	fd_added_cb = NULL;
+	fd_removed_cb = NULL;
+	libusb_set_pollfd_notifiers(NULL, NULL);
 }
 

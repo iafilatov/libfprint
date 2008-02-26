@@ -328,6 +328,7 @@ int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 
 /* polling and timeouts */
 
+void fpi_poll_init(void);
 void fpi_poll_exit(void);
 
 typedef void (*fpi_timeout_fn)(void *data);

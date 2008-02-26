@@ -776,6 +776,7 @@ API_EXPORTED int fp_init(void)
 		return r;
 
 	register_drivers();
+	fpi_poll_init();
 	return 0;
 }
 
