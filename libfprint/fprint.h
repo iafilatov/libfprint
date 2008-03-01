@@ -276,6 +276,7 @@ struct fp_pollfd {
 int fp_handle_events_timeout(struct timeval *timeout);
 int fp_handle_events(void);
 size_t fp_get_pollfds(struct fp_pollfd **pollfds);
+int fp_get_next_timeout(struct timeval *tv);
 
 typedef void (*fp_pollfd_added_cb)(int fd, short events);
 typedef void (*fp_pollfd_removed_cb)(int fd);

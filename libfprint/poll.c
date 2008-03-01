@@ -243,6 +243,33 @@ API_EXPORTED int fp_handle_events(void)
 	return fp_handle_events_timeout(&tv);
 }
 
+/* FIXME: docs
+ * returns 0 if no timeouts active
+ * returns 1 if timeout returned
+ * zero timeout means events are to be handled immediately */
+API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
+{
+	struct timeval fprint_timeout;
+	struct timeval libusb_timeout;
+	int r_fprint;
+	int r_libusb;
+
+	r_fprint = get_next_timeout_expiry(&fprint_timeout, NULL);
+	r_libusb = libusb_get_next_timeout(&libusb_timeout);
+
+	/* if we have no pending timeouts and the same is true for libusb,
+	 * indicate that we have no pending timouts */
+	if (r_fprint == 0 && r_libusb == 0)
+		return 0;
+
+	/* otherwise return the smaller of the 2 timeouts */
+	else if (timercmp(&fprint_timeout, &libusb_timeout, <))
+		*tv = fprint_timeout;
+	else
+		*tv = libusb_timeout;
+	return 1;
+}
+
 /** \ingroup poll
  * Retrieve a list of file descriptors that should be polled for events
  * interesting to libfprint. This function is only for users who wish to
