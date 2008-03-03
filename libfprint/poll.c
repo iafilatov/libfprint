@@ -89,7 +89,8 @@ static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
 /* A timeout is the asynchronous equivalent of sleeping. You create a timeout
  * saying that you'd like to have a function invoked at a certain time in
  * the future. */
-int fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback, void *data)
+struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
+	void *data)
 {
 	struct timespec ts;
 	struct timeval add_msec;
@@ -101,7 +102,7 @@ int fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback, void *data)
 	r = clock_gettime(CLOCK_MONOTONIC, &ts);
 	if (r < 0) {
 		fp_err("failed to read monotonic clock, errno=%d", errno);
-		return r;
+		return NULL;
 	}
 
 	timeout = g_malloc(sizeof(*timeout));
@@ -118,7 +119,14 @@ int fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback, void *data)
 	active_timers = g_slist_insert_sorted(active_timers, timeout,
 		timeout_sort_fn);
 
-	return 0;
+	return timeout;
+}
+
+void fpi_timeout_cancel(struct fpi_timeout *timeout)
+{
+	fp_dbg("");
+	active_timers = g_slist_remove(active_timers, timeout);
+	g_free(timeout);
 }
 
 /* get the expiry time and optionally the timeout structure for the next

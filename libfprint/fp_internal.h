@@ -333,7 +333,10 @@ void fpi_poll_exit(void);
 
 typedef void (*fpi_timeout_fn)(void *data);
 
-int fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback, void *data);
+struct fpi_timeout;
+struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
+	void *data);
+void fpi_timeout_cancel(struct fpi_timeout *timeout);
 
 /* async drv <--> lib comms */
 

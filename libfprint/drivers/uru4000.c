@@ -717,7 +717,6 @@ static void rebootpwr_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
-	int r;
 
 	switch (ssm->cur_state) {
 	case REBOOTPWR_SET_HWSTAT:
@@ -734,9 +733,8 @@ static void rebootpwr_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_next_state(ssm);
 		break;
 	case REBOOTPWR_PAUSE:
-		r = fpi_timeout_add(10, rebootpwr_pause_cb, ssm);
-		if (r < 0)
-			fpi_ssm_mark_aborted(ssm, r);
+		if (fpi_timeout_add(10, rebootpwr_pause_cb, ssm) == NULL)
+			fpi_ssm_mark_aborted(ssm, -ETIME);
 		break;
 	}
 }
@@ -827,9 +825,8 @@ static void powerup_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_next_state(ssm);
 		break;
 	case POWERUP_PAUSE:
-		r = fpi_timeout_add(10, powerup_pause_cb, ssm);
-		if (r < 0)
-			fpi_ssm_mark_aborted(ssm, r);
+		if (fpi_timeout_add(10, powerup_pause_cb, ssm) == NULL)
+			fpi_ssm_mark_aborted(ssm, -ETIME);
 		break;
 	case POWERUP_CHALLENGE_RESPONSE:
 		r = do_challenge_response(dev, powerup_challenge_response_cb, ssm);
