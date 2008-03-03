@@ -133,6 +133,9 @@ struct uru4k_dev {
 	int powerup_ctr;
 	unsigned char powerup_hwstat;
 
+	int scanpwr_irq_timeouts;
+	struct fpi_timeout *scanpwr_irq_timeout;
+
 	AES_KEY aeskey;
 };
 
@@ -888,6 +891,24 @@ static void init_scanpwr_irq_cb(struct fp_img_dev *dev, int status,
 		fpi_ssm_next_state(ssm);
 }
 
+static void init_scanpwr_timeout(void *user_data)
+{
+	struct fpi_ssm *ssm = user_data;
+	struct fp_img_dev *dev = ssm->priv;
+	struct uru4k_dev *urudev = dev->priv;
+
+	fp_warn("powerup timed out");
+	urudev->irq_cb = NULL;
+	urudev->scanpwr_irq_timeout = NULL;
+
+	if (++urudev->scanpwr_irq_timeouts >= 3) {
+		fp_err("powerup timed out 3 times, giving up");
+		fpi_ssm_mark_aborted(ssm, -ETIMEDOUT);
+	} else {
+		fpi_ssm_jump_to_state(ssm, INIT_GET_HWSTAT);
+	}
+}
+
 static void init_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
@@ -925,15 +946,27 @@ static void init_run_state(struct fpi_ssm *ssm)
 		fpi_ssm_start_subsm(ssm, powerupsm);
 		break;
 	case INIT_AWAIT_SCAN_POWER:
-		/* FIXME: should timeout and maybe retry entire sm? */
 		if (!IRQ_HANDLER_IS_RUNNING(urudev)) {
 			fpi_ssm_mark_aborted(ssm, -EIO);
-		} else {
-			urudev->irq_cb_data = ssm;
-			urudev->irq_cb = init_scanpwr_irq_cb;
+			break;
 		}
+
+		/* sometimes the 56aa interrupt that we are waiting for never arrives,
+		 * so we include this timeout loop to retry the whole process 3 times
+		 * if we don't get an irq any time soon. */
+		urudev->scanpwr_irq_timeout = fpi_timeout_add(300,
+			init_scanpwr_timeout, ssm);
+		if (!urudev->scanpwr_irq_timeout) {
+			fpi_ssm_mark_aborted(ssm, -ETIME);
+			break;
+		}
+
+		urudev->irq_cb_data = ssm;
+		urudev->irq_cb = init_scanpwr_irq_cb;
 		break;
 	case INIT_DONE:
+		fpi_timeout_cancel(urudev->scanpwr_irq_timeout);
+		urudev->scanpwr_irq_timeout = NULL;
 		urudev->irq_cb_data = NULL;
 		urudev->irq_cb = NULL;
 		fpi_ssm_mark_completed(ssm);
@@ -971,6 +1004,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	if (r < 0)
 		return r;
 
+	urudev->scanpwr_irq_timeouts = 0;
 	urudev->activate_state = state;
 	ssm = fpi_ssm_new(dev->dev, init_run_state, INIT_NUM_STATES);
 	ssm->priv = dev;
