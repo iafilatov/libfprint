@@ -207,6 +207,7 @@ void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
 		fpi_drvcb_report_identify_result(imgdev->dev, r,
 			imgdev->identify_match_offset, img);
 		fp_print_data_free(data);
+		break;
 	default:
 		fp_err("unhandled action %d", imgdev->action);
 		break;
@@ -281,7 +282,7 @@ void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 			MIN_ACCEPTABLE_MINUTIAE);
 		fp_print_data_free(print);
 		/* depends on FP_ENROLL_RETRY == FP_VERIFY_RETRY */
-		imgdev->action = FP_ENROLL_RETRY;
+		imgdev->action_result = FP_ENROLL_RETRY;
 		goto next_state;
 	}
 
