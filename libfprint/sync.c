@@ -474,6 +474,7 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 	else
 		fp_img_free(idata->img);
 
+	r = idata->result;
 	switch (idata->result) {
 	case FP_VERIFY_NO_MATCH:
 		fp_dbg("result: no match");
