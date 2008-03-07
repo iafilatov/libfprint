@@ -90,9 +90,14 @@ if test "x$debug_log_enabled" != "xno"; then
 	AC_DEFINE([ENABLE_DEBUG_LOGGING], 1, [Debug message logging])
 fi
 
+# Restore gnu89 inline semantics on gcc 4.3 and newer
+saved_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -fgnu89-inline"
+AC_COMPILE_IFELSE(AC_LANG_PROGRAM([]), inline_cflags="-fgnu89-inline", inline_cflags="")
+CFLAGS="$saved_cflags"
 
 AC_DEFINE([API_EXPORTED], [__attribute__((visibility("default")))], [Default visibility])
-AM_CFLAGS="-std=gnu99 -fgnu89-inline -Wall -Wundef -Wunused -Wstrict-prototypes -Werror-implicit-function-declaration -Wno-pointer-sign -Wshadow"
+AM_CFLAGS="-std=gnu99 $inline_cflags -Wall -Wundef -Wunused -Wstrict-prototypes -Werror-implicit-function-declaration -Wno-pointer-sign -Wshadow"
 AC_SUBST(AM_CFLAGS)
 
 AC_CONFIG_FILES([libfprint.pc] [Makefile] [libfprint/Makefile] [examples/Makefile] [doc/Makefile])
