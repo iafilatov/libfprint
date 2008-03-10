@@ -122,8 +122,8 @@ struct uru4k_dev {
 	enum fp_imgdev_state activate_state;
 	unsigned char last_hwstat_rd;
 
-	libusb_urb_handle *irq_transfer;
-	libusb_urb_handle *img_transfer;
+	struct libusb_transfer *irq_transfer;
+	struct libusb_transfer *img_transfer;
 
 	irq_cb_fn irq_cb;
 	void *irq_cb_data;
@@ -154,19 +154,18 @@ struct set_reg_data {
 	void *user_data;
 };
 
-static void set_reg_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
-	unsigned char *data, int actual_length, void *user_data)
+static void set_reg_cb(struct libusb_transfer *transfer)
 {
-	struct set_reg_data *srdata = user_data;
+	struct set_reg_data *srdata = transfer->user_data;
 	int r = 0;
 	
-	if (status != FP_URB_COMPLETED)
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
 		r = -EIO;
-	else if (setup->wLength != actual_length)
+	else if (transfer->actual_length != 1)
 		r = -EPROTO;
 
-	libusb_urb_handle_free(urbh);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 	srdata->callback(srdata->dev, r, srdata->user_data);
 	g_free(srdata);
 }
@@ -174,29 +173,32 @@ static void set_reg_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 static int set_reg(struct fp_img_dev *dev, unsigned char reg,
 	unsigned char value, set_reg_cb_fn callback, void *user_data)
 {
-	struct set_reg_data *srdata = g_malloc(sizeof(*srdata));
-	struct libusb_urb_handle *urbh;
-	struct libusb_control_transfer trf = {
-		.requesttype = CTRL_OUT,
-		.request = USB_RQ,
-		.value = reg,
-		.index = 0,
-		.length = 1,
-		.data = &value,
-	};
+	struct set_reg_data *srdata;
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	unsigned char *data;
+	int r;
 
+	if (!transfer)
+		return -ENOMEM;
+
+	srdata = g_malloc(sizeof(*srdata));
 	srdata->dev = dev;
 	srdata->callback = callback;
 	srdata->user_data = user_data;
 
-	trf.data[0] = value;
-	urbh = libusb_async_control_transfer(dev->udev, &trf, set_reg_cb, srdata,
-		CTRL_TIMEOUT);
-	if (!urbh) {
+	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
+	data[LIBUSB_CONTROL_SETUP_SIZE] = value;
+	libusb_fill_control_setup(data, CTRL_OUT, USB_RQ, reg, 0, 1);
+	libusb_fill_control_transfer(transfer, dev->udev, data, set_reg_cb,
+		srdata, CTRL_TIMEOUT);
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
 		g_free(srdata);
-		return -EIO;
+		g_free(data);
+		libusb_free_transfer(transfer);
 	}
-	return 0;
+	return r;
 }
 
 /*
@@ -233,59 +235,65 @@ struct c_r_data {
 	void *user_data;
 };
 
-static void response_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
-	unsigned char *data, int actual_length, void *user_data)
+static void response_cb(struct libusb_transfer *transfer)
 {
-	struct c_r_data *crdata = user_data;
+	struct c_r_data *crdata = transfer->user_data;
 	int r = 0;
 	
-	if (status == FP_URB_COMPLETED)
+	if (transfer->status == LIBUSB_TRANSFER_COMPLETED)
 		r = -EIO;
-	else if (actual_length != setup->wLength)
+	else if (transfer->actual_length != CR_LENGTH)
 		r = -EPROTO;
 
-	libusb_urb_handle_free(urbh);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 	crdata->callback(crdata->dev, r, crdata->user_data);
 }
 
-static void challenge_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
-	unsigned char *data, int actual_length, void *user_data)
+static void challenge_cb(struct libusb_transfer *transfer)
 {
-	struct c_r_data *crdata = user_data;
+	struct c_r_data *crdata = transfer->user_data;
 	struct fp_img_dev *dev = crdata->dev;
 	struct uru4k_dev *urudev = dev->priv;
-	unsigned char respdata[CR_LENGTH];
+	struct libusb_transfer *resp_transfer;
+	unsigned char *respdata;
+	int r;
 
-	struct libusb_urb_handle *resp_urbh;
-	struct libusb_control_transfer trf_write_response = {
-		.requesttype = CTRL_OUT,
-		.request = USB_RQ,
-		.value = REG_RESPONSE,
-		.index = 0,
-		.data = respdata,
-		.length = sizeof(respdata),
-	};
-
-	if (status != FP_URB_COMPLETED) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		crdata->callback(crdata->dev, -EIO, crdata->user_data);
 		goto out;
-	} else if (setup->wLength != actual_length) {
+	} else if (transfer->actual_length != CR_LENGTH) {
 		crdata->callback(crdata->dev, -EPROTO, crdata->user_data);
 		goto out;
 	}
 
-	/* produce response from challenge */
-	AES_encrypt(data, respdata, &urudev->aeskey);
-
 	/* submit response */
-	resp_urbh = libusb_async_control_transfer(dev->udev, &trf_write_response,
-		response_cb, crdata, CTRL_TIMEOUT);
-	if (!resp_urbh)
-		crdata->callback(crdata->dev, -EIO, crdata->user_data);
+	resp_transfer = libusb_alloc_transfer();
+	if (!resp_transfer) {
+		crdata->callback(crdata->dev, -ENOMEM, crdata->user_data);
+		goto out;
+	}
+
+	respdata = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + CR_LENGTH);
+	libusb_fill_control_setup(respdata, CTRL_OUT, USB_RQ, REG_RESPONSE, 0,
+		CR_LENGTH);
+	libusb_fill_control_transfer(transfer, dev->udev, respdata, response_cb,
+		crdata, CTRL_TIMEOUT);
+
+	/* produce response from challenge */
+	AES_encrypt(libusb_control_transfer_get_data(transfer),
+		respdata + LIBUSB_CONTROL_SETUP_SIZE, &urudev->aeskey);
+
+	r = libusb_submit_transfer(resp_transfer);
+	if (r < 0) {
+		g_free(respdata);
+		libusb_free_transfer(resp_transfer);
+		crdata->callback(crdata->dev, r, crdata->user_data);
+	}
+
 out:
-	libusb_urb_handle_free(urbh);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 }
 
 /*
@@ -296,28 +304,33 @@ out:
 static int do_challenge_response(struct fp_img_dev *dev,
 	challenge_response_cb callback, void *user_data)
 {
-	struct c_r_data *crdata = g_malloc(sizeof(*crdata));
-	struct libusb_urb_handle *urbh;
-	struct libusb_control_transfer trf_read_challenge = {
-		.requesttype = CTRL_IN,
-		.request = USB_RQ,
-		.value = REG_CHALLENGE,
-		.index = 0,
-		.length = CR_LENGTH,
-	};
+	struct libusb_transfer *transfer = libusb_alloc_transfer();;
+	struct c_r_data *crdata;
+	unsigned char *data;
+	int r;
 
 	fp_dbg("");
+	if (!transfer)
+		return -ENOMEM;
+
+	crdata = g_malloc(sizeof(*crdata));
 	crdata->dev = dev;
 	crdata->callback = callback;
 	crdata->user_data = user_data;
 
-	urbh = libusb_async_control_transfer(dev->udev, &trf_read_challenge,
-		challenge_cb, crdata, CTRL_TIMEOUT);
-	if (!urbh) {
+	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + CR_LENGTH);
+	libusb_fill_control_setup(data, CTRL_IN, USB_RQ, REG_CHALLENGE, 0,
+		CR_LENGTH);
+	libusb_fill_control_transfer(transfer, dev->udev, data, challenge_cb,
+		crdata, CTRL_TIMEOUT);
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
 		g_free(crdata);
-		return -EIO;
+		g_free(data);
+		libusb_free_transfer(transfer);
 	}
-	return 0;
+	return r;
 }
 
 /***** INTERRUPT HANDLING *****/
@@ -326,35 +339,33 @@ static int do_challenge_response(struct fp_img_dev *dev,
 
 static int start_irq_handler(struct fp_img_dev *dev);
 
-static void irq_handler(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void irq_handler(struct libusb_transfer *transfer)
 {
-	struct fp_img_dev *dev = user_data;
+	struct fp_img_dev *dev = transfer->user_data;
 	struct uru4k_dev *urudev = dev->priv;
+	unsigned char *data = transfer->buffer;
 	uint16_t type;
 	int r = 0;
 
-	libusb_urb_handle_free(urbh);
-
-	if (status == FP_URB_CANCELLED) {
+	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
 		fp_dbg("cancelled");
 		if (urudev->irqs_stopped_cb)
 			urudev->irqs_stopped_cb(dev);
 		urudev->irqs_stopped_cb = NULL;
 		goto out;
-	} else if (status != FP_URB_COMPLETED) {
+	} else if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		r = -EIO;
 		goto err;
-	} else if (actual_length != rqlength) {
-		fp_err("short interrupt read? %d", actual_length);
+	} else if (transfer->actual_length != transfer->length) {
+		fp_err("short interrupt read? %d", transfer->actual_length);
 		r = -EPROTO;
 		goto err;
 	}
 
 	type = GUINT16_FROM_BE(*((uint16_t *) data));
-	g_free(data);
 	fp_dbg("recv irq type %04x", type);
+	g_free(data);
+	libusb_free_transfer(transfer);
 
 	/* The 0800 interrupt seems to indicate imminent failure (0 bytes transfer)
 	 * of the next scan. It still appears on occasion. */
@@ -370,41 +381,47 @@ static void irq_handler(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 	if (r == 0)
 		return;
 
+	transfer = NULL;
 	data = NULL;
 err:
 	if (urudev->irq_cb)
 		urudev->irq_cb(dev, r, 0, urudev->irq_cb_data);
 out:
 	g_free(data);
+	libusb_free_transfer(transfer);
 	urudev->irq_transfer = NULL;
 }
 
 static int start_irq_handler(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = dev->priv;
-	struct libusb_urb_handle *urbh;
-	struct libusb_bulk_transfer trf = {
-		.endpoint = EP_INTR,
-		.length = IRQ_LENGTH,
-		.data = g_malloc(IRQ_LENGTH),
-	};
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	unsigned char *data;
+	int r;
 
-	urbh = libusb_async_interrupt_transfer(dev->udev, &trf, irq_handler, dev,
-		0);
-	urudev->irq_transfer = urbh;
-	if (!urbh) {
-		g_free(trf.data);
-		return -EIO;
+	if (!transfer)
+		return -ENOMEM;
+	
+	data = g_malloc(IRQ_LENGTH);
+	libusb_fill_bulk_transfer(transfer, dev->udev, EP_INTR, data, IRQ_LENGTH,
+		irq_handler, dev, 0);
+
+	urudev->irq_transfer = transfer;
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(data);
+		libusb_free_transfer(transfer);
+		urudev->irq_transfer = NULL;
 	}
-	return 0;
+	return r;
 }
 
 static void stop_irq_handler(struct fp_img_dev *dev, irqs_stopped_cb_fn cb)
 {
 	struct uru4k_dev *urudev = dev->priv;
-	struct libusb_urb_handle *urbh = urudev->irq_transfer;
-	if (urbh) {
-		libusb_urb_handle_cancel(dev->udev, urbh);
+	struct libusb_transfer *transfer = urudev->irq_transfer;
+	if (transfer) {
+		libusb_cancel_transfer(transfer);
 		urudev->irqs_stopped_cb = cb;
 	}
 }
@@ -413,46 +430,45 @@ static void stop_irq_handler(struct fp_img_dev *dev, irqs_stopped_cb_fn cb)
 
 static int start_imaging_loop(struct fp_img_dev *dev);
 
-static void image_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void image_cb(struct libusb_transfer *transfer)
 {
-	struct fp_img_dev *dev = user_data;
+	struct fp_img_dev *dev = transfer->user_data;
 	struct uru4k_dev *urudev = dev->priv;
 	int hdr_skip = CAPTURE_HDRLEN;
 	int image_size = DATABLK_EXPECT - CAPTURE_HDRLEN;
 	struct fp_img *img;
 	int r = 0;
 
-	libusb_urb_handle_free(urbh);
-	if (status == FP_URB_CANCELLED) {
+	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
 		fp_dbg("cancelled");
 		urudev->img_transfer = NULL;
-		g_free(data);
+		g_free(transfer->buffer);
+		libusb_free_transfer(transfer);
 		return;
-	} else if (status != FP_URB_COMPLETED) {
+	} else if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		r = -EIO;
 		goto out;
 	}
 
-	if (actual_length == image_size) {
+	if (transfer->actual_length == image_size) {
 		/* no header! this is rather odd, but it happens sometimes with my MS
 		 * keyboard */
 		fp_dbg("got image with no header!");
 		hdr_skip = 0;
-	} else if (actual_length != DATABLK_EXPECT) {
-		fp_err("unexpected image capture size (%d)", actual_length);
+	} else if (transfer->actual_length != DATABLK_EXPECT) {
+		fp_err("unexpected image capture size (%d)", transfer->actual_length);
 		r = -EPROTO;
 		goto out;
 	}
 
 	img = fpi_img_new(image_size);
-	memcpy(img->data, data + hdr_skip, image_size);
+	memcpy(img->data, transfer->buffer + hdr_skip, image_size);
 	img->flags = FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED | FP_IMG_COLORS_INVERTED;
 	fpi_imgdev_image_captured(dev, img);
 
 out:
-	g_free(data);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 	if (r == 0)
 		r = start_imaging_loop(dev);
 
@@ -463,29 +479,33 @@ out:
 static int start_imaging_loop(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = dev->priv;
-	struct libusb_urb_handle *urbh;
-	struct libusb_bulk_transfer trf = {
-		.endpoint = EP_DATA,
-		.length = DATABLK_RQLEN,
-		.data = g_malloc(DATABLK_RQLEN),
-	};
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	unsigned char *data;
+	int r;
 
-	urbh = libusb_async_bulk_transfer(dev->udev, &trf, image_cb, dev, 0);
-	urudev->img_transfer = urbh;
-	if (!urbh) {
-		g_free(trf.data);
-		return -EIO;
+	if (!transfer)
+		return -ENOMEM;
+	
+	data = g_malloc(DATABLK_RQLEN);
+	libusb_fill_bulk_transfer(transfer, dev->udev, EP_DATA, data,
+		DATABLK_RQLEN, image_cb, dev, 0);
+
+	urudev->img_transfer = transfer;
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(data);
+		libusb_free_transfer(transfer);
 	}
 
-	return 0;
+	return r;
 }
 
 static void stop_imaging_loop(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = dev->priv;
-	libusb_urb_handle *urbh = urudev->img_transfer;
-	if (urbh)
-		libusb_urb_handle_cancel(dev->udev, urbh);
+	struct libusb_transfer *transfer = urudev->img_transfer;
+	if (transfer)
+		libusb_cancel_transfer(transfer);
 	/* FIXME: should probably wait for cancellation to complete */
 }
 
@@ -577,68 +597,72 @@ static void sm_set_hwstat(struct fpi_ssm *ssm, unsigned char value)
 	sm_set_reg(ssm, REG_HWSTAT, value);
 }
 
-static void sm_get_hwstat_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
-	unsigned char *data, int actual_length, void *user_data)
+static void sm_get_hwstat_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = user_data;
+	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
 
-	if (status != FP_URB_COMPLETED) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_mark_aborted(ssm, -EIO);
-	} else if (setup->wLength != actual_length) {
+	} else if (transfer->actual_length != 1) {
 		fpi_ssm_mark_aborted(ssm, -EPROTO);
 	} else {
-		urudev->last_hwstat_rd = *data;
+		urudev->last_hwstat_rd = libusb_control_transfer_get_data(transfer)[0];
 		fp_dbg("value %02x", urudev->last_hwstat_rd);
 		fpi_ssm_next_state(ssm);
 	}
-	libusb_urb_handle_free(urbh);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 }
 
 static void sm_get_hwstat(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	struct libusb_urb_handle *urbh;
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	unsigned char *data;
+	int r;
+
+	if (!transfer) {
+		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		return;
+	}
+
+	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 
 	/* The windows driver uses a request of 0x0c here. We use 0x04 to be
 	 * consistent with every other command we know about. */
 	/* FIXME is the above comment still true? */
-	struct libusb_control_transfer trf = {
-		.requesttype = CTRL_IN,
-		.request = USB_RQ,
-		.value = REG_HWSTAT,
-		.index = 0,
-		.length = 1,
-	};
-
-	urbh = libusb_async_control_transfer(dev->udev, &trf, sm_get_hwstat_cb,
+	libusb_fill_control_setup(data, CTRL_IN, USB_RQ, REG_HWSTAT, 0, 1);
+	libusb_fill_control_transfer(transfer, dev->udev, data, sm_get_hwstat_cb,
 		ssm, CTRL_TIMEOUT);
-	if (!urbh)
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(data);
+		libusb_free_transfer(transfer);
 		fpi_ssm_mark_aborted(ssm, -EIO);
+	}
 }
 
-static void sm_fix_fw_read_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
-	unsigned char *data, int actual_length, void *user_data)
+static void sm_fix_fw_read_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = user_data;
+	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
 	unsigned char new;
 	unsigned char fwenc;
 	uint32_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
 
-	if (status != FP_URB_COMPLETED) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_mark_aborted(ssm, -EIO);
 		goto out;
-	} else if (actual_length != setup->wLength) {
+	} else if (transfer->actual_length != 1) {
 		fpi_ssm_mark_aborted(ssm, -EPROTO);
 		goto out;
 	}
 
-	fwenc = data[0];
+	fwenc = libusb_control_transfer_get_data(transfer)[0];
 	fp_dbg("firmware encryption byte at %x reads %02x", enc_addr, fwenc);
 	if (fwenc != 0x07 && fwenc != 0x17)
 		fp_dbg("strange encryption byte value, please report this");
@@ -652,7 +676,8 @@ static void sm_fix_fw_read_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 	}
 
 out:
-	libusb_urb_handle_free(urbh);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 }
 
 static void sm_fix_firmware(struct fpi_ssm *ssm)
@@ -660,20 +685,26 @@ static void sm_fix_firmware(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
 	uint32_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	unsigned char *data;
+	int r;
 
-	struct libusb_urb_handle *urbh;
-	struct libusb_control_transfer trf_read_fw = {
-		.requesttype = 0xc0,
-		.request = 0x0c,
-		.value = enc_addr,
-		.index = 0,
-		.length = 1,
-	};
+	if (!transfer) {
+		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		return;
+	}
+
+	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
+	libusb_fill_control_setup(data, 0xc0, 0x0c, enc_addr, 0, 1);
+	libusb_fill_control_transfer(transfer, dev->udev, data, sm_fix_fw_read_cb,
+		ssm, CTRL_TIMEOUT);
 	
-	urbh = libusb_async_control_transfer(dev->udev, &trf_read_fw,
-		sm_fix_fw_read_cb, ssm, CTRL_TIMEOUT);
-	if (!urbh)
-		fpi_ssm_mark_aborted(ssm, -EIO);
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(data);
+		libusb_free_transfer(transfer);
+		fpi_ssm_mark_aborted(ssm, r);
+	}
 }
 
 /***** INITIALIZATION *****/
@@ -1070,7 +1101,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	/* Find fingerprint interface */
-	config = libusb_dev_get_config(libusb_devh_get_dev(dev->udev));
+	config = libusb_get_config_descriptor(libusb_get_device(dev->udev));
 	for (i = 0; i < config->bNumInterfaces; i++) {
 		struct libusb_interface *cur_iface = &config->interface[i];
 

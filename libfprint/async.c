@@ -41,7 +41,7 @@ API_EXPORTED int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb cb,
 {
 	struct fp_driver *drv = ddev->drv;
 	struct fp_dev *dev;
-	libusb_dev_handle *udevh;
+	libusb_device_handle *udevh;
 	int r;
 
 	fp_dbg("");

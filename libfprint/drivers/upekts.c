@@ -133,10 +133,11 @@ static uint16_t udf_crc(unsigned char *buffer, size_t size)
 
 #define CMD_SEQ_INCREMENT 0x10
 
-static void fill_send_cmd_urb(struct libusb_bulk_transfer *msg,
+static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 	unsigned char seq_a, unsigned char seq_b, const unsigned char *data,
-	uint16_t len)
+	uint16_t len, libusb_transfer_cb_fn callback, void *user_data)
 {
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
 	uint16_t crc;
 
 	/* 9 bytes extra for: 4 byte 'Ciao', 1 byte A, 1 byte B | lenHI,
@@ -144,15 +145,15 @@ static void fill_send_cmd_urb(struct libusb_bulk_transfer *msg,
 	size_t urblen = len + 9;
 	unsigned char *buf;
 
+	if (!transfer)
+		return NULL;
+
 	if (!data && len > 0) {
 		fp_err("len>0 but no data?");
-		return;
+		return NULL;
 	}
-	
-	msg->endpoint = EP_OUT;
-	msg->length = urblen;
+
 	buf = g_malloc(urblen);
-	msg->data = buf;
 
 	/* Write header */
 	strncpy(buf, "Ciao", 4);
@@ -169,17 +170,22 @@ static void fill_send_cmd_urb(struct libusb_bulk_transfer *msg,
 	crc = GUINT16_TO_BE(udf_crc(buf + 4, urblen - 6));
 	buf[urblen - 2] = crc >> 8;
 	buf[urblen - 1] = crc & 0xff;
+
+	libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT, buf, urblen,
+		callback, user_data, TIMEOUT);
+	return transfer;
 }
 
-static void fill_send_cmd28_urb(struct fp_dev *dev,
-	struct libusb_bulk_transfer *msg, unsigned char subcmd,
-	const unsigned char *data, uint16_t innerlen)
+static struct libusb_transfer *alloc_send_cmd28_transfer(struct fp_dev *dev,
+	unsigned char subcmd, const unsigned char *data, uint16_t innerlen,
+	libusb_transfer_cb_fn callback, void *user_data)
 {
 	uint16_t _innerlen = innerlen;
 	size_t len = innerlen + 6;
 	unsigned char *buf = g_malloc0(len);
 	struct upekts_dev *upekdev = dev->priv;
 	uint8_t seq = upekdev->seq + CMD_SEQ_INCREMENT;
+	struct libusb_transfer *ret;
 
 	fp_dbg("seq=%02x subcmd=%02x with %d bytes of data", seq, subcmd, innerlen);
 
@@ -190,17 +196,19 @@ static void fill_send_cmd28_urb(struct fp_dev *dev,
 	buf[5] = subcmd;
 	memcpy(buf + 6, data, innerlen);
 
-	fill_send_cmd_urb(msg, 0, seq, buf, len);
+	ret = alloc_send_cmd_transfer(dev, 0, seq, buf, len, callback, user_data);
 	upekdev->seq = seq;
 
 	g_free(buf);
+	return ret;
 }
 
-static void fill_send_cmdresponse_urb(struct libusb_bulk_transfer *msg,
-	unsigned char seq, const unsigned char *data, uint8_t len)
+static struct libusb_transfer *alloc_send_cmdresponse_transfer(
+	struct fp_dev *dev, unsigned char seq, const unsigned char *data,
+	uint8_t len, libusb_transfer_cb_fn callback, void *user_data)
 {
 	fp_dbg("seq=%02x len=%d", seq, len);
-	fill_send_cmd_urb(msg, seq, 0, data, len);
+	return alloc_send_cmd_transfer(dev, seq, 0, data, len, callback, user_data);
 }
 
 enum read_msg_status {
@@ -224,12 +232,12 @@ static int __read_msg_async(struct read_msg_data *udata);
 #define READ_MSG_DATA_CB_ERR(udata) (udata)->callback((udata)->dev, \
 	READ_MSG_ERROR, 0, 0, NULL, 0, (udata)->user_data)
 
-static void busy_ack_sent_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint, int rqlength,
-	unsigned char *data, int actual_length, void *_data)
+static void busy_ack_sent_cb(struct libusb_transfer *transfer)
 {
-	struct read_msg_data *udata = (struct read_msg_data *) _data;
-	if (status != FP_URB_COMPLETED || rqlength != actual_length) {
+	struct read_msg_data *udata = transfer->user_data;
+
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED ||
+			transfer->length != transfer->actual_length) {
 		READ_MSG_DATA_CB_ERR(udata);
 		g_free(udata);
 	} else {
@@ -239,22 +247,25 @@ static void busy_ack_sent_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 			g_free(udata);
 		}
 	}
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
 static int busy_ack_retry_read(struct read_msg_data *udata)
 {
-	struct libusb_bulk_transfer msg;
-	libusb_urb_handle *urbh;
+	struct libusb_transfer *transfer;
+	int r;
 
-	fill_send_cmdresponse_urb(&msg, 0x09, NULL, 0);
-	urbh = libusb_async_bulk_transfer(udata->dev->udev, &msg, busy_ack_sent_cb,
-		udata, TIMEOUT);
-	if (!urbh) {
-		g_free(msg.data);
-		return -EIO;
+	transfer = alloc_send_cmdresponse_transfer(udata->dev, 0x09, NULL, 0,
+		busy_ack_sent_cb, udata);
+	if (!transfer)
+		return -ENOMEM;
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(transfer->buffer);
+		libusb_free_transfer(transfer);
 	}
-	return 0;
+	return r;
 }
 
 /* Returns 0 if message was handled, 1 if it was a device-busy message, and
@@ -333,20 +344,19 @@ static int __handle_incoming_msg(struct read_msg_data *udata,
 	return 0;
 }
 
-static void read_msg_extend_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint, int rqlength,
-	unsigned char *data, int actual_length, void *user_data)
+static void read_msg_extend_cb(struct libusb_transfer *transfer)
 {
-	struct read_msg_data *udata = user_data;
-	unsigned char *buf = data - MSG_READ_BUF_SIZE;
+	struct read_msg_data *udata = transfer->user_data;
+	unsigned char *buf = transfer->buffer - MSG_READ_BUF_SIZE;
 	int handle_result = 0;
 
-	if (status != FP_URB_COMPLETED) {
-		fp_err("extended msg read failed, code %d", status);
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+		fp_err("extended msg read failed, code %d", transfer->status);
 		goto err;
 	}
-	if (actual_length < rqlength) {
-		fp_err("extended msg short read (%d/%d)", actual_length, rqlength);
+	if (transfer->actual_length < transfer->length) {
+		fp_err("extended msg short read (%d/%d)", transfer->actual_length,
+			transfer->length);
 		goto err;
 	}
 
@@ -361,23 +371,22 @@ out:
 	if (handle_result != 1)
 		g_free(udata);
 	g_free(buf);
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
-static void read_msg_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void read_msg_cb(struct libusb_transfer *transfer)
 {
-	struct read_msg_data *udata = user_data;
+	struct read_msg_data *udata = transfer->user_data;
+	unsigned char *data = transfer->buffer;
 	uint16_t len;
 	int handle_result = 0;
 
-	if (status != FP_URB_COMPLETED) {
-		fp_err("async msg read failed, code %d", status);
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+		fp_err("async msg read failed, code %d", transfer->status);
 		goto err;
 	}
-	if (actual_length < 9) {
-		fp_err("async msg read too short (%d)", actual_length);
+	if (transfer->actual_length < 9) {
+		fp_err("async msg read too short (%d)", transfer->actual_length);
 		goto err;
 	}
 
@@ -387,11 +396,12 @@ static void read_msg_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 	}
 
 	len = GUINT16_FROM_LE(((data[5] & 0xf) << 8) | data[6]);
-	if (actual_length != MSG_READ_BUF_SIZE && (len + 9) > actual_length) {
+	if (transfer->actual_length != MSG_READ_BUF_SIZE
+			&& (len + 9) > transfer->actual_length) {
 		/* Check that the length claimed inside the message is in line with
 		 * the amount of data that was transferred over USB. */
 		fp_err("msg didn't include enough data, expected=%d recv=%d",
-			len + 9, actual_length);
+			len + 9, transfer->actual_length);
 		goto err;
 	}
 
@@ -400,22 +410,26 @@ static void read_msg_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 	 * to read the remainder. This is handled below. */
 	if (len > MAX_DATA_IN_READ_BUF) {
 		int needed = len - MAX_DATA_IN_READ_BUF;
-		libusb_urb_handle *eurbh;
-		struct libusb_bulk_transfer extend_msg = {
-			.endpoint = EP_IN,
-			.length = needed,
-		};
+		struct libusb_transfer *etransfer = libusb_alloc_transfer();
+		int r;
+
+		if (!transfer)
+			goto err;
 
 		fp_dbg("didn't fit in buffer, need to extend by %d bytes", needed);
 		data = g_realloc((gpointer) data, MSG_READ_BUF_SIZE + needed);
-		extend_msg.data = data + MSG_READ_BUF_SIZE;
-		eurbh = libusb_async_bulk_transfer(udata->dev->udev, &extend_msg,
-			read_msg_extend_cb, udata, TIMEOUT);
-		if (!eurbh) {
+
+		libusb_fill_bulk_transfer(etransfer, udata->dev->udev, EP_IN,
+			data + MSG_READ_BUF_SIZE, needed, read_msg_extend_cb, udata,
+			TIMEOUT);
+
+		r = libusb_submit_transfer(etransfer);
+		if (r < 0) {
 			fp_err("extended read submission failed");
+			/* FIXME memory leak here? */
 			goto err;
 		}
-		libusb_urb_handle_free(urbh);
+		libusb_free_transfer(transfer);
 		return;
 	}
 
@@ -427,7 +441,7 @@ static void read_msg_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 err:
 	READ_MSG_DATA_CB_ERR(udata);
 out:
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 	if (handle_result != 1)
 		g_free(udata);
 	g_free(data);
@@ -436,18 +450,23 @@ out:
 static int __read_msg_async(struct read_msg_data *udata)
 {
 	unsigned char *buf = g_malloc(MSG_READ_BUF_SIZE);
-	struct libusb_bulk_transfer msg = {
-		.endpoint = EP_IN,
-		.data = buf,
-		.length = MSG_READ_BUF_SIZE,
-	};
-	libusb_urb_handle *urbh = libusb_async_bulk_transfer(udata->dev->udev, &msg,
-		read_msg_cb, udata, TIMEOUT);
-	if (!urbh) {
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	int r;
+
+	if (!transfer) {
 		g_free(buf);
-		return -EIO;
+		return -ENOMEM;
 	}
-	return 0;
+
+	libusb_fill_bulk_transfer(transfer, udata->dev->udev, EP_IN, buf,
+		MSG_READ_BUF_SIZE, read_msg_cb, udata, TIMEOUT);
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(buf);
+		libusb_free_transfer(transfer);
+	}
+
+	return r;
 }
 
 static int read_msg_async(struct fp_dev *dev, read_msg_cb_fn callback,
@@ -613,16 +632,16 @@ static void read_msg03_cb(struct fp_dev *dev, enum read_msg_status status,
 	initsm_read_msg_cmd_cb((struct fpi_ssm *) user_data, status, 3, seq); 
 }
 
-static void ctrl400_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, struct libusb_ctrl_setup *setup,
-	unsigned char *data, int actual_length, void *user_data)
+static void ctrl400_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = user_data;
-	if (status == FP_URB_COMPLETED)
+	struct fpi_ssm *ssm = transfer->user_data;
+	/* FIXME check length? */
+	if (transfer->status == LIBUSB_TRANSFER_COMPLETED)
 		fpi_ssm_next_state(ssm);
 	else
 		fpi_ssm_mark_aborted(ssm, -1);
-	libusb_urb_handle_free(urbh);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 }
 
 static void initsm_read_msg_handler(struct fpi_ssm *ssm,
@@ -635,35 +654,40 @@ static void initsm_read_msg_handler(struct fpi_ssm *ssm,
 	}
 }
 
-static void initsm_send_msg_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void initsm_send_msg_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = user_data;
-	if (status == FP_URB_COMPLETED && rqlength == actual_length) {
+	struct fpi_ssm *ssm = transfer->user_data;
+	if (transfer->status == LIBUSB_TRANSFER_COMPLETED
+			&& transfer->length == transfer->actual_length) {
 		fp_dbg("state %d completed", ssm->cur_state);
 		fpi_ssm_next_state(ssm);
 	} else {
 		fp_err("failed, state=%d rqlength=%d actual_length=%d", ssm->cur_state,
-			rqlength, actual_length);
+			transfer->length, transfer->actual_length);
 		fpi_ssm_mark_aborted(ssm, -1);
 	}
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
 static void initsm_send_msg28_handler(struct fpi_ssm *ssm,
 	unsigned char subcmd, const unsigned char *data, uint16_t innerlen)
 {
 	struct fp_dev *dev = ssm->dev;
-	struct libusb_urb_handle *urbh;
-	struct libusb_bulk_transfer trf;
+	struct libusb_transfer *transfer;
+	int r;
 
-	fill_send_cmd28_urb(dev, &trf, subcmd, data, innerlen);
-	urbh = libusb_async_bulk_transfer(dev->udev, &trf, initsm_send_msg_cb,
-		ssm, TIMEOUT);
-	if (!urbh) {
-		fp_err("urb submission failed in state %d", ssm->cur_state);
-		g_free(trf.data);
+	transfer = alloc_send_cmd28_transfer(dev, subcmd, data, innerlen,
+		initsm_send_msg_cb, ssm);
+	if (!transfer) {
+		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		return;
+	}
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		fp_err("urb submission failed error %d in state %d", r, ssm->cur_state);
+		g_free(transfer->buffer);
+		libusb_free_transfer(transfer);
 		fpi_ssm_mark_aborted(ssm, -EIO);
 	}
 }
@@ -672,38 +696,48 @@ static void initsm_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_dev *dev = ssm->dev;
 	struct upekts_dev *upekdev = dev->priv;
-	struct libusb_urb_handle *urbh;
+	struct libusb_transfer *transfer;
+	int r;
 
 	switch (ssm->cur_state) {
 	case WRITE_CTRL400: ;
-		unsigned char dummy = 0x10;
-		struct libusb_control_transfer ctrl400_trf = {
-			.requesttype = LIBUSB_TYPE_VENDOR | LIBUSB_RECIP_DEVICE,
-			.request = 0x0c,
-			.value = 0x0100,
-			.index = 0x0400,
-			.length = sizeof(dummy),
-			.data = &dummy,
-		};
+		unsigned char *data;
 
-		urbh = libusb_async_control_transfer(ssm->dev->udev, &ctrl400_trf,
+		transfer = libusb_alloc_transfer();
+		if (!transfer) {
+			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			break;
+		}
+		
+		data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
+		libusb_fill_control_setup(data,
+			LIBUSB_TYPE_VENDOR | LIBUSB_RECIP_DEVICE, 0x0c, 0x100, 0x0400, 1);
+		libusb_fill_control_transfer(transfer, ssm->dev->udev, data,
 			ctrl400_cb, ssm, TIMEOUT);
-		if (!urbh)
-			fpi_ssm_mark_aborted(ssm, -1);
+
+		r = libusb_submit_transfer(transfer);
+		if (r < 0) {
+			g_free(data);
+			libusb_free_transfer(transfer);
+			fpi_ssm_mark_aborted(ssm, r);
+		}
 		break;
 	case READ_MSG03:
 		initsm_read_msg_handler(ssm, read_msg03_cb);
 		break;
 	case SEND_RESP03: ;
-		struct libusb_bulk_transfer resp03_trf;
+		transfer = alloc_send_cmdresponse_transfer(dev, ++upekdev->seq,
+			init_resp03, sizeof(init_resp03), initsm_send_msg_cb, ssm);
+		if (!transfer) {
+			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			break;
+		}
 
-		fill_send_cmdresponse_urb(&resp03_trf, ++upekdev->seq, init_resp03,
-			sizeof(init_resp03));
-		urbh = libusb_async_bulk_transfer(dev->udev, &resp03_trf,
-			initsm_send_msg_cb, ssm, TIMEOUT);
-		if (!urbh) {
-			g_free(resp03_trf.data);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+		r = libusb_submit_transfer(transfer);
+		if (r < 0) {
+			g_free(transfer->buffer);
+			libusb_free_transfer(transfer);
+			fpi_ssm_mark_aborted(ssm, r);
 		}
 		break;
 	case READ_MSG05:
@@ -756,18 +790,16 @@ enum deinitsm_states {
 	DEINITSM_NUM_STATES,
 };
 
-static void send_resp07_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void send_resp07_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = user_data;
-	if (status != FP_URB_COMPLETED)
+	struct fpi_ssm *ssm = transfer->user_data;
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
 		fpi_ssm_mark_aborted(ssm, -EIO);
-	else if (rqlength != actual_length)
+	else if (transfer->length != transfer->actual_length)
 		fpi_ssm_mark_aborted(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
 static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
@@ -798,23 +830,29 @@ static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
 static void deinitsm_state_handler(struct fpi_ssm *ssm)
 {
 	struct fp_dev *dev = ssm->dev;
+	int r;
 
 	switch (ssm->cur_state) {
 	case SEND_RESP07: ;
-		struct libusb_bulk_transfer msg;
-		struct libusb_urb_handle *urbh;
+		struct libusb_transfer *transfer;
 		unsigned char dummy = 0;
 
-		fill_send_cmdresponse_urb(&msg, 0x07, &dummy, 1);
-		urbh = libusb_async_bulk_transfer(dev->udev, &msg, send_resp07_cb, ssm,
-			TIMEOUT);
-		if (!urbh) {
-			g_free(msg.data);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+		transfer = alloc_send_cmdresponse_transfer(dev, 0x07, &dummy, 1,
+			send_resp07_cb, ssm);
+		if (!transfer) {
+			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			break;
+		}
+
+		r = libusb_submit_transfer(transfer);
+		if (r < 0) {
+			g_free(transfer->buffer);
+			libusb_free_transfer(transfer);
+			fpi_ssm_mark_aborted(ssm, r);
 		}
 		break;
 	case READ_MSG01: ;
-		int r = read_msg_async(dev, read_msg01_cb, ssm);
+		r = read_msg_async(dev, read_msg01_cb, ssm);
 		if (r < 0)
 			fpi_ssm_mark_aborted(ssm, r);
 		break;
@@ -882,19 +920,16 @@ static void enroll_start_sm_cb_initsm(struct fpi_ssm *initsm)
 }
 
 /* called when enroll init URB has completed */
-static void enroll_start_sm_cb_init(libusb_dev_handle *devh,
-	libusb_urb_handle *urbh, enum libusb_urb_cb_status status,
-	unsigned char endpoint, int rqlength, unsigned char *data,
-	int actual_length, void *user_data)
+static void enroll_start_sm_cb_init(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = user_data;
-	if (status != FP_URB_COMPLETED)
+	struct fpi_ssm *ssm = transfer->user_data;
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
 		fpi_ssm_mark_aborted(ssm, -EIO);
-	else if (rqlength != actual_length)
+	else if (transfer->length != transfer->actual_length)
 		fpi_ssm_mark_aborted(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
 static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
@@ -923,6 +958,7 @@ static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
 static void enroll_start_sm_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_dev *dev = ssm->dev;
+	int r;
 
 	switch (ssm->cur_state) {
 	case RUN_INITSM: ;
@@ -931,14 +967,19 @@ static void enroll_start_sm_run_state(struct fpi_ssm *ssm)
 		fpi_ssm_start(initsm, enroll_start_sm_cb_initsm);
 		break;
 	case ENROLL_INIT: ;
-		struct libusb_bulk_transfer msg;
-		struct libusb_urb_handle *urbh;
-		fill_send_cmd28_urb(dev, &msg, 0x02, enroll_init, sizeof(enroll_init));
-		urbh = libusb_async_bulk_transfer(dev->udev, &msg,
-			enroll_start_sm_cb_init, ssm, TIMEOUT);
-		if (!urbh) {
-			g_free(msg.data);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+		struct libusb_transfer *transfer;
+		transfer = alloc_send_cmd28_transfer(dev, 0x02, enroll_init,
+			sizeof(enroll_init), enroll_start_sm_cb_init, ssm);
+		if (!transfer) {
+			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			break;
+		}
+
+		r = libusb_submit_transfer(transfer);
+		if (r < 0) {
+			g_free(transfer->buffer);
+			libusb_free_transfer(transfer);
+			fpi_ssm_mark_aborted(ssm, r);
 		}
 		break;
 	case READ_ENROLL_MSG28: ;
@@ -946,7 +987,7 @@ static void enroll_start_sm_run_state(struct fpi_ssm *ssm)
 		 * to subcmd 0 after submitting subcmd 2? */
 		/* actually this is probably a poll response? does the above cmd
 		 * include a 30 01 poll somewhere? */
-		int r = read_msg_async(dev, enroll_start_sm_cb_msg28, ssm);
+		r = read_msg_async(dev, enroll_start_sm_cb_msg28, ssm);
 		if (r < 0)
 			fpi_ssm_mark_aborted(ssm, r);
 		break;
@@ -1069,35 +1110,37 @@ static void enroll_iterate_msg_cb(struct fp_dev *dev,
 
 }
 
-static void enroll_iterate_cmd_cb(libusb_dev_handle *devh,
-	libusb_urb_handle *urbh, enum libusb_urb_cb_status status,
-	unsigned char endpoint, int rqlength, unsigned char *data,
-	int actual_length, void *user_data)
+static void enroll_iterate_cmd_cb(struct libusb_transfer *transfer)
 {
-	struct fp_dev *dev = user_data;
+	struct fp_dev *dev = transfer->user_data;
 
-	if (status != FP_URB_COMPLETED) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_drvcb_enroll_stage_completed(dev, -EIO, NULL, NULL);
-	} else if (rqlength != actual_length) {
+	} else if (transfer->length != transfer->actual_length) {
 		fpi_drvcb_enroll_stage_completed(dev, -EPROTO, NULL, NULL);
 	} else {
 		int r = read_msg_async(dev, enroll_iterate_msg_cb, NULL);
 		if (r < 0)
 			fpi_drvcb_enroll_stage_completed(dev, r, NULL, NULL);
 	}
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
 static void enroll_iterate(struct fp_dev *dev)
 {
-	struct libusb_bulk_transfer msg;
-	struct libusb_urb_handle *urbh;
+	int r;
+	struct libusb_transfer *transfer = alloc_send_cmd28_transfer(dev, 0x00,
+		poll_data, sizeof(poll_data), enroll_iterate_cmd_cb, dev);
 
-	fill_send_cmd28_urb(dev, &msg, 0x00, poll_data, sizeof(poll_data));
-	urbh = libusb_async_bulk_transfer(dev->udev, &msg, enroll_iterate_cmd_cb,
-		dev, TIMEOUT);
-	if (!urbh) {
-		g_free(msg.data);
+	if (!transfer) {
+		fpi_drvcb_enroll_stage_completed(dev, -ENOMEM, NULL, NULL);
+		return;
+	}
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(transfer->buffer);
+		libusb_free_transfer(transfer);
 		fpi_drvcb_enroll_stage_completed(dev, -EIO, NULL, NULL);
 	}
 }
@@ -1176,23 +1219,22 @@ static void verify_start_sm_cb_initsm(struct fpi_ssm *initsm)
 	fpi_ssm_free(initsm);
 }
 
-static void verify_init_2803_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void verify_init_2803_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = user_data;
-	if (status != FP_URB_COMPLETED)
+	struct fpi_ssm *ssm = transfer->user_data;
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
 		fpi_ssm_mark_aborted(ssm, -EIO);
-	else if (rqlength != actual_length)
+	else if (transfer->length != transfer->actual_length)
 		fpi_ssm_mark_aborted(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
 static void verify_start_sm_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_dev *dev = ssm->dev;
+	int r;
 
 	switch (ssm->cur_state) {
 	case VERIFY_RUN_INITSM: ;
@@ -1204,18 +1246,22 @@ static void verify_start_sm_run_state(struct fpi_ssm *ssm)
 		struct fp_print_data *print = dev->verify_data;
 		size_t data_len = sizeof(verify_hdr) + print->length;
 		unsigned char *data = g_malloc(data_len);
-		struct libusb_bulk_transfer msg;
-		struct libusb_urb_handle *urbh;
+		struct libusb_transfer *transfer;
 
 		memcpy(data, verify_hdr, sizeof(verify_hdr));
 		memcpy(data + sizeof(verify_hdr), print->data, print->length);
-		fill_send_cmd28_urb(dev, &msg, 0x03, data, data_len);
+		transfer = alloc_send_cmd28_transfer(dev, 0x03, data, data_len,
+			verify_init_2803_cb, ssm);
 		g_free(data);
+		if (!transfer) {
+			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			break;
+		}
 
-		urbh = libusb_async_bulk_transfer(dev->udev, &msg,
-			verify_init_2803_cb, ssm, TIMEOUT);
-		if (!urbh) {
-			g_free(msg.data);
+		r = libusb_submit_transfer(transfer);
+		if (r < 0) {
+			g_free(transfer->buffer);
+			libusb_free_transfer(transfer);
 			fpi_ssm_mark_aborted(ssm, -EIO);
 		}
 		break;
@@ -1323,28 +1369,25 @@ static void verify_rd2800_cb(struct fp_dev *dev, enum read_msg_status msgstat,
 		fpi_drvcb_report_verify_result(dev, -EPROTO, NULL);
 }
 
-static void verify_wr2800_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void verify_wr2800_cb(struct libusb_transfer *transfer)
 {
-	struct fp_dev *dev = user_data;
+	struct fp_dev *dev = transfer->user_data;
 
-	if (status != FP_URB_COMPLETED) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_drvcb_report_verify_result(dev, -EIO, NULL);
-	} else if (rqlength != actual_length) {
+	} else if (transfer->length != transfer->actual_length) {
 		fpi_drvcb_report_verify_result(dev, -EIO, NULL);
 	} else {
 		int r = read_msg_async(dev, verify_rd2800_cb, NULL);
 		if (r < 0)
 			fpi_drvcb_report_verify_result(dev, r, NULL);
 	}
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
 static void verify_iterate(struct fp_dev *dev)
 {
 	struct upekts_dev *upekdev = dev->priv;
-	struct libusb_bulk_transfer msg;
 
 	if (upekdev->stop_verify) {
 		do_verify_stop(dev);
@@ -1359,12 +1402,19 @@ static void verify_iterate(struct fp_dev *dev)
 		if (r < 0)
 			fpi_drvcb_report_verify_result(dev, r, NULL);
 	} else {
-		struct libusb_urb_handle *urbh;
-		fill_send_cmd28_urb(dev, &msg, 0x00, poll_data, sizeof(poll_data));
-		urbh = libusb_async_bulk_transfer(dev->udev, &msg, verify_wr2800_cb,
-			dev, TIMEOUT);
-		if (!urbh) {
-			g_free(msg.data);
+		int r;
+		struct libusb_transfer *transfer = alloc_send_cmd28_transfer(dev,
+			0x00, poll_data, sizeof(poll_data), verify_wr2800_cb, dev);
+
+		if (!transfer) {
+			fpi_drvcb_report_verify_result(dev, -ENOMEM, NULL);
+			return;
+		}
+
+		r = libusb_submit_transfer(transfer);
+		if (r < 0) {
+			g_free(transfer->buffer);
+			libusb_free_transfer(transfer);
 			fpi_drvcb_report_verify_result(dev, -EIO, NULL);
 		}
 	}

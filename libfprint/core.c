@@ -352,11 +352,11 @@ static void register_drivers(void)
 	}
 }
 
-static struct fp_driver *find_supporting_driver(libusb_dev *udev,
+static struct fp_driver *find_supporting_driver(libusb_device *udev,
 	const struct usb_id **usb_id)
 {
 	GSList *elem = registered_drivers;
-	struct libusb_dev_descriptor *dsc = libusb_dev_get_descriptor(udev);
+	struct libusb_device_descriptor *dsc = libusb_get_device_descriptor(udev);
 	
 	do {
 		struct fp_driver *drv = elem->data;
@@ -373,7 +373,7 @@ static struct fp_driver *find_supporting_driver(libusb_dev *udev,
 	return NULL;
 }
 
-static struct fp_dscv_dev *discover_dev(libusb_dev *udev)
+static struct fp_dscv_dev *discover_dev(libusb_device *udev)
 {
 	const struct usb_id *usb_id;
 	struct fp_driver *drv = find_supporting_driver(udev, &usb_id);
@@ -409,33 +409,40 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 {
 	GSList *tmplist = NULL;
 	struct fp_dscv_dev **list;
-	struct libusb_dev *udev;
+	libusb_device *udev;
+	libusb_device **devs;
 	int dscv_count = 0;
+	int r;
+	int i = 0;
 
 	if (registered_drivers == NULL)
 		return NULL;
 
-	libusb_find_devices();
+	r = libusb_get_device_list(&devs);
+	if (r < 0) {
+		fp_err("couldn't enumerate USB devices, error %d", r);
+		return NULL;
+	}
 
 	/* Check each device against each driver, temporarily storing successfully
 	 * discovered devices in a GSList.
 	 *
 	 * Quite inefficient but excusable as we'll only be dealing with small
 	 * sets of drivers against small sets of USB devices */
-	for (udev = libusb_get_devices(); udev; udev = libusb_dev_next(udev)) {
-			struct fp_dscv_dev *ddev = discover_dev(udev);
-			if (!ddev)
-				continue;
-			tmplist = g_slist_prepend(tmplist, (gpointer) ddev);
-			dscv_count++;
-		}
+	while ((udev = devs[i++]) != NULL) {
+		struct fp_dscv_dev *ddev = discover_dev(udev);
+		if (!ddev)
+			continue;
+		tmplist = g_slist_prepend(tmplist, (gpointer) ddev);
+		dscv_count++;
+	}
 
 	/* Convert our temporary GSList into a standard NULL-terminated pointer
 	 * array. */
 	list = g_malloc(sizeof(*list) * (dscv_count + 1));
 	if (dscv_count > 0) {
 		GSList *elem = tmplist;
-		int i = 0;
+		i = 0;
 		do {
 			list[i++] = elem->data;
 		} while ((elem = g_slist_next(elem)));

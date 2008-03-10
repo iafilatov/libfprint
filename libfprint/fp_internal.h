@@ -93,7 +93,7 @@ enum fp_dev_state {
 
 struct fp_dev {
 	struct fp_driver *drv;
-	libusb_dev_handle *udev;
+	libusb_device_handle *udev;
 	uint32_t devtype;
 	void *priv;
 
@@ -161,7 +161,7 @@ enum fp_imgdev_verify_state {
 
 struct fp_img_dev {
 	struct fp_dev *dev;
-	libusb_dev_handle *udev;
+	libusb_device_handle *udev;
 	enum fp_imgdev_action action;
 	int action_state;
 
@@ -249,7 +249,7 @@ void fpi_img_driver_setup(struct fp_img_driver *idriver);
 	container_of((drv), struct fp_img_driver, driver)
 
 struct fp_dscv_dev {
-	libusb_dev *udev;
+	struct libusb_device *udev;
 	struct fp_driver *drv;
 	unsigned long driver_data;
 	uint32_t devtype;

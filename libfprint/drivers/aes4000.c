@@ -35,7 +35,7 @@
 #define SUBARRAY_LEN	768
 
 struct aes4k_dev {
-	libusb_urb_handle *img_trf;
+	struct libusb_transfer *img_trf;
 };
 
 static const struct aes_regwrite init_reqs[] = {
@@ -115,22 +115,20 @@ static const struct aes_regwrite init_reqs[] = {
 
 static void do_capture(struct fp_img_dev *dev);
 
-static void img_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void img_cb(struct libusb_transfer *transfer)
 {
-	struct fp_img_dev *dev = user_data;
+	struct fp_img_dev *dev = transfer->user_data;
 	struct aes4k_dev *aesdev = dev->priv;
-	unsigned char *ptr = data;
+	unsigned char *ptr = transfer->buffer;
 	struct fp_img *img;
 	int i;
 
-	if (status == FP_URB_CANCELLED) {
+	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
 		goto err;
-	} else if (status != FP_URB_COMPLETED) {
+	} else if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_imgdev_session_error(dev, -EIO);
 		goto err;
-	} else if (rqlength != actual_length) {
+	} else if (transfer->length != transfer->actual_length) {
 		fpi_imgdev_session_error(dev, -EPROTO);
 		goto err;
 	}
@@ -155,25 +153,33 @@ static void img_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 	do_capture(dev);
 
 err:
-	g_free(data);
+	g_free(transfer->buffer);
 	aesdev->img_trf = NULL;
-	libusb_urb_handle_free(urbh);
+	libusb_free_transfer(transfer);
 }
 
 static void do_capture(struct fp_img_dev *dev)
 {
 	struct aes4k_dev *aesdev = dev->priv;
-	struct libusb_bulk_transfer trf = {
-		.endpoint = EP_IN,
-		.length = DATA_BUFLEN,
-		.data = g_malloc(DATA_BUFLEN),
-	};
+	unsigned char *data;
+	int r;
 
-	aesdev->img_trf = libusb_async_bulk_transfer(dev->udev, &trf, img_cb, dev,
-		0);
+	aesdev->img_trf = libusb_alloc_transfer();
 	if (!aesdev->img_trf) {
-		g_free(trf.data);
 		fpi_imgdev_session_error(dev, -EIO);
+		return;
+	}
+
+	data = g_malloc(DATA_BUFLEN);
+	libusb_fill_bulk_transfer(aesdev->img_trf, dev->udev, EP_IN, data,
+		DATA_BUFLEN, img_cb, dev, 0);
+
+	r = libusb_submit_transfer(aesdev->img_trf);
+	if (r < 0) {
+		g_free(data);
+		libusb_free_transfer(aesdev->img_trf);
+		aesdev->img_trf = NULL;
+		fpi_imgdev_session_error(dev, r);
 	}
 }
 
@@ -198,7 +204,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 	 * from deactivation, otherwise app may legally exit before we've
 	 * cleaned up */
 	if (aesdev->img_trf)
-		libusb_urb_handle_cancel(dev->udev, aesdev->img_trf);
+		libusb_cancel_transfer(aesdev->img_trf);
 	fpi_imgdev_deactivate_complete(dev);
 }
 

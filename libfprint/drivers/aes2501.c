@@ -79,48 +79,53 @@ struct aes2501_read_regs {
 	void *user_data;
 };
 
-static void read_regs_data_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint, int rqlength,
-	unsigned char *data, int actual_length, void *user_data)
+static void read_regs_data_cb(struct libusb_transfer *transfer)
 {
-	struct aes2501_read_regs *rdata = user_data;
+	struct aes2501_read_regs *rdata = transfer->user_data;
 	unsigned char *retdata = NULL;
 	int r;
 
-	if (status != FP_URB_COMPLETED) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		r = -EIO;
-	} else if (rqlength != actual_length) {
+	} else if (transfer->length != transfer->actual_length) {
 		r = -EPROTO;
 	} else {
 		r = 0;
-		retdata = data;
+		retdata = transfer->buffer;
 	}
 
 	rdata->callback(rdata->dev, r, retdata, rdata->user_data);
-	libusb_urb_handle_free(urbh);
-	g_free(data);
 	g_free(rdata);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 }
 
 static void read_regs_rq_cb(struct fp_img_dev *dev, int result, void *user_data)
 {
 	struct aes2501_read_regs *rdata = user_data;
-	struct libusb_urb_handle *urbh;
-	struct libusb_bulk_transfer trf = {
-		.endpoint = EP_IN,
-		.length = 126,
-	};
+	struct libusb_transfer *transfer;
+	unsigned char *data;
+	int r;
 
 	g_free(rdata->regwrite);
 	if (result != 0)
 		goto err;
 
-	trf.data = g_malloc(trf.length);
-	urbh = libusb_async_bulk_transfer(dev->udev, &trf, read_regs_data_cb,
-		rdata, BULK_TIMEOUT);
-	if (!urbh) {
-		g_free(trf.data);
-		result = EIO;
+	transfer = libusb_alloc_transfer();
+	if (!transfer) {
+		result = -ENOMEM;
+		goto err;
+	}
+
+	data = g_malloc(126);
+	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, 126,
+		read_regs_data_cb, rdata, BULK_TIMEOUT);
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(data);
+		libusb_free_transfer(transfer);
+		result = -EIO;
 		goto err;
 	}
 
@@ -179,40 +184,43 @@ static void generic_write_regv_cb(struct fp_img_dev *dev, int result,
 }
 
 /* check that read succeeded but ignore all data */
-static void generic_ignore_data_cb(libusb_dev_handle *devh,
-	libusb_urb_handle *urbh, enum libusb_urb_cb_status status,
-	unsigned char endpoint, int rqlength, unsigned char *data,
-	int actual_length, void *user_data)
+static void generic_ignore_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = user_data;
+	struct fpi_ssm *ssm = transfer->user_data;
 
-	libusb_urb_handle_free(urbh);
-	g_free(data);
-
-	if (status != FP_URB_COMPLETED)
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
 		fpi_ssm_mark_aborted(ssm, -EIO);
-	else if (rqlength != actual_length)
+	else if (transfer->length != transfer->actual_length)
 		fpi_ssm_mark_aborted(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
+
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
 }
 
 /* read the specified number of bytes from the IN endpoint but throw them
  * away, then increment the SSM */
 static void generic_read_ignore_data(struct fpi_ssm *ssm, size_t bytes)
 {
-	struct libusb_urb_handle *urbh;
-	struct libusb_bulk_transfer trf = {
-		.endpoint = EP_IN,
-		.data = g_malloc(bytes),
-		.length = bytes,
-	};
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	unsigned char *data;
+	int r;
 
-	urbh = libusb_async_bulk_transfer(ssm->dev->udev, &trf,
+	if (!transfer) {
+		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		return;
+	}
+
+	data = g_malloc(bytes);
+	libusb_fill_bulk_transfer(transfer, ssm->dev->udev, EP_IN, data, bytes,
 		generic_ignore_data_cb, ssm, BULK_TIMEOUT);
-	if (!urbh) {
-		g_free(trf.data);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(data);
+		libusb_free_transfer(transfer);
+		fpi_ssm_mark_aborted(ssm, r);
 	}
 }
 
@@ -382,19 +390,17 @@ static const struct aes_regwrite finger_det_reqs[] = {
 
 static void start_finger_detection(struct fp_img_dev *dev);
 
-static void finger_det_data_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
-	enum libusb_urb_cb_status status, unsigned char endpoint,
-	int rqlength, unsigned char *data, int actual_length, void *user_data)
+static void finger_det_data_cb(struct libusb_transfer *transfer)
 {
-	struct fp_img_dev *dev = user_data;
+	struct fp_img_dev *dev = transfer->user_data;
+	unsigned char *data = transfer->buffer;
 	int i;
 	int sum = 0;
 
-	libusb_urb_handle_free(urbh);
-	if (status != FP_URB_COMPLETED) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_imgdev_session_error(dev, -EIO);
 		goto out;
-	} else if (rqlength != actual_length) {
+	} else if (transfer->length != transfer->actual_length) {
 		fpi_imgdev_session_error(dev, -EPROTO);
 		goto out;
 	}
@@ -413,28 +419,36 @@ static void finger_det_data_cb(libusb_dev_handle *devh, libusb_urb_handle *urbh,
 
 out:
 	g_free(data);
+	libusb_free_transfer(transfer);
 }
 
 static void finger_det_reqs_cb(struct fp_img_dev *dev, int result,
 	void *user_data)
 {
-	struct libusb_urb_handle *urbh;
-	struct libusb_bulk_transfer trf = {
-		.endpoint = EP_IN,
-		.length = 20,
-	};
+	struct libusb_transfer *transfer;
+	unsigned char *data;
+	int r;
 
 	if (result) {
 		fpi_imgdev_session_error(dev, result);
 		return;
 	}
 
-	trf.data = g_malloc(trf.length);
-	urbh = libusb_async_bulk_transfer(dev->udev, &trf, finger_det_data_cb,
-		dev, BULK_TIMEOUT);
-	if (!urbh) {
-		g_free(trf.data);
-		fpi_imgdev_session_error(dev, -EIO);
+	transfer = libusb_alloc_transfer();
+	if (!transfer) {
+		fpi_imgdev_session_error(dev, -ENOMEM);
+		return;
+	}
+
+	data = g_malloc(20);
+	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, 20,
+		finger_det_data_cb, dev, BULK_TIMEOUT);
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(data);
+		libusb_free_transfer(transfer);
+		fpi_imgdev_session_error(dev, r);
 	}
 }
 
@@ -527,23 +541,20 @@ enum capture_states {
 	CAPTURE_NUM_STATES,
 };
 
-static void capture_read_strip_cb(libusb_dev_handle *devh,
-	libusb_urb_handle *urbh, enum libusb_urb_cb_status status,
-	unsigned char endpoint, int rqlength, unsigned char *data,
-	int actual_length, void *user_data)
+static void capture_read_strip_cb(struct libusb_transfer *transfer)
 {
 	unsigned char *stripdata;
-	struct fpi_ssm *ssm = user_data;
+	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = ssm->priv;
 	struct aes2501_dev *aesdev = dev->priv;
+	unsigned char *data = transfer->buffer;
 	int sum;
 	int threshold;
 
-	libusb_urb_handle_free(urbh);
-	if (status != FP_URB_COMPLETED) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_mark_aborted(ssm, -EIO);
 		goto out;
-	} else if (rqlength != actual_length) {
+	} else if (transfer->length != transfer->actual_length) {
 		fpi_ssm_mark_aborted(ssm, -EPROTO);
 		goto out;
 	}
@@ -587,12 +598,14 @@ static void capture_read_strip_cb(libusb_dev_handle *devh,
 
 out:
 	g_free(data);
+	libusb_free_transfer(transfer);
 }
 
 static void capture_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct aes2501_dev *aesdev = dev->priv;
+	int r;
 
 	switch (ssm->cur_state) {
 	case CAPTURE_WRITE_REQS_1:
@@ -617,17 +630,23 @@ static void capture_run_state(struct fpi_ssm *ssm)
 				generic_write_regv_cb, ssm);
 		break;
 	case CAPTURE_READ_STRIP: ;
-		struct libusb_urb_handle *urbh;
-		struct libusb_bulk_transfer trf = {
-			.endpoint = EP_IN,
-			.data = g_malloc(1705),
-			.length = 1705,
-		};
-		urbh = libusb_async_bulk_transfer(dev->udev, &trf,
+		struct libusb_transfer *transfer = libusb_alloc_transfer();
+		unsigned char *data;
+
+		if (!transfer) {
+			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			break;
+		}
+
+		data = g_malloc(1705);
+		libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, 1705,
 			capture_read_strip_cb, ssm, BULK_TIMEOUT);
-		if (!urbh) {
-			g_free(trf.data);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+
+		r = libusb_submit_transfer(transfer);
+		if (r < 0) {
+			g_free(data);
+			libusb_free_transfer(transfer);
+			fpi_ssm_mark_aborted(ssm, r);
 		}
 		break;
 	};

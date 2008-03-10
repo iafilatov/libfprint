@@ -180,7 +180,7 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 	int stage = dev->__enroll_stage;
 	gboolean final = FALSE;
 	gboolean stopped = FALSE;
-	struct sync_enroll_data *edata;
+	struct sync_enroll_data *edata = NULL;
 	int r;
 	fp_dbg("");
 
