@@ -263,6 +263,9 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 		break;
 	}
 
+	if (!final)
+		return r;
+
 out:
 	if (final) {
 		fp_dbg("ending enrollment");
