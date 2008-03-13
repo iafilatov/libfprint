@@ -291,21 +291,26 @@ API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
  */
 API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
 {
-	struct libusb_pollfd *usbfds;
+	struct libusb_pollfd **usbfds;
+	struct libusb_pollfd *usbfd;
 	struct fp_pollfd *ret;
-	size_t cnt;
-	size_t i;
+	size_t cnt = 0;
+	size_t i = 0;
 
-	cnt = libusb_get_pollfds(&usbfds);
-	if (cnt <= 0) {
+	usbfds = libusb_get_pollfds();
+	if (!usbfds) {
 		*pollfds = NULL;
-		return cnt;
+		return -EIO;
 	}
 
-	ret = g_malloc(sizeof(struct libusb_pollfd) * cnt);
-	for (i = 0; i < cnt; i++) {
-		ret[i].fd = usbfds[i].fd;
-		ret[i].events = usbfds[i].events;
+	while ((usbfd = usbfds[i++]) != NULL)
+		cnt++;
+
+	ret = g_malloc(sizeof(struct fp_pollfd) * cnt);
+	i = 0;
+	while ((usbfd = usbfds[i++]) != NULL) {
+		ret[i].fd = usbfd->fd;
+		ret[i].events = usbfd->events;
 	}
 
 	*pollfds = ret;
