@@ -51,7 +51,7 @@ enum {
 enum {
 	REG_HWSTAT = 0x07,
 	REG_MODE = 0x4e,
-	FIRMWARE_START = 0x100,
+	/* firmware starts at 0x100 */
 	REG_RESPONSE = 0x2000,
 	REG_CHALLENGE = 0x2010,
 };
@@ -76,40 +76,44 @@ enum {
 
 static const struct uru4k_dev_profile {
 	const char *name;
-	uint16_t firmware_start;
-	uint16_t fw_enc_offset;
 	gboolean auth_cr;
 } uru4k_dev_info[] = {
 	[MS_KBD] = {
 		.name = "Microsoft Keyboard with Fingerprint Reader",
-		.fw_enc_offset = 0x411,
 		.auth_cr = FALSE,
 	},
 	[MS_INTELLIMOUSE] = {
 		.name = "Microsoft Wireless IntelliMouse with Fingerprint Reader",
-		.fw_enc_offset = 0x411,
 		.auth_cr = FALSE,
 	},
 	[MS_STANDALONE] = {
 		.name = "Microsoft Fingerprint Reader",
-		.fw_enc_offset = 0x411,
 		.auth_cr = FALSE,
 	},
 	[MS_STANDALONE_V2] = {
 		.name = "Microsoft Fingerprint Reader v2",
-		.fw_enc_offset = 0x52e,
 		.auth_cr = TRUE,	
 	},
 	[DP_URU4000] = {
 		.name = "Digital Persona U.are.U 4000",
-		.fw_enc_offset = 0x693,
 		.auth_cr = FALSE,
 	},
 	[DP_URU4000B] = {
 		.name = "Digital Persona U.are.U 4000B",
-		.fw_enc_offset = 0x411,
 		.auth_cr = FALSE,
 	},
+};
+
+/* As we don't know the encryption scheme, we have to disable encryption
+ * by powering the device down and modifying the firmware. The location of
+ * the encryption control byte changes based on device revision.
+ *
+ * We use a search approach to find it: we look at the 3 bytes of data starting
+ * from these addresses, looking for a pattern "ff X7 41" (where X is dontcare)
+ * When we find a pattern we know that the encryption byte ius the X7 byte.
+ */
+static const uint16_t fwenc_offsets[] = {
+	0x510, 0x62d, 0x792,
 };
 
 typedef void (*irq_cb_fn)(struct fp_img_dev *dev, int status, uint16_t type,
@@ -136,6 +140,9 @@ struct uru4k_dev {
 
 	int scanpwr_irq_timeouts;
 	struct fpi_timeout *scanpwr_irq_timeout;
+
+	int fwfixer_offset;
+	unsigned char fwfixer_value;
 
 	AES_KEY aeskey;
 };
@@ -644,47 +651,76 @@ static void sm_set_hwstat(struct fpi_ssm *ssm, unsigned char value)
 	sm_write_reg(ssm, REG_HWSTAT, value);
 }
 
-static void sm_fix_fw_read_cb(struct fp_img_dev *dev, int status,
+/***** INITIALIZATION *****/
+
+enum fwfixer_states {
+	FWFIXER_INIT,
+	FWFIXER_READ_NEXT,
+	FWFIXER_WRITE,
+	FWFIXER_NUM_STATES,
+};
+
+static void fwfixer_read_cb(struct fp_img_dev *dev, int status,
 	unsigned char *data, void *user_data)
 {
 	struct fpi_ssm *ssm = user_data;
 	struct uru4k_dev *urudev = dev->priv;
-	unsigned char new;
-	unsigned char fwenc;
-	uint16_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
 
-	if (status != 0) {
+	if (status != 0)
 		fpi_ssm_mark_aborted(ssm, status);
-		return;
-	}
 
-	fwenc = data[0];
-	fp_dbg("firmware encryption byte at %x reads %02x", enc_addr, fwenc);
-	if (fwenc != 0x07 && fwenc != 0x17)
-		fp_dbg("strange encryption byte value, please report this");
-
-	new = fwenc & 0xef;
-	if (new == fwenc) {
-		fpi_ssm_next_state(ssm);
+	fp_dbg("data: %02x %02x %02x", data[0], data[1], data[2]);
+	if (data[0] == 0xff && (data[1] & 0x0f) == 0x07 && data[2] == 0x41) {
+		fp_dbg("using offset %x", fwenc_offsets[urudev->fwfixer_offset]);
+		urudev->fwfixer_value = data[1];
+		fpi_ssm_jump_to_state(ssm, FWFIXER_WRITE);
 	} else {
-		fp_dbg("fixed encryption byte to %02x", new);
-		sm_write_reg(ssm, enc_addr, new);
+		fpi_ssm_jump_to_state(ssm, FWFIXER_READ_NEXT);
 	}
 }
 
-static void sm_fix_firmware(struct fpi_ssm *ssm)
+static void fwfixer_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
-	uint16_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
 	int r;
 
-	r = read_reg(dev, enc_addr, sm_fix_fw_read_cb, ssm);
-	if (r < 0)
-		fpi_ssm_mark_aborted(ssm, r);
-}
+	switch (ssm->cur_state) {
+	case FWFIXER_INIT:
+		urudev->fwfixer_offset = -1;
+		fpi_ssm_next_state(ssm);
+		break;
+	case FWFIXER_READ_NEXT: ;
+		int offset = ++urudev->fwfixer_offset;
+		uint16_t try_addr;
 
-/***** INITIALIZATION *****/
+		if (offset == G_N_ELEMENTS(fwenc_offsets)) {
+			fp_err("could not find encryption byte");
+			fpi_ssm_mark_aborted(ssm, -ENODEV);
+			return;
+		}
+
+		try_addr = fwenc_offsets[offset];
+		fp_dbg("looking for encryption byte at %x", try_addr);
+
+		r = read_regs(dev, try_addr, 3, fwfixer_read_cb, ssm);
+		if (r < 0)
+			fpi_ssm_mark_aborted(ssm, r);
+		break;
+	case FWFIXER_WRITE: ;
+		uint16_t enc_addr = fwenc_offsets[urudev->fwfixer_offset] + 1;
+		unsigned char cur = urudev->fwfixer_value;
+		unsigned char new = cur & 0xef;
+		if (new == cur) {
+			fp_dbg("encryption is already disabled");
+			fpi_ssm_next_state(ssm);
+		} else {
+			fp_dbg("fixing encryption byte at %x to %02x", enc_addr, new);
+			sm_write_reg(ssm, enc_addr, new);
+		}
+		break;
+	}
+}
 
 /* After closing an app and setting hwstat to 0x80, my ms keyboard gets in a
  * confused state and returns hwstat 0x85. On next app run, we don't get the
@@ -938,8 +974,11 @@ static void init_run_state(struct fpi_ssm *ssm)
 		else
 			fpi_ssm_next_state(ssm);
 		break;
-	case INIT_FIX_FIRMWARE:
-		sm_fix_firmware(ssm);
+	case INIT_FIX_FIRMWARE: ;
+		struct fpi_ssm *fwsm = fpi_ssm_new(dev->dev, fwfixer_run_state,
+			FWFIXER_NUM_STATES);
+		fwsm->priv = dev;
+		fpi_ssm_start_subsm(ssm, fwsm);
 		break;
 	case INIT_POWERUP: ;
 		struct fpi_ssm *powerupsm = fpi_ssm_new(dev->dev, powerup_run_state,
