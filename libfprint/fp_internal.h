@@ -240,6 +240,7 @@ extern struct fp_img_driver aes1610_driver;
 extern struct fp_img_driver aes2501_driver;
 extern struct fp_img_driver aes4000_driver;
 extern struct fp_img_driver fdu2000_driver;
+extern struct fp_img_driver vcom5s_driver;
 
 extern GSList *opened_devices;
 
