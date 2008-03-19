@@ -170,7 +170,7 @@ static void set_reg_cb(struct libusb_transfer *transfer)
 	g_free(srdata);
 }
 
-static int set_reg(struct fp_img_dev *dev, unsigned char reg,
+static int set_reg(struct fp_img_dev *dev, uint16_t reg,
 	unsigned char value, set_reg_cb_fn callback, void *user_data)
 {
 	struct set_reg_data *srdata;
@@ -576,7 +576,7 @@ static void sm_set_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
 		fpi_ssm_next_state(ssm);
 }
 
-static void sm_set_reg(struct fpi_ssm *ssm, unsigned char reg,
+static void sm_set_reg(struct fpi_ssm *ssm, uint16_t reg,
 	unsigned char value)
 {
 	struct fp_img_dev *dev = ssm->priv;
@@ -652,7 +652,7 @@ static void sm_fix_fw_read_cb(struct libusb_transfer *transfer)
 	struct uru4k_dev *urudev = dev->priv;
 	unsigned char new;
 	unsigned char fwenc;
-	uint32_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
+	uint16_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_mark_aborted(ssm, -EIO);
@@ -684,7 +684,7 @@ static void sm_fix_firmware(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
-	uint32_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
+	uint16_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
 	struct libusb_transfer *transfer = libusb_alloc_transfer();
 	unsigned char *data;
 	int r;
