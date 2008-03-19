@@ -120,7 +120,8 @@ struct uru4k_dev {
 	const struct uru4k_dev_profile *profile;
 	uint8_t interface;
 	enum fp_imgdev_state activate_state;
-	unsigned char last_hwstat_rd;
+	unsigned char last_reg_rd;
+	unsigned char last_hwstat;
 
 	struct libusb_transfer *irq_transfer;
 	struct libusb_transfer *img_transfer;
@@ -145,35 +146,40 @@ static const unsigned char crkey[] = {
 	0x98, 0xe0, 0x0f, 0x3c, 0x59, 0x8f, 0x5f, 0x4b,
 };
 
-typedef void (*set_reg_cb_fn)(struct fp_img_dev *dev, int status,
+/***** REGISTER I/O *****/
+
+typedef void (*write_regs_cb_fn)(struct fp_img_dev *dev, int status,
 	void *user_data);
 
-struct set_reg_data {
+struct write_regs_data {
 	struct fp_img_dev *dev;
-	set_reg_cb_fn callback;
+	write_regs_cb_fn callback;
 	void *user_data;
 };
 
-static void set_reg_cb(struct libusb_transfer *transfer)
+static void write_regs_cb(struct libusb_transfer *transfer)
 {
-	struct set_reg_data *srdata = transfer->user_data;
+	struct write_regs_data *wrdata = transfer->user_data;
+	struct libusb_control_setup *setup =
+		libusb_control_transfer_get_setup(transfer);
 	int r = 0;
 	
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
 		r = -EIO;
-	else if (transfer->actual_length != 1)
+	else if (transfer->actual_length != setup->wLength)
 		r = -EPROTO;
 
 	g_free(transfer->buffer);
 	libusb_free_transfer(transfer);
-	srdata->callback(srdata->dev, r, srdata->user_data);
-	g_free(srdata);
+	wrdata->callback(wrdata->dev, r, wrdata->user_data);
+	g_free(wrdata);
 }
 
-static int set_reg(struct fp_img_dev *dev, uint16_t reg,
-	unsigned char value, set_reg_cb_fn callback, void *user_data)
+static int write_regs(struct fp_img_dev *dev, uint16_t first_reg,
+	uint16_t num_regs, unsigned char *values, write_regs_cb_fn callback,
+	void *user_data)
 {
-	struct set_reg_data *srdata;
+	struct write_regs_data *wrdata;
 	struct libusb_transfer *transfer = libusb_alloc_transfer();
 	unsigned char *data;
 	int r;
@@ -181,24 +187,96 @@ static int set_reg(struct fp_img_dev *dev, uint16_t reg,
 	if (!transfer)
 		return -ENOMEM;
 
-	srdata = g_malloc(sizeof(*srdata));
-	srdata->dev = dev;
-	srdata->callback = callback;
-	srdata->user_data = user_data;
+	wrdata = g_malloc(sizeof(*wrdata));
+	wrdata->dev = dev;
+	wrdata->callback = callback;
+	wrdata->user_data = user_data;
 
-	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
-	data[LIBUSB_CONTROL_SETUP_SIZE] = value;
-	libusb_fill_control_setup(data, CTRL_OUT, USB_RQ, reg, 0, 1);
-	libusb_fill_control_transfer(transfer, dev->udev, data, set_reg_cb,
-		srdata, CTRL_TIMEOUT);
+	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + num_regs);
+	memcpy(data + LIBUSB_CONTROL_SETUP_SIZE, values, num_regs);
+	libusb_fill_control_setup(data, CTRL_OUT, USB_RQ, first_reg, 0, num_regs);
+	libusb_fill_control_transfer(transfer, dev->udev, data, write_regs_cb,
+		wrdata, CTRL_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
-		g_free(srdata);
+		g_free(wrdata);
 		g_free(data);
 		libusb_free_transfer(transfer);
 	}
 	return r;
+}
+
+static int write_reg(struct fp_img_dev *dev, uint16_t reg,
+	unsigned char value, write_regs_cb_fn callback, void *user_data)
+{
+	return write_regs(dev, reg, 1, &value, callback, user_data);
+}
+
+typedef void (*read_regs_cb_fn)(struct fp_img_dev *dev, int status,
+	unsigned char *data, void *user_data);
+
+struct read_regs_data {
+	struct fp_img_dev *dev;
+	read_regs_cb_fn callback;
+	void *user_data;
+};
+
+static void read_regs_cb(struct libusb_transfer *transfer)
+{
+	struct read_regs_data *rrdata = transfer->user_data;
+	struct libusb_control_setup *setup =
+		libusb_control_transfer_get_setup(transfer);
+	unsigned char *data = NULL;
+	int r = 0;
+	
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
+		r = -EIO;
+	else if (transfer->actual_length != setup->wLength)
+		r = -EPROTO;
+	else
+		data = libusb_control_transfer_get_data(transfer);
+
+	rrdata->callback(rrdata->dev, r, data, rrdata->user_data);
+	g_free(rrdata);
+	g_free(transfer->buffer);
+	libusb_free_transfer(transfer);
+}
+
+static int read_regs(struct fp_img_dev *dev, uint16_t first_reg,
+	uint16_t num_regs, read_regs_cb_fn callback, void *user_data)
+{
+	struct read_regs_data *rrdata;
+	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	unsigned char *data;
+	int r;
+
+	if (!transfer)
+		return -ENOMEM;
+
+	rrdata = g_malloc(sizeof(*rrdata));
+	rrdata->dev = dev;
+	rrdata->callback = callback;
+	rrdata->user_data = user_data;
+
+	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + num_regs);
+	libusb_fill_control_setup(data, CTRL_IN, USB_RQ, first_reg, 0, num_regs);
+	libusb_fill_control_transfer(transfer, dev->udev, data, read_regs_cb,
+		rrdata, CTRL_TIMEOUT);
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		g_free(rrdata);
+		g_free(data);
+		libusb_free_transfer(transfer);
+	}
+	return r;
+}
+
+static int read_reg(struct fp_img_dev *dev, uint16_t reg,
+	read_regs_cb_fn callback, void *user_data)
+{
+	return read_regs(dev, reg, 1, callback, user_data);
 }
 
 /*
@@ -226,74 +304,38 @@ static int set_reg(struct fp_img_dev *dev, uint16_t reg,
  * and interrupt to the host. Maybe?
  */
 
-typedef void (*challenge_response_cb)(struct fp_img_dev *dev, int result,
-	void *user_data);
-
-struct c_r_data {
-	struct fp_img_dev *dev;
-	challenge_response_cb callback;
-	void *user_data;
-};
-
-static void response_cb(struct libusb_transfer *transfer)
+static void response_cb(struct fp_img_dev *dev, int status, void *user_data)
 {
-	struct c_r_data *crdata = transfer->user_data;
-	int r = 0;
-	
-	if (transfer->status == LIBUSB_TRANSFER_COMPLETED)
-		r = -EIO;
-	else if (transfer->actual_length != CR_LENGTH)
-		r = -EPROTO;
-
-	g_free(transfer->buffer);
-	libusb_free_transfer(transfer);
-	crdata->callback(crdata->dev, r, crdata->user_data);
+	struct fpi_ssm *ssm = user_data;
+	if (status == 0)
+		fpi_ssm_next_state(ssm);
+	else
+		fpi_ssm_mark_aborted(ssm, status);
 }
 
-static void challenge_cb(struct libusb_transfer *transfer)
+static void challenge_cb(struct fp_img_dev *dev, int status,
+	unsigned char *data, void *user_data)
 {
-	struct c_r_data *crdata = transfer->user_data;
-	struct fp_img_dev *dev = crdata->dev;
+	struct fpi_ssm *ssm = user_data;
 	struct uru4k_dev *urudev = dev->priv;
-	struct libusb_transfer *resp_transfer;
 	unsigned char *respdata;
 	int r;
 
-	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		crdata->callback(crdata->dev, -EIO, crdata->user_data);
-		goto out;
-	} else if (transfer->actual_length != CR_LENGTH) {
-		crdata->callback(crdata->dev, -EPROTO, crdata->user_data);
-		goto out;
+	if (status != 0) {
+		fpi_ssm_mark_aborted(ssm, status);
+		return;
 	}
 
 	/* submit response */
-	resp_transfer = libusb_alloc_transfer();
-	if (!resp_transfer) {
-		crdata->callback(crdata->dev, -ENOMEM, crdata->user_data);
-		goto out;
-	}
-
-	respdata = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + CR_LENGTH);
-	libusb_fill_control_setup(respdata, CTRL_OUT, USB_RQ, REG_RESPONSE, 0,
-		CR_LENGTH);
-	libusb_fill_control_transfer(transfer, dev->udev, respdata, response_cb,
-		crdata, CTRL_TIMEOUT);
-
 	/* produce response from challenge */
-	AES_encrypt(libusb_control_transfer_get_data(transfer),
-		respdata + LIBUSB_CONTROL_SETUP_SIZE, &urudev->aeskey);
-
-	r = libusb_submit_transfer(resp_transfer);
-	if (r < 0) {
-		g_free(respdata);
-		libusb_free_transfer(resp_transfer);
-		crdata->callback(crdata->dev, r, crdata->user_data);
-	}
-
-out:
-	g_free(transfer->buffer);
-	libusb_free_transfer(transfer);
+	/* FIXME would this work in-place? */
+	respdata = g_malloc(CR_LENGTH);
+	AES_encrypt(data, respdata, &urudev->aeskey);
+	
+	r = write_regs(dev, REG_RESPONSE, CR_LENGTH, respdata, response_cb, ssm);
+	g_free(respdata);
+	if (r < 0)
+		fpi_ssm_mark_aborted(ssm, r);
 }
 
 /*
@@ -301,36 +343,15 @@ out:
  * authentication scheme, where the device challenges the authenticity of the
  * driver.
  */
-static int do_challenge_response(struct fp_img_dev *dev,
-	challenge_response_cb callback, void *user_data)
+static void sm_do_challenge_response(struct fpi_ssm *ssm)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer();;
-	struct c_r_data *crdata;
-	unsigned char *data;
+	struct fp_img_dev *dev = ssm->priv;
 	int r;
 
 	fp_dbg("");
-	if (!transfer)
-		return -ENOMEM;
-
-	crdata = g_malloc(sizeof(*crdata));
-	crdata->dev = dev;
-	crdata->callback = callback;
-	crdata->user_data = user_data;
-
-	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + CR_LENGTH);
-	libusb_fill_control_setup(data, CTRL_IN, USB_RQ, REG_CHALLENGE, 0,
-		CR_LENGTH);
-	libusb_fill_control_transfer(transfer, dev->udev, data, challenge_cb,
-		crdata, CTRL_TIMEOUT);
-
-	r = libusb_submit_transfer(transfer);
-	if (r < 0) {
-		g_free(crdata);
-		g_free(data);
-		libusb_free_transfer(transfer);
-	}
-	return r;
+	r = read_regs(dev, REG_CHALLENGE, CR_LENGTH, challenge_cb, ssm);
+	if (r < 0)
+		fpi_ssm_mark_aborted(ssm, r);
 }
 
 /***** INTERRUPT HANDLING *****/
@@ -524,7 +545,7 @@ static void finger_presence_irq_cb(struct fp_img_dev *dev, int status,
 		fp_warn("ignoring unexpected interrupt %04x", type);
 }
 
-static void change_state_set_reg_cb(struct fp_img_dev *dev, int status,
+static void change_state_write_reg_cb(struct fp_img_dev *dev, int status,
 	void *user_data)
 {
 	if (status)
@@ -542,21 +563,21 @@ static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 		if (!IRQ_HANDLER_IS_RUNNING(urudev))
 			return -EIO;
 		urudev->irq_cb = finger_presence_irq_cb;
-		return set_reg(dev, REG_MODE, MODE_AWAIT_FINGER_ON,
-			change_state_set_reg_cb, NULL);
+		return write_reg(dev, REG_MODE, MODE_AWAIT_FINGER_ON,
+			change_state_write_reg_cb, NULL);
 
 	case IMGDEV_STATE_CAPTURE:
 		urudev->irq_cb = NULL;
 		start_imaging_loop(dev);
-		return set_reg(dev, REG_MODE, MODE_CAPTURE, change_state_set_reg_cb,
+		return write_reg(dev, REG_MODE, MODE_CAPTURE, change_state_write_reg_cb,
 			NULL);
 
 	case IMGDEV_STATE_AWAIT_FINGER_OFF:
 		if (!IRQ_HANDLER_IS_RUNNING(urudev))
 			return -EIO;
 		urudev->irq_cb = finger_presence_irq_cb;
-		return set_reg(dev, REG_MODE, MODE_AWAIT_FINGER_OFF,
-			change_state_set_reg_cb, NULL);
+		return write_reg(dev, REG_MODE, MODE_AWAIT_FINGER_OFF,
+			change_state_write_reg_cb, NULL);
 
 	default:
 		fp_err("unrecognised state %d", state);
@@ -566,7 +587,7 @@ static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 /***** GENERIC STATE MACHINE HELPER FUNCTIONS *****/
 
-static void sm_set_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
+static void sm_write_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
 {
 	struct fpi_ssm *ssm = user_data;
 
@@ -576,11 +597,37 @@ static void sm_set_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
 		fpi_ssm_next_state(ssm);
 }
 
-static void sm_set_reg(struct fpi_ssm *ssm, uint16_t reg,
+static void sm_write_reg(struct fpi_ssm *ssm, uint16_t reg,
 	unsigned char value)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	int r = set_reg(dev, reg, value, sm_set_reg_cb, ssm);
+	int r = write_reg(dev, reg, value, sm_write_reg_cb, ssm);
+	if (r < 0)
+		fpi_ssm_mark_aborted(ssm, r);
+}
+
+static void sm_read_reg_cb(struct fp_img_dev *dev, int result,
+	unsigned char *data, void *user_data)
+{
+	struct fpi_ssm *ssm = user_data;
+	struct uru4k_dev *urudev = dev->priv;
+
+	if (result) {
+		fpi_ssm_mark_aborted(ssm, result);
+	} else {
+		urudev->last_reg_rd = *data;
+		fp_dbg("reg value %x", urudev->last_reg_rd);
+		fpi_ssm_next_state(ssm);
+	}
+}
+
+static void sm_read_reg(struct fpi_ssm *ssm, uint16_t reg)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	int r;
+	
+	fp_dbg("read reg %x", reg);
+	r = read_reg(dev, reg, sm_read_reg_cb, ssm);
 	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);
 }
@@ -588,81 +635,30 @@ static void sm_set_reg(struct fpi_ssm *ssm, uint16_t reg,
 static void sm_set_mode(struct fpi_ssm *ssm, unsigned char mode)
 {
 	fp_dbg("mode %02x", mode);
-	sm_set_reg(ssm, REG_MODE, mode);
+	sm_write_reg(ssm, REG_MODE, mode);
 }
 
 static void sm_set_hwstat(struct fpi_ssm *ssm, unsigned char value)
 {
 	fp_dbg("set %02x", value);
-	sm_set_reg(ssm, REG_HWSTAT, value);
+	sm_write_reg(ssm, REG_HWSTAT, value);
 }
 
-static void sm_get_hwstat_cb(struct libusb_transfer *transfer)
+static void sm_fix_fw_read_cb(struct fp_img_dev *dev, int status,
+	unsigned char *data, void *user_data)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
-
-	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		fpi_ssm_mark_aborted(ssm, -EIO);
-	} else if (transfer->actual_length != 1) {
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
-	} else {
-		urudev->last_hwstat_rd = libusb_control_transfer_get_data(transfer)[0];
-		fp_dbg("value %02x", urudev->last_hwstat_rd);
-		fpi_ssm_next_state(ssm);
-	}
-	g_free(transfer->buffer);
-	libusb_free_transfer(transfer);
-}
-
-static void sm_get_hwstat(struct fpi_ssm *ssm)
-{
-	struct fp_img_dev *dev = ssm->priv;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
-	unsigned char *data;
-	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
-		return;
-	}
-
-	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
-
-	/* The windows driver uses a request of 0x0c here. We use 0x04 to be
-	 * consistent with every other command we know about. */
-	/* FIXME is the above comment still true? */
-	libusb_fill_control_setup(data, CTRL_IN, USB_RQ, REG_HWSTAT, 0, 1);
-	libusb_fill_control_transfer(transfer, dev->udev, data, sm_get_hwstat_cb,
-		ssm, CTRL_TIMEOUT);
-
-	r = libusb_submit_transfer(transfer);
-	if (r < 0) {
-		g_free(data);
-		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, -EIO);
-	}
-}
-
-static void sm_fix_fw_read_cb(struct libusb_transfer *transfer)
-{
-	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fpi_ssm *ssm = user_data;
 	struct uru4k_dev *urudev = dev->priv;
 	unsigned char new;
 	unsigned char fwenc;
 	uint16_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
 
-	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		fpi_ssm_mark_aborted(ssm, -EIO);
-		goto out;
-	} else if (transfer->actual_length != 1) {
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
-		goto out;
+	if (status != 0) {
+		fpi_ssm_mark_aborted(ssm, status);
+		return;
 	}
 
-	fwenc = libusb_control_transfer_get_data(transfer)[0];
+	fwenc = data[0];
 	fp_dbg("firmware encryption byte at %x reads %02x", enc_addr, fwenc);
 	if (fwenc != 0x07 && fwenc != 0x17)
 		fp_dbg("strange encryption byte value, please report this");
@@ -672,12 +668,8 @@ static void sm_fix_fw_read_cb(struct libusb_transfer *transfer)
 		fpi_ssm_next_state(ssm);
 	} else {
 		fp_dbg("fixed encryption byte to %02x", new);
-		sm_set_reg(ssm, enc_addr, new);
+		sm_write_reg(ssm, enc_addr, new);
 	}
-
-out:
-	g_free(transfer->buffer);
-	libusb_free_transfer(transfer);
 }
 
 static void sm_fix_firmware(struct fpi_ssm *ssm)
@@ -685,26 +677,11 @@ static void sm_fix_firmware(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
 	uint16_t enc_addr = FIRMWARE_START + urudev->profile->fw_enc_offset;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
-	unsigned char *data;
 	int r;
 
-	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
-		return;
-	}
-
-	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
-	libusb_fill_control_setup(data, 0xc0, 0x0c, enc_addr, 0, 1);
-	libusb_fill_control_transfer(transfer, dev->udev, data, sm_fix_fw_read_cb,
-		ssm, CTRL_TIMEOUT);
-	
-	r = libusb_submit_transfer(transfer);
-	if (r < 0) {
-		g_free(data);
-		libusb_free_transfer(transfer);
+	r = read_reg(dev, enc_addr, sm_fix_fw_read_cb, ssm);
+	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);
-	}
 }
 
 /***** INITIALIZATION *****/
@@ -755,13 +732,14 @@ static void rebootpwr_run_state(struct fpi_ssm *ssm)
 	switch (ssm->cur_state) {
 	case REBOOTPWR_SET_HWSTAT:
 		urudev->rebootpwr_ctr = 100;
-		sm_set_hwstat(ssm, urudev->last_hwstat_rd & 0xf);
+		sm_set_hwstat(ssm, urudev->last_hwstat & 0xf);
 		break;
 	case REBOOTPWR_GET_HWSTAT:
-		sm_get_hwstat(ssm);
+		sm_read_reg(ssm, REG_HWSTAT);
 		break;
 	case REBOOTPWR_CHECK_HWSTAT:
-		if (urudev->last_hwstat_rd & 0x1)
+		urudev->last_hwstat = urudev->last_reg_rd;
+		if (urudev->last_hwstat & 0x1)
 			fpi_ssm_mark_completed(ssm);
 		else
 			fpi_ssm_next_state(ssm);
@@ -805,6 +783,7 @@ enum powerup_states {
 	POWERUP_CHECK_HWSTAT,
 	POWERUP_PAUSE,
 	POWERUP_CHALLENGE_RESPONSE,
+	POWERUP_CHALLENGE_RESPONSE_SUCCESS,
 	POWERUP_NUM_STATES,
 };
 
@@ -824,36 +803,26 @@ static void powerup_pause_cb(void *data)
 	}
 }
 
-static void powerup_challenge_response_cb(struct fp_img_dev *dev, int result,
-	void *data)
-{
-	struct fpi_ssm *ssm = data;
-	if (result)
-		fpi_ssm_mark_aborted(ssm, result);
-	else
-		fpi_ssm_jump_to_state(ssm, POWERUP_SET_HWSTAT);
-}
-
 static void powerup_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct uru4k_dev *urudev = dev->priv;
-	int r;
 
 	switch (ssm->cur_state) {
 	case POWERUP_INIT:
 		urudev->powerup_ctr = 100;
-		urudev->powerup_hwstat = urudev->last_hwstat_rd & 0xf;
+		urudev->powerup_hwstat = urudev->last_hwstat & 0xf;
 		fpi_ssm_next_state(ssm);
 		break;
 	case POWERUP_SET_HWSTAT:
 		sm_set_hwstat(ssm, urudev->powerup_hwstat);
 		break;
 	case POWERUP_GET_HWSTAT:
-		sm_get_hwstat(ssm);
+		sm_read_reg(ssm, REG_HWSTAT);
 		break;
 	case POWERUP_CHECK_HWSTAT:
-		if ((urudev->last_hwstat_rd & 0x80) == 0)
+		urudev->last_hwstat = urudev->last_reg_rd;
+		if ((urudev->last_reg_rd & 0x80) == 0)
 			fpi_ssm_mark_completed(ssm);
 		else
 			fpi_ssm_next_state(ssm);
@@ -863,9 +832,10 @@ static void powerup_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, -ETIME);
 		break;
 	case POWERUP_CHALLENGE_RESPONSE:
-		r = do_challenge_response(dev, powerup_challenge_response_cb, ssm);
-		if (r < 0)
-			fpi_ssm_mark_aborted(ssm, r);
+		sm_do_challenge_response(ssm);
+		break;
+	case POWERUP_CHALLENGE_RESPONSE_SUCCESS:
+		fpi_ssm_jump_to_state(ssm, POWERUP_SET_HWSTAT);		
 		break;
 	}
 }
@@ -947,10 +917,11 @@ static void init_run_state(struct fpi_ssm *ssm)
 
 	switch (ssm->cur_state) {
 	case INIT_GET_HWSTAT:
-		sm_get_hwstat(ssm);
+		sm_read_reg(ssm, REG_HWSTAT);
 		break;
 	case INIT_CHECK_HWSTAT_REBOOT:
-		if ((urudev->last_hwstat_rd & 0x84) == 0x84)
+		urudev->last_hwstat = urudev->last_reg_rd;
+		if ((urudev->last_hwstat & 0x84) == 0x84)
 			fpi_ssm_next_state(ssm);
 		else
 			fpi_ssm_jump_to_state(ssm, INIT_CHECK_HWSTAT_POWERDOWN);
@@ -962,8 +933,8 @@ static void init_run_state(struct fpi_ssm *ssm)
 		fpi_ssm_start_subsm(ssm, rebootsm);
 		break;
 	case INIT_CHECK_HWSTAT_POWERDOWN:
-		if ((urudev->last_hwstat_rd & 0x80) == 0)
-			sm_set_hwstat(ssm, urudev->last_hwstat_rd | 0x80);
+		if ((urudev->last_hwstat & 0x80) == 0)
+			sm_set_hwstat(ssm, urudev->last_hwstat | 0x80);
 		else
 			fpi_ssm_next_state(ssm);
 		break;
