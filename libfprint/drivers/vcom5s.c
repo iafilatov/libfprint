@@ -20,8 +20,10 @@
 #define FP_COMPONENT "vcom5s"
 
 /* TODO:
- * finger presence detection
  * calibration?
+ * image size: windows gets 300x300 through vpas enrollment util?
+ * (probably just increase bulk read size?)
+ * powerdown? does windows do anything special on exit?
  */
 
 #include <errno.h>
@@ -49,6 +51,29 @@ struct v5s_dev {
 	struct fp_img *capture_img;
 	gboolean loop_running;
 	gboolean deactivating;
+};
+
+enum v5s_regs {
+	/* when using gain 0x29:
+	 * a value of 0x00 produces mostly-black image
+	 * 0x09 destroys ridges (too white)
+	 * 0x01 or 0x02 seem good values */
+	REG_CONTRAST = 0x02,
+
+	/* when using contrast 0x01:
+	 * a value of 0x00 will produce an all-black image.
+	 * 0x29 produces a good contrast image: ridges quite dark, but some
+	 * light grey noise as background
+	 * 0x46 produces all-white image with grey ridges (not very dark) */
+	REG_GAIN = 0x03,
+};
+
+enum v5s_cmd {
+	/* scan one row. has parameter, at a guess this is which row to scan? */
+	CMD_SCAN_ONE_ROW = 0xc0,
+
+	/* scan whole image */
+	CMD_SCAN = 0xc1,
 };
 
 /***** REGISTER I/O *****/
@@ -131,6 +156,41 @@ static void sm_exec_cmd(struct fpi_ssm *ssm, unsigned char cmd,
 	}
 }
 
+/***** FINGER DETECTION *****/
+
+/* We take 64x64 pixels at the center of the image, determine the average
+ * pixel intensity, and threshold it. */
+#define DETBOX_ROW_START 111
+#define DETBOX_COL_START 117
+#define DETBOX_ROWS 64
+#define DETBOX_COLS 64
+#define DETBOX_ROW_END (DETBOX_ROW_START + DETBOX_ROWS)
+#define DETBOX_COL_END (DETBOX_COL_START + DETBOX_COLS)
+#define FINGER_PRESENCE_THRESHOLD 100
+
+static gboolean finger_is_present(unsigned char *data)
+{
+	int row;
+	uint16_t imgavg = 0;
+
+	for (row = DETBOX_ROW_START; row < DETBOX_ROW_END; row++) {
+		unsigned char *rowdata = data + (row * IMG_WIDTH);
+		uint16_t rowavg = 0;
+		int col;
+
+		for (col = DETBOX_COL_START; col < DETBOX_COL_END; col++)
+			rowavg += rowdata[col];
+		rowavg /= DETBOX_COLS;
+		imgavg += rowavg;
+	}
+	imgavg /= DETBOX_ROWS;
+	fp_dbg("img avg %d", imgavg);
+
+	return (imgavg <= FINGER_PRESENCE_THRESHOLD);
+}
+
+
+
 /***** IMAGE ACQUISITION *****/
 
 static void capture_iterate(struct fpi_ssm *ssm);
@@ -153,9 +213,8 @@ static void capture_cb(struct libusb_transfer *transfer)
 		 * supposed to be handing off this image */
 		vdev->capture_img = NULL;
 
-		fpi_imgdev_report_finger_status(dev, TRUE);
+		fpi_imgdev_report_finger_status(dev, finger_is_present(img->data));
 		fpi_imgdev_image_captured(dev, img);
-		fpi_imgdev_report_finger_status(dev, FALSE);
 		fpi_ssm_next_state(ssm);
 	} else {
 		capture_iterate(ssm);
@@ -204,9 +263,9 @@ static void sm_do_capture(struct fpi_ssm *ssm)
 /***** CAPTURE LOOP *****/
 
 enum loop_states {
-	LOOP_WR02,
-	LOOP_WR03,
-	LOOP_CMDC1,
+	LOOP_SET_CONTRAST,
+	LOOP_SET_GAIN,
+	LOOP_CMD_SCAN,
 	LOOP_CAPTURE,
 	LOOP_CAPTURE_DONE,
 	LOOP_NUM_STATES,
@@ -218,24 +277,24 @@ static void loop_run_state(struct fpi_ssm *ssm)
 	struct v5s_dev *vdev = dev->priv;
 
 	switch (ssm->cur_state) {
-	case LOOP_WR02:
-		sm_write_reg(ssm, 0x02, 0x02);
+	case LOOP_SET_CONTRAST:
+		sm_write_reg(ssm, REG_CONTRAST, 0x01);
 		break;
-	case LOOP_WR03:
-		sm_write_reg(ssm, 0x03, 0x29);
+	case LOOP_SET_GAIN:
+		sm_write_reg(ssm, REG_GAIN, 0x29);
 		break;
-	case LOOP_CMDC1:
+	case LOOP_CMD_SCAN:
 		if (vdev->deactivating) {
 			fp_dbg("deactivating, marking completed");
 			fpi_ssm_mark_completed(ssm);
 		} else
-			sm_exec_cmd(ssm, 0xc1, 0x00);
+			sm_exec_cmd(ssm, CMD_SCAN, 0x00);
 		break;
 	case LOOP_CAPTURE:
 		sm_do_capture(ssm);
 		break;
 	case LOOP_CAPTURE_DONE:
-		fpi_ssm_jump_to_state(ssm, LOOP_CMDC1);
+		fpi_ssm_jump_to_state(ssm, LOOP_CMD_SCAN);
 		break;
 	}
 }
