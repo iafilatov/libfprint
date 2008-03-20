@@ -113,7 +113,7 @@ static const struct uru4k_dev_profile {
  * When we find a pattern we know that the encryption byte ius the X7 byte.
  */
 static const uint16_t fwenc_offsets[] = {
-	0x510, 0x62d, 0x792,
+	0x510, 0x62d, 0x792, 0x7f4,
 };
 
 typedef void (*irq_cb_fn)(struct fp_img_dev *dev, int status, uint16_t type,
