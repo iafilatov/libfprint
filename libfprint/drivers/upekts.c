@@ -711,7 +711,7 @@ static void initsm_run_state(struct fpi_ssm *ssm)
 		
 		data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 		libusb_fill_control_setup(data,
-			LIBUSB_TYPE_VENDOR | LIBUSB_RECIP_DEVICE, 0x0c, 0x100, 0x0400, 1);
+			LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE, 0x0c, 0x100, 0x0400, 1);
 		libusb_fill_control_transfer(transfer, ssm->dev->udev, data,
 			ctrl400_cb, ssm, TIMEOUT);
 
