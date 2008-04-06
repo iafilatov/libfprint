@@ -164,7 +164,7 @@ static void do_capture(struct fp_img_dev *dev)
 	unsigned char *data;
 	int r;
 
-	aesdev->img_trf = libusb_alloc_transfer();
+	aesdev->img_trf = libusb_alloc_transfer(0);
 	if (!aesdev->img_trf) {
 		fpi_imgdev_session_error(dev, -EIO);
 		return;

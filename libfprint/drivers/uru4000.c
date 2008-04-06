@@ -187,7 +187,7 @@ static int write_regs(struct fp_img_dev *dev, uint16_t first_reg,
 	void *user_data)
 {
 	struct write_regs_data *wrdata;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
 
@@ -254,7 +254,7 @@ static int read_regs(struct fp_img_dev *dev, uint16_t first_reg,
 	uint16_t num_regs, read_regs_cb_fn callback, void *user_data)
 {
 	struct read_regs_data *rrdata;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
 
@@ -423,7 +423,7 @@ out:
 static int start_irq_handler(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = dev->priv;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
 
@@ -507,7 +507,7 @@ out:
 static int start_imaging_loop(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = dev->priv;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
 

@@ -70,7 +70,7 @@ static int do_write_regv(struct write_regv_data *wdata, int upper_bound)
 	unsigned char *data = g_malloc(alloc_size);
 	unsigned int i;
 	size_t data_offset = 0;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
 
 	if (!transfer) {

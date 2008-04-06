@@ -137,7 +137,7 @@ static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 	unsigned char seq_a, unsigned char seq_b, const unsigned char *data,
 	uint16_t len, libusb_transfer_cb_fn callback, void *user_data)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	uint16_t crc;
 
 	/* 9 bytes extra for: 4 byte 'Ciao', 1 byte A, 1 byte B | lenHI,
@@ -410,7 +410,7 @@ static void read_msg_cb(struct libusb_transfer *transfer)
 	 * to read the remainder. This is handled below. */
 	if (len > MAX_DATA_IN_READ_BUF) {
 		int needed = len - MAX_DATA_IN_READ_BUF;
-		struct libusb_transfer *etransfer = libusb_alloc_transfer();
+		struct libusb_transfer *etransfer = libusb_alloc_transfer(0);
 		int r;
 
 		if (!transfer)
@@ -450,7 +450,7 @@ out:
 static int __read_msg_async(struct read_msg_data *udata)
 {
 	unsigned char *buf = g_malloc(MSG_READ_BUF_SIZE);
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
 
 	if (!transfer) {
@@ -703,7 +703,7 @@ static void initsm_run_state(struct fpi_ssm *ssm)
 	case WRITE_CTRL400: ;
 		unsigned char *data;
 
-		transfer = libusb_alloc_transfer();
+		transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
 			fpi_ssm_mark_aborted(ssm, -ENOMEM);
 			break;

@@ -228,7 +228,7 @@ API_EXPORTED int fp_handle_events_timeout(struct timeval *timeout)
 		select_timeout = *timeout;
 	}
 
-	r = libusb_poll_timeout(&select_timeout);
+	r = libusb_handle_events_timeout(&select_timeout);
 	*timeout = select_timeout;
 	if (r < 0)
 		return r;

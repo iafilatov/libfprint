@@ -95,7 +95,7 @@ static void sm_write_reg(struct fpi_ssm *ssm, unsigned char reg,
 	unsigned char value)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
 	
@@ -134,7 +134,7 @@ static void sm_exec_cmd(struct fpi_ssm *ssm, unsigned char cmd,
 	unsigned char param)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
 	
@@ -229,7 +229,7 @@ static void capture_iterate(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct v5s_dev *vdev = dev->priv;
 	int iteration = vdev->capture_iteration;
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
 
 	if (!transfer) {

@@ -111,7 +111,7 @@ static void read_regs_rq_cb(struct fp_img_dev *dev, int result, void *user_data)
 	if (result != 0)
 		goto err;
 
-	transfer = libusb_alloc_transfer();
+	transfer = libusb_alloc_transfer(0);
 	if (!transfer) {
 		result = -ENOMEM;
 		goto err;
@@ -203,7 +203,7 @@ static void generic_ignore_data_cb(struct libusb_transfer *transfer)
  * away, then increment the SSM */
 static void generic_read_ignore_data(struct fpi_ssm *ssm, size_t bytes)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer();
+	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
 
@@ -434,7 +434,7 @@ static void finger_det_reqs_cb(struct fp_img_dev *dev, int result,
 		return;
 	}
 
-	transfer = libusb_alloc_transfer();
+	transfer = libusb_alloc_transfer(0);
 	if (!transfer) {
 		fpi_imgdev_session_error(dev, -ENOMEM);
 		return;
@@ -630,7 +630,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 				generic_write_regv_cb, ssm);
 		break;
 	case CAPTURE_READ_STRIP: ;
-		struct libusb_transfer *transfer = libusb_alloc_transfer();
+		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		unsigned char *data;
 
 		if (!transfer) {
