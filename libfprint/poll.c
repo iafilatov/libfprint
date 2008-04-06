@@ -291,8 +291,8 @@ API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
  */
 API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
 {
-	struct libusb_pollfd **usbfds;
-	struct libusb_pollfd *usbfd;
+	const struct libusb_pollfd **usbfds;
+	const struct libusb_pollfd *usbfd;
 	struct fp_pollfd *ret;
 	size_t cnt = 0;
 	size_t i = 0;

@@ -357,7 +357,8 @@ static struct fp_driver *find_supporting_driver(libusb_device *udev,
 	const struct usb_id **usb_id)
 {
 	GSList *elem = registered_drivers;
-	struct libusb_device_descriptor *dsc = libusb_get_device_descriptor(udev);
+	const struct libusb_device_descriptor *dsc =
+		libusb_get_device_descriptor(udev);
 	
 	do {
 		struct fp_driver *drv = elem->data;

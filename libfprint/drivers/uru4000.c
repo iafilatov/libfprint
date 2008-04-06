@@ -1102,10 +1102,10 @@ static void dev_deactivate(struct fp_img_dev *dev)
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
-	struct libusb_config_descriptor *config;
-	struct libusb_interface *iface = NULL;
-	struct libusb_interface_descriptor *iface_desc;
-	struct libusb_endpoint_descriptor *ep;
+	const struct libusb_config_descriptor *config;
+	const struct libusb_interface *iface = NULL;
+	const struct libusb_interface_descriptor *iface_desc;
+	const struct libusb_endpoint_descriptor *ep;
 	struct uru4k_dev *urudev;
 	int i;
 	int r;
@@ -1113,7 +1113,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	/* Find fingerprint interface */
 	config = libusb_get_config_descriptor(libusb_get_device(dev->udev));
 	for (i = 0; i < config->bNumInterfaces; i++) {
-		struct libusb_interface *cur_iface = &config->interface[i];
+		const struct libusb_interface *cur_iface = &config->interface[i];
 
 		if (cur_iface->num_altsetting < 1)
 			continue;
