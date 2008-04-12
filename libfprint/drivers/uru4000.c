@@ -467,9 +467,13 @@ static void image_cb(struct libusb_transfer *transfer)
 	struct fp_img *img;
 	int r = 0;
 
+	/* remove the global reference early: otherwise we may report results,
+	 * leading to immediate deactivation of driver, which will potentially
+	 * try to cancel an already-completed transfer */
+	urudev->img_transfer = NULL;
+
 	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
 		fp_dbg("cancelled");
-		urudev->img_transfer = NULL;
 		g_free(transfer->buffer);
 		libusb_free_transfer(transfer);
 		return;
