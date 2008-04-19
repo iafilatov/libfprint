@@ -107,8 +107,6 @@ static struct fp_print_data *print_data_new(uint16_t driver_id,
 
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length)
 {
-	struct fp_print_data *data = g_malloc(sizeof(*data) + length);
-	memset(data, 0, sizeof(*data));
 	return print_data_new(dev->drv->id, dev->devtype,
 		fpi_driver_get_data_type(dev->drv), length);
 }
