@@ -1200,6 +1200,9 @@ static const struct usb_id id_table[] = {
 	/* dp uru4000 (standalone) */
 	{ .vendor = 0x05ba, .product = 0x0007, .driver_data = DP_URU4000 },
 
+	/* dp uru4000 (keyboard) */
+	{ .vendor = 0x05ba, .product = 0x0008, .driver_data = DP_URU4000 },
+
 	/* dp uru4000b (standalone) */
 	{ .vendor = 0x05ba, .product = 0x000a, .driver_data = DP_URU4000B },
 
