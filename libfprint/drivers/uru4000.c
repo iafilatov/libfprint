@@ -1145,16 +1145,16 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	ep = &iface_desc->endpoint[0];
 	if (ep->bEndpointAddress != EP_INTR
-			|| (ep->bmAttributes & LIBUSB_ENDPOINT_TYPE_MASK) !=
-				LIBUSB_ENDPOINT_TYPE_INTERRUPT) {
+			|| (ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) !=
+				LIBUSB_TRANSFER_TYPE_INTERRUPT) {
 		fp_err("unrecognised interrupt endpoint");
 		return -ENODEV;
 	}
 
 	ep = &iface_desc->endpoint[1];
 	if (ep->bEndpointAddress != EP_DATA
-			|| (ep->bmAttributes & LIBUSB_ENDPOINT_TYPE_MASK) !=
-				LIBUSB_ENDPOINT_TYPE_BULK) {
+			|| (ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) !=
+				LIBUSB_TRANSFER_TYPE_BULK) {
 		fp_err("unrecognised bulk endpoint");
 		return -ENODEV;
 	}
