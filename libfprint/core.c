@@ -356,16 +356,22 @@ static void register_drivers(void)
 static struct fp_driver *find_supporting_driver(libusb_device *udev,
 	const struct usb_id **usb_id)
 {
+	int ret;
 	GSList *elem = registered_drivers;
-	const struct libusb_device_descriptor *dsc =
-		libusb_get_device_descriptor(udev);
+	struct libusb_device_descriptor dsc;
+
+	ret = libusb_get_device_descriptor(udev, &dsc);
+	if (ret < 0) {
+		fp_err("Failed to get device descriptor");
+		return NULL;
+	}
 	
 	do {
 		struct fp_driver *drv = elem->data;
 		const struct usb_id *id;
 
 		for (id = drv->id_table; id->vendor; id++)
-			if (dsc->idVendor == id->vendor && dsc->idProduct == id->product) {
+			if (dsc.idVendor == id->vendor && dsc.idProduct == id->product) {
 				fp_dbg("driver %s supports USB device %04x:%04x",
 					drv->name, id->vendor, id->product);
 				*usb_id = id;

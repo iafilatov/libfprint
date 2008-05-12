@@ -1106,7 +1106,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
-	const struct libusb_config_descriptor *config;
+	struct libusb_config_descriptor *config;
 	const struct libusb_interface *iface = NULL;
 	const struct libusb_interface_descriptor *iface_desc;
 	const struct libusb_endpoint_descriptor *ep;
@@ -1115,7 +1115,11 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	/* Find fingerprint interface */
-	config = libusb_get_config_descriptor(libusb_get_device(dev->udev));
+	r = libusb_get_config_descriptor(libusb_get_device(dev->udev), 0, &config);
+	if (r < 0) {
+		fp_err("Failed to get config descriptor");
+		return r;
+	}
 	for (i = 0; i < config->bNumInterfaces; i++) {
 		const struct libusb_interface *cur_iface = &config->interface[i];
 
@@ -1133,14 +1137,16 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	if (iface == NULL) {
 		fp_err("could not find interface");
-		return -ENODEV;
+		r = -ENODEV;
+		goto out;
 	}
 
 	/* Find/check endpoints */
 
 	if (iface_desc->bNumEndpoints != 2) {
 		fp_err("found %d endpoints!?", iface_desc->bNumEndpoints);
-		return -ENODEV;
+		r = -ENODEV;
+		goto out;
 	}
 
 	ep = &iface_desc->endpoint[0];
@@ -1148,7 +1154,8 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 			|| (ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) !=
 				LIBUSB_TRANSFER_TYPE_INTERRUPT) {
 		fp_err("unrecognised interrupt endpoint");
-		return -ENODEV;
+		r = -ENODEV;
+		goto out;
 	}
 
 	ep = &iface_desc->endpoint[1];
@@ -1156,7 +1163,8 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 			|| (ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) !=
 				LIBUSB_TRANSFER_TYPE_BULK) {
 		fp_err("unrecognised bulk endpoint");
-		return -ENODEV;
+		r = -ENODEV;
+		goto out;
 	}
 
 	/* Device looks like a supported reader */
@@ -1164,7 +1172,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	r = libusb_claim_interface(dev->udev, iface_desc->bInterfaceNumber);
 	if (r < 0) {
 		fp_err("interface claim failed");
-		return r;
+		goto out;
 	}
 
 	urudev = g_malloc0(sizeof(*urudev));
@@ -1173,7 +1181,10 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	AES_set_encrypt_key(crkey, 128, &urudev->aeskey);
 	dev->priv = urudev;
 	fpi_imgdev_open_complete(dev, 0);
-	return 0;
+
+out:
+	libusb_free_config_descriptor(config);
+	return r;
 }
 
 static void dev_deinit(struct fp_img_dev *dev)
