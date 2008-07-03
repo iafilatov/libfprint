@@ -26,6 +26,7 @@
 
 #include "fp_internal.h"
 
+libusb_context *fpi_usb_ctx = NULL;
 GSList *opened_devices = NULL;
 
 /**
@@ -426,7 +427,7 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 	if (registered_drivers == NULL)
 		return NULL;
 
-	r = libusb_get_device_list(&devs);
+	r = libusb_get_device_list(fpi_usb_ctx, &devs);
 	if (r < 0) {
 		fp_err("couldn't enumerate USB devices, error %d", r);
 		return NULL;
@@ -786,7 +787,7 @@ API_EXPORTED int fp_init(void)
 	int r;
 	fp_dbg("");
 
-	r = libusb_init();
+	r = libusb_init(&fpi_usb_ctx);
 	if (r < 0)
 		return r;
 
@@ -822,6 +823,6 @@ API_EXPORTED void fp_exit(void)
 	fpi_poll_exit();
 	g_slist_free(registered_drivers);
 	registered_drivers = NULL;
-	libusb_exit();
+	libusb_exit(fpi_usb_ctx);
 }
 

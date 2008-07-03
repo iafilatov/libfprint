@@ -242,6 +242,7 @@ extern struct fp_img_driver aes4000_driver;
 extern struct fp_img_driver fdu2000_driver;
 extern struct fp_img_driver vcom5s_driver;
 
+extern libusb_context *fpi_usb_ctx;
 extern GSList *opened_devices;
 
 void fpi_img_driver_setup(struct fp_img_driver *idriver);

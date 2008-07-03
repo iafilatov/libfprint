@@ -228,7 +228,7 @@ API_EXPORTED int fp_handle_events_timeout(struct timeval *timeout)
 		select_timeout = *timeout;
 	}
 
-	r = libusb_handle_events_timeout(&select_timeout);
+	r = libusb_handle_events_timeout(fpi_usb_ctx, &select_timeout);
 	*timeout = select_timeout;
 	if (r < 0)
 		return r;
@@ -263,7 +263,7 @@ API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
 	int r_libusb;
 
 	r_fprint = get_next_timeout_expiry(&fprint_timeout, NULL);
-	r_libusb = libusb_get_next_timeout(&libusb_timeout);
+	r_libusb = libusb_get_next_timeout(fpi_usb_ctx, &libusb_timeout);
 
 	/* if we have no pending timeouts and the same is true for libusb,
 	 * indicate that we have no pending timouts */
@@ -297,7 +297,7 @@ API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
 	size_t cnt = 0;
 	size_t i = 0;
 
-	usbfds = libusb_get_pollfds();
+	usbfds = libusb_get_pollfds(fpi_usb_ctx);
 	if (!usbfds) {
 		*pollfds = NULL;
 		return -EIO;
@@ -325,13 +325,13 @@ API_EXPORTED void fp_set_pollfd_notifiers(fp_pollfd_added_cb added_cb,
 	fd_removed_cb = removed_cb;
 }
 
-static void add_pollfd(int fd, short events)
+static void add_pollfd(int fd, short events, void *user_data)
 {
 	if (fd_added_cb)
 		fd_added_cb(fd, events);
 }
 
-static void remove_pollfd(int fd)
+static void remove_pollfd(int fd, void *user_data)
 {
 	if (fd_removed_cb)
 		fd_removed_cb(fd);
@@ -339,7 +339,7 @@ static void remove_pollfd(int fd)
 
 void fpi_poll_init(void)
 {
-	libusb_set_pollfd_notifiers(add_pollfd, remove_pollfd);
+	libusb_set_pollfd_notifiers(fpi_usb_ctx, add_pollfd, remove_pollfd, NULL);
 }
 
 void fpi_poll_exit(void)
@@ -348,6 +348,6 @@ void fpi_poll_exit(void)
 	active_timers = NULL;
 	fd_added_cb = NULL;
 	fd_removed_cb = NULL;
-	libusb_set_pollfd_notifiers(NULL, NULL);
+	libusb_set_pollfd_notifiers(fpi_usb_ctx, NULL, NULL, NULL);
 }
 
