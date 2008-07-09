@@ -2,6 +2,7 @@ lib_LTLIBRARIES = libfprint.la
 
 UPEKTS_SRC = drivers/upekts.c
 UPEKTC_SRC = drivers/upektc.c
+UPEKSONLY_SRC = drivers/upeksonly.c
 URU4000_SRC = drivers/uru4000.c
 AES1610_SRC = drivers/aes1610.c
 AES2501_SRC = drivers/aes2501.c drivers/aes2501.h
@@ -9,7 +10,7 @@ AES4000_SRC = drivers/aes4000.c
 FDU2000_SRC = drivers/fdu2000.c
 VCOM5S_SRC = drivers/vcom5s.c
 
-DRIVER_SRC = $(UPEKTS_SRC) $(AES4000_SRC) $(AES2501_SRC) $(URU4000_SRC) $(VCOM5S_SRC)
+DRIVER_SRC = $(UPEKTS_SRC) $(AES4000_SRC) $(AES2501_SRC) $(URU4000_SRC) $(VCOM5S_SRC) $(UPEKSONLY_SRC)
 #DRIVER_SRC = $(AES1610_SRC) $(UPEKTC_SRC) $(FDU2000_SRC)
 
 NBIS_SRC = \
