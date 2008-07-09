@@ -792,6 +792,7 @@ API_EXPORTED int fp_init(void)
 	if (r < 0)
 		return r;
 
+	libusb_set_debug(fpi_usb_ctx, 3);
 	register_drivers();
 	fpi_poll_init();
 	return 0;
