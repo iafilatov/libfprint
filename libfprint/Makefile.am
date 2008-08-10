@@ -91,7 +91,8 @@ DRIVER_SRC += $(AES4000_SRC)
 endif
 
 if REQUIRE_IMAGEMAGICK
-libfprint_la_CFLAGS += $(IMAGEMAGICK_CFLAGS) -DREQUIRE_IMAGEMAGICK
+OTHER_SRC += imagemagick.c
+libfprint_la_CFLAGS += $(IMAGEMAGICK_CFLAGS)
 libfprint_la_LIBADD += $(IMAGEMAGICK_LIBS)
 endif
 

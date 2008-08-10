@@ -20,9 +20,6 @@
 #include <errno.h>
 
 #include <glib.h>
-#ifdef REQUIRE_IMAGEMAGICK
-#include <magick/ImageMagick.h>
-#endif
 
 #include "fp_internal.h"
 
@@ -89,51 +86,6 @@ static int dev_change_state(struct fp_img_dev *imgdev,
 	return imgdrv->change_state(imgdev, state);
 }
 
-#ifdef REQUIRE_IMAGEMAGICK
-static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
-{
-	Image *mimg;
-	Image *resized;
-	ExceptionInfo exception;
-	MagickBooleanType ret;
-	int new_width = img->width * factor;
-	int new_height = img->height * factor;
-	struct fp_img *newimg;
-
-	/* It is possible to implement resizing using a simple algorithm, however
-	 * we use ImageMagick because it applies some kind of smoothing to the
-	 * result, which improves matching performances in my experiments. */
-
-	if (!IsMagickInstantiated())
-		InitializeMagick(NULL);
-	
-	GetExceptionInfo(&exception);
-	mimg = ConstituteImage(img->width, img->height, "I", CharPixel, img->data,
-		&exception);
-
-	GetExceptionInfo(&exception);
-	resized = ResizeImage(mimg, new_width, new_height, 0, 1.0, &exception);
-
-	newimg = fpi_img_new(new_width * new_height);
-	newimg->width = new_width;
-	newimg->height = new_height;
-	newimg->flags = img->flags;
-
-	GetExceptionInfo(&exception);
-	ret = ExportImagePixels(resized, 0, 0, new_width, new_height, "I",
-		CharPixel, newimg->data, &exception);
-	if (ret != MagickTrue) {
-		fp_err("export failed");
-		return NULL;
-	}
-
-	DestroyImage(mimg);
-	DestroyImage(resized);
-
-	return newimg;
-}
-#endif
-
 /* check image properties and resize it if necessary. potentially returns a new
  * image after freeing the old one. */
 static int sanitize_image(struct fp_img_dev *imgdev, struct fp_img **_img)
@@ -161,17 +113,6 @@ static int sanitize_image(struct fp_img_dev *imgdev, struct fp_img **_img)
 		return -EINVAL;
 	}
 
-#ifdef REQUIRE_IMAGEMAGICK
-	if (imgdrv->enlarge_factor > 1) {
-		/* FIXME: enlarge_factor should not exist! instead, MINDTCT should
-		 * actually look at the value of the pixels-per-mm parameter and
-		 * figure out itself when the image needs to be treated as if it
-		 * were bigger. */
-		struct fp_img *tmp = im_resize(img, imgdrv->enlarge_factor);
-		fp_img_free(img);
-		*_img = tmp;
-	}
-#endif
 	return 0;
 }
 
@@ -392,9 +333,7 @@ int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev)
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
 	int width = imgdrv->img_width;
 
-	if (width > 0 && imgdrv->enlarge_factor > 1)
-		width *= imgdrv->enlarge_factor;
-	else if (width == -1)
+	if (width == -1)
 		width = 0;
 
 	return width;
@@ -406,9 +345,7 @@ int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev)
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(drv);
 	int height = imgdrv->img_height;
 
-	if (height > 0 && imgdrv->enlarge_factor > 1)
-		height *= imgdrv->enlarge_factor;
-	else if (height == -1)
+	if (height == -1)
 		height = 0;
 
 	return height;

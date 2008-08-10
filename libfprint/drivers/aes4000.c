@@ -34,6 +34,10 @@
 #define NR_SUBARRAYS	6
 #define SUBARRAY_LEN	768
 
+#define IMG_HEIGHT 96
+#define IMG_WIDTH 96
+#define ENLARGE_FACTOR 3
+
 struct aes4k_dev {
 	struct libusb_transfer *img_trf;
 };
@@ -120,6 +124,7 @@ static void img_cb(struct libusb_transfer *transfer)
 	struct fp_img_dev *dev = transfer->user_data;
 	struct aes4k_dev *aesdev = dev->priv;
 	unsigned char *ptr = transfer->buffer;
+	struct fp_img *tmp;
 	struct fp_img *img;
 	int i;
 
@@ -135,15 +140,21 @@ static void img_cb(struct libusb_transfer *transfer)
 
 	fpi_imgdev_report_finger_status(dev, TRUE);
 
-	img = fpi_img_new_for_imgdev(dev);
-	img->flags = FP_IMG_COLORS_INVERTED | FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
+	tmp = fpi_img_new(IMG_WIDTH * IMG_HEIGHT);
+	tmp->width = IMG_WIDTH;
+	tmp->height = IMG_HEIGHT;
+	tmp->flags = FP_IMG_COLORS_INVERTED | FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
 	for (i = 0; i < NR_SUBARRAYS; i++) {
 		fp_dbg("subarray header byte %02x", *ptr);
 		ptr++;
-		aes_assemble_image(ptr, 96, 16, img->data + (i * 96 * 16));
+		aes_assemble_image(ptr, 96, 16, tmp->data + (i * 96 * 16));
 		ptr += SUBARRAY_LEN;
 	}
 
+	/* FIXME: this is an ugly hack to make the image big enough for NBIS
+	 * to process reliably */
+	img = fpi_im_resize(tmp, ENLARGE_FACTOR);
+	fp_img_free(tmp);
 	fpi_imgdev_image_captured(dev, img);
 
 	/* FIXME: rather than assuming finger has gone, we should poll regs until
@@ -244,9 +255,8 @@ struct fp_img_driver aes4000_driver = {
 		.id_table = id_table,
 	},
 	.flags = 0,
-	.img_height = 96,
-	.img_width = 96,
-	.enlarge_factor = 3,
+	.img_height = IMG_HEIGHT * ENLARGE_FACTOR,
+	.img_width = IMG_WIDTH * ENLARGE_FACTOR,
 
 	/* temporarily lowered until image quality improves */
 	.bz3_threshold = 9,
