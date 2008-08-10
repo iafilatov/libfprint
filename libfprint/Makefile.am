@@ -10,8 +10,8 @@ AES4000_SRC = drivers/aes4000.c
 FDU2000_SRC = drivers/fdu2000.c
 VCOM5S_SRC = drivers/vcom5s.c
 
-DRIVER_SRC = $(UPEKTS_SRC) $(AES4000_SRC) $(AES2501_SRC) $(URU4000_SRC) $(VCOM5S_SRC) $(UPEKSONLY_SRC)
-#DRIVER_SRC = $(AES1610_SRC) $(UPEKTC_SRC) $(FDU2000_SRC)
+DRIVER_SRC = ""
+OTHER_SRC = ""
 
 NBIS_SRC = \
 	nbis/include/bozorth.h \
@@ -50,9 +50,54 @@ NBIS_SRC = \
 	nbis/mindtct/sort.c \
 	nbis/mindtct/util.c
 
-libfprint_la_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(IMAGEMAGICK_CFLAGS) $(CRYPTO_CFLAGS) $(AM_CFLAGS)
+libfprint_la_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(CRYPTO_CFLAGS) $(AM_CFLAGS)
 libfprint_la_LDFLAGS = -version-info @lt_major@:@lt_revision@:@lt_age@
-libfprint_la_LIBADD = -lm $(LIBUSB_LIBS) $(GLIB_LIBS) $(IMAGEMAGICK_LIBS) $(CRYPTO_LIBS)
+libfprint_la_LIBADD = -lm $(LIBUSB_LIBS) $(GLIB_LIBS) $(CRYPTO_LIBS)
+
+if ENABLE_UPEKTS
+DRIVER_SRC += $(UPEKTS_SRC)
+endif
+
+if ENABLE_UPEKSONLY
+DRIVER_SRC += $(UPEKSONLY_SRC)
+endif
+
+#if ENABLE_UPEKTC
+#DRIVER_SRC += $(UPEKTC_SRC)
+#endif
+
+if ENABLE_URU4000
+DRIVER_SRC += $(URU4000_SRC)
+endif
+
+if ENABLE_VCOM5S
+DRIVER_SRC += $(VCOM5S_SRC)
+endif
+
+#if ENABLE_FDU2000
+#DRIVER_SRC += $(FDU2000_SRC)
+#endif
+
+#if ENABLE_AES1610
+#DRIVER_SRC += $(AES1610_SRC)
+#endif
+
+if ENABLE_AES2501
+DRIVER_SRC += $(AES2501_SRC)
+endif
+
+if ENABLE_AES4000
+DRIVER_SRC += $(AES4000_SRC)
+endif
+
+if REQUIRE_IMAGEMAGICK
+libfprint_la_CFLAGS += $(IMAGEMAGICK_CFLAGS) -DREQUIRE_IMAGEMAGICK
+libfprint_la_LIBADD += $(IMAGEMAGICK_LIBS)
+endif
+
+if REQUIRE_AESLIB
+OTHER_SRC += aeslib.c aeslib.h
+endif
 
 libfprint_la_SOURCES =	\
 	fp_internal.h	\
@@ -64,9 +109,8 @@ libfprint_la_SOURCES =	\
 	imgdev.c	\
 	poll.c		\
 	sync.c		\
-	aeslib.c	\
-	aeslib.h	\
 	$(DRIVER_SRC)	\
+	$(OTHER_SRC)	\
 	$(NBIS_SRC)
 
 pkginclude_HEADERS = fprint.h

@@ -327,18 +327,38 @@ static void register_driver(struct fp_driver *drv)
 }
 
 static struct fp_driver * const primitive_drivers[] = {
+#ifdef ENABLE_UPEKTS
 	&upekts_driver,
+#endif
 };
 
 static struct fp_img_driver * const img_drivers[] = {
+#ifdef ENABLE_AES4000
 	&aes4000_driver,
+#endif
+#ifdef ENABLE_AES2501
 	&aes2501_driver,
+#endif
+#ifdef ENABLE_URU4000
 	&uru4000_driver,
+#endif
+#ifdef ENABLE_VCOM5S
 	&vcom5s_driver,
+#endif
+#ifdef ENABLE_UPEKSONLY
 	&upeksonly_driver,
-	/* &aes1610_driver,
+#endif
+	/*
+#ifdef ENABLE_AES1610
+	&aes1610_driver,
+#endif
+#ifdef ENABLE_UPEKTC
 	&upektc_driver,
-	&fdu2000_driver, */
+#endif
+#ifdef ENABLE_FDU2000
+	&fdu2000_driver,
+#endif
+	*/
 };
 
 static void register_drivers(void)

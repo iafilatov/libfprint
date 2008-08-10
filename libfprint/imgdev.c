@@ -20,7 +20,9 @@
 #include <errno.h>
 
 #include <glib.h>
+#ifdef REQUIRE_IMAGEMAGICK
 #include <magick/ImageMagick.h>
+#endif
 
 #include "fp_internal.h"
 
@@ -87,6 +89,7 @@ static int dev_change_state(struct fp_img_dev *imgdev,
 	return imgdrv->change_state(imgdev, state);
 }
 
+#ifdef REQUIRE_IMAGEMAGICK
 static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
 {
 	Image *mimg;
@@ -129,6 +132,7 @@ static struct fp_img *im_resize(struct fp_img *img, unsigned int factor)
 
 	return newimg;
 }
+#endif
 
 /* check image properties and resize it if necessary. potentially returns a new
  * image after freeing the old one. */
@@ -157,6 +161,7 @@ static int sanitize_image(struct fp_img_dev *imgdev, struct fp_img **_img)
 		return -EINVAL;
 	}
 
+#ifdef REQUIRE_IMAGEMAGICK
 	if (imgdrv->enlarge_factor > 1) {
 		/* FIXME: enlarge_factor should not exist! instead, MINDTCT should
 		 * actually look at the value of the pixels-per-mm parameter and
@@ -166,6 +171,7 @@ static int sanitize_image(struct fp_img_dev *imgdev, struct fp_img **_img)
 		fp_img_free(img);
 		*_img = tmp;
 	}
+#endif
 	return 0;
 }
 

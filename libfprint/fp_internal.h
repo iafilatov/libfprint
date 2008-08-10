@@ -233,15 +233,33 @@ struct fp_img_driver {
 	void (*deactivate)(struct fp_img_dev *dev);
 };
 
+#ifdef ENABLE_UPEKTS
 extern struct fp_driver upekts_driver;
+#endif
+#ifdef ENABLE_UPEKTC
 extern struct fp_img_driver upektc_driver;
+#endif
+#ifdef ENABLE_UPEKSONLY
 extern struct fp_img_driver upeksonly_driver;
+#endif
+#ifdef ENABLE_URU4000
 extern struct fp_img_driver uru4000_driver;
+#endif
+#ifdef ENABLE_AES1610
 extern struct fp_img_driver aes1610_driver;
+#endif
+#ifdef ENABLE_AES2501
 extern struct fp_img_driver aes2501_driver;
+#endif
+#ifdef ENABLE_AES4000
 extern struct fp_img_driver aes4000_driver;
+#endif
+#ifdef ENABLE_FDU2000
 extern struct fp_img_driver fdu2000_driver;
+#endif
+#ifdef ENABLE_VCOM5S
 extern struct fp_img_driver vcom5s_driver;
+#endif
 
 extern libusb_context *fpi_usb_ctx;
 extern GSList *opened_devices;

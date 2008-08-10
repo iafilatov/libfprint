@@ -18,6 +18,83 @@ AC_SUBST(lt_major)
 AC_SUBST(lt_revision)
 AC_SUBST(lt_age)
 
+all_drivers="upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes2501 aes4000"
+
+require_imagemagick='no'
+require_aeslib='no'
+enable_upekts='no'
+enable_upektc='no'
+enable_upeksonly='no'
+enable_vcom5s='no'
+enable_uru4000='no'
+enable_fdu2000='no'
+enable_aes1610='no'
+enable_aes2501='no'
+enable_aes4000='no'
+
+AC_ARG_WITH([drivers],[AS_HELP_STRING([--with-drivers],
+	[List of drivers to enable])],
+	[drivers="$withval"],
+	[drivers="$all_drivers"])
+
+for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
+	case ${driver} in
+		upekts)
+			AC_DEFINE([ENABLE_UPEKTS], [], [Build UPEK TouchStrip driver])
+			enable_upekts="yes"
+		;;
+		upektc)
+			AC_DEFINE([ENABLE_UPEKTC], [], [Build UPEK TouchChip driver])
+			enable_upektc="yes"
+		;;
+		upeksonly)
+			AC_DEFINE([ENABLE_UPEKSONLY], [], [Build UPEK TouchStrip sensor-only driver])
+			enable_upeksonly="yes"
+		;;
+		uru4000)
+			AC_DEFINE([ENABLE_URU4000], [], [Build Digital Persona U.are.U 4000 driver])
+			enable_uru4000="yes"
+		;;
+		fdu2000)
+			AC_DEFINE([ENABLE_FDU2000], [], [Build Secugen FDU 2000 driver])
+			enable_fdu2000="yes"
+		;;
+		vcom5s)
+			AC_DEFINE([ENABLE_VCOM5S], [], [Build Veridicom 5thSense driver])
+			enable_vcom5s="yes"
+		;;
+		aes2501)
+			AC_DEFINE([ENABLE_AES2501], [], [Build AuthenTec AES2501 driver])
+			require_aeslib="yes"
+			enable_aes2501="yes"
+		;;
+		aes1610)
+			AC_DEFINE([ENABLE_AES1610], [], [Build AuthenTec AES1610 driver])
+			require_aeslib="yes"
+			enable_aes1610="yes"
+		;;
+		aes4000)
+			AC_DEFINE([ENABLE_AES4000], [], [Build AuthenTec AES4000 driver])
+			require_aeslib="yes"
+			require_imagemagick="yes"
+			enable_aes4000="yes"
+		;;
+	esac
+done
+
+AM_CONDITIONAL([ENABLE_UPEKTS], [test "$enable_upekts" != "no"])
+#AM_CONDITIONAL([ENABLE_UPEKTC], [test "$enable_upektc" != "no"])
+AM_CONDITIONAL([ENABLE_UPEKSONLY], [test "$enable_upeksonly" != "no"])
+AM_CONDITIONAL([ENABLE_VCOM5S], [test "$enable_vcom5s" != "no"])
+AM_CONDITIONAL([ENABLE_URU4000], [test "$enable_uru4000" != "no"])
+#AM_CONDITIONAL([ENABLE_FDU2000], [test "$enable_fdu2000" != "no"])
+#AM_CONDITIONAL([ENABLE_AES1610], [test "$enable_aes1610" != "no"])
+AM_CONDITIONAL([ENABLE_AES2501], [test "$enable_aes2501" != "no"])
+AM_CONDITIONAL([ENABLE_AES4000], [test "$enable_aes4000" != "no"])
+AM_CONDITIONAL([REQUIRE_IMAGEMAGICK], [test "$require_imagemagick" != "no"])
+AM_CONDITIONAL([REQUIRE_AESLIB], [test "$require_aeslib" != "no"])
+
+
 PKG_CHECK_MODULES(LIBUSB, [libusb-1.0 >= 0.9.1])
 AC_SUBST(LIBUSB_CFLAGS)
 AC_SUBST(LIBUSB_LIBS)
@@ -31,9 +108,11 @@ PKG_CHECK_MODULES(GLIB, "glib-2.0")
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
+if test "$require_imagemagick" != "no"; then
 PKG_CHECK_MODULES(IMAGEMAGICK, "ImageMagick")
 AC_SUBST(IMAGEMAGICK_CFLAGS)
 AC_SUBST(IMAGEMAGICK_LIBS)
+fi;
 
 # Examples build
 AC_ARG_ENABLE([examples-build], [AS_HELP_STRING([--enable-examples-build],
