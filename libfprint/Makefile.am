@@ -105,8 +105,14 @@ endif
 
 if REQUIRE_IMAGEMAGICK
 OTHER_SRC += imagemagick.c
-libfprint_la_CFLAGS += $(IMAGEMAGICK_CFLAGS)
-libfprint_la_LIBADD += $(IMAGEMAGICK_LIBS)
+libfprint_la_CFLAGS += $(IMAGING_CFLAGS)
+libfprint_la_LIBADD += $(IMAGING_LIBS)
+endif
+
+if REQUIRE_GDKPIXBUF
+OTHER_SRC += gdkpixbuf.c
+libfprint_la_CFLAGS += $(IMAGING_CFLAGS)
+libfprint_la_LIBADD += $(IMAGING_LIBS)
 endif
 
 if REQUIRE_AESLIB

@@ -21,7 +21,7 @@ AC_SUBST(lt_age)
 
 all_drivers="upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes2501 aes4000"
 
-require_imagemagick='no'
+require_imaging='no'
 require_aeslib='no'
 enable_upekts='no'
 enable_upektc='no'
@@ -77,7 +77,7 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 		aes4000)
 			AC_DEFINE([ENABLE_AES4000], [], [Build AuthenTec AES4000 driver])
 			require_aeslib="yes"
-			require_imagemagick="yes"
+			require_imaging="yes"
 			enable_aes4000="yes"
 		;;
 	esac
@@ -92,7 +92,6 @@ AM_CONDITIONAL([ENABLE_URU4000], [test "$enable_uru4000" != "no"])
 #AM_CONDITIONAL([ENABLE_AES1610], [test "$enable_aes1610" != "no"])
 AM_CONDITIONAL([ENABLE_AES2501], [test "$enable_aes2501" != "no"])
 AM_CONDITIONAL([ENABLE_AES4000], [test "$enable_aes4000" != "no"])
-AM_CONDITIONAL([REQUIRE_IMAGEMAGICK], [test "$require_imagemagick" != "no"])
 AM_CONDITIONAL([REQUIRE_AESLIB], [test "$require_aeslib" != "no"])
 
 
@@ -109,11 +108,26 @@ PKG_CHECK_MODULES(GLIB, "glib-2.0")
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
-if test "$require_imagemagick" != "no"; then
-PKG_CHECK_MODULES(IMAGEMAGICK, "ImageMagick")
-AC_SUBST(IMAGEMAGICK_CFLAGS)
-AC_SUBST(IMAGEMAGICK_LIBS)
-fi;
+imagemagick_found=no
+gdkpixbuf_found=no
+
+if test "$require_imaging" != "no"; then
+	PKG_CHECK_MODULES(IMAGING, gthread-2.0 gdk-pixbuf-2.0, [gdkpixbuf_found=yes], [gdkpixbuf_found=no])
+	if test "$gdkpixbuf_found" != "yes"; then
+		PKG_CHECK_MODULES(IMAGING, ImageMagick, [imagemagick_found=yes], [imagemagick_found=no])
+	fi
+fi
+
+if test "$require_imaging" != "no"; then
+	if test "$gdkpixbuf_found" != "yes" && test "$imagemagick_found" != "yes"; then
+		AC_MSG_ERROR([gdk-pixbuf or ImageMagick is required for imaging support])
+	fi
+fi
+
+AM_CONDITIONAL([REQUIRE_GDKPIXBUF], [test "$gdkpixbuf_found" != "no"])
+AM_CONDITIONAL([REQUIRE_IMAGEMAGICK], [test "$imagemagick_found" != "no"])
+AC_SUBST(IMAGING_CFLAGS)
+AC_SUBST(IMAGING_LIBS)
 
 # Examples build
 AC_ARG_ENABLE([examples-build], [AS_HELP_STRING([--enable-examples-build],
