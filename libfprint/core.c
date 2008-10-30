@@ -375,6 +375,24 @@ static void register_drivers(void)
 	}
 }
 
+API_EXPORTED struct fp_driver **fprint_get_drivers (void)
+{
+	GPtrArray *array;
+	unsigned int i;
+
+	array = g_ptr_array_new ();
+	for (i = 0; i < G_N_ELEMENTS(primitive_drivers); i++)
+		g_ptr_array_add (array, primitive_drivers[i]);
+
+	for (i = 0; i < G_N_ELEMENTS(img_drivers); i++)
+		g_ptr_array_add (array, &(img_drivers[i]->driver));
+
+	/* Add a null item terminating the array */
+	g_ptr_array_add (array, NULL);
+
+	return (struct fp_driver **) g_ptr_array_free (array, FALSE);
+}
+
 static struct fp_driver *find_supporting_driver(libusb_device *udev,
 	const struct usb_id **usb_id)
 {

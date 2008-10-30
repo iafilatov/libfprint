@@ -91,6 +91,8 @@ enum fp_dev_state {
 	DEV_STATE_IDENTIFY_STOPPING,
 };
 
+struct fp_driver **fprint_get_drivers (void);
+
 struct fp_dev {
 	struct fp_driver *drv;
 	libusb_device_handle *udev;
