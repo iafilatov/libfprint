@@ -319,7 +319,7 @@ void fpi_log(enum fpi_log_level level, const char *component,
 static void register_driver(struct fp_driver *drv)
 {
 	if (drv->id == 0) {
-		fp_err("not registering driver %s: driver ID is 0");
+		fp_err("not registering driver %s: driver ID is 0", drv->name);
 		return;
 	}
 	registered_drivers = g_slist_prepend(registered_drivers, (gpointer) drv);
