@@ -938,7 +938,8 @@ static void dev_deinit(struct fp_img_dev *dev)
 }
 
 static const struct usb_id id_table[] = {
-	{ .vendor = 0x08ff, .product = 0x2580 },
+	{ .vendor = 0x08ff, .product = 0x2500 }, /* AES2500 */
+	{ .vendor = 0x08ff, .product = 0x2580 }, /* AES2501 */
 	{ 0, 0, 0, },
 };
 
