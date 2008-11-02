@@ -10,8 +10,8 @@ AES4000_SRC = drivers/aes4000.c
 FDU2000_SRC = drivers/fdu2000.c
 VCOM5S_SRC = drivers/vcom5s.c
 
-DRIVER_SRC = ""
-OTHER_SRC = ""
+DRIVER_SRC =
+OTHER_SRC =
 
 NBIS_SRC = \
 	nbis/include/bozorth.h \
