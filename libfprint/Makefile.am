@@ -1,5 +1,6 @@
 lib_LTLIBRARIES = libfprint.la
 noinst_PROGRAMS = fprint-list-hal-info
+MOSTLYCLEANFILES = $(hal_fdi_DATA)
 
 UPEKTS_SRC = drivers/upekts.c
 UPEKTC_SRC = drivers/upektc.c
