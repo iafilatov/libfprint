@@ -309,6 +309,7 @@ struct fp_img_driver fdu2000_driver = {
 		.name = FP_COMPONENT,
 		.full_name = "Secugen FDU 2000",
 		.id_table = id_table,
+		.scan_type = FP_SCAN_TYPE_PRESS,
 	},
 	.img_height = RAW_IMAGE_HEIGTH,
 	.img_width = RAW_IMAGE_WIDTH,

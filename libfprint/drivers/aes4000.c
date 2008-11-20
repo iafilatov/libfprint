@@ -253,6 +253,7 @@ struct fp_img_driver aes4000_driver = {
 		.name = FP_COMPONENT,
 		.full_name = "AuthenTec AES4000",
 		.id_table = id_table,
+		.scan_type = FP_SCAN_TYPE_PRESS,
 	},
 	.flags = 0,
 	.img_height = IMG_HEIGHT * ENLARGE_FACTOR,

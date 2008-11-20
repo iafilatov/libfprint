@@ -51,10 +51,21 @@ enum fp_finger {
 	RIGHT_LITTLE, /** little finger (right hand) */
 };
 
+/** \ingroup dev
+ * Numeric codes used to refer to the scan type of the device. Devices require
+ * either swiping or pressing the finger on the device. This is useful for
+ * front-ends.
+ */
+enum fp_scan_type {
+	FP_SCAN_TYPE_PRESS = 0, /** press */
+	FP_SCAN_TYPE_SWIPE, /** swipe */
+};
+
 /* Drivers */
 const char *fp_driver_get_name(struct fp_driver *drv);
 const char *fp_driver_get_full_name(struct fp_driver *drv);
 uint16_t fp_driver_get_driver_id(struct fp_driver *drv);
+enum fp_scan_type fp_driver_get_scan_type(struct fp_driver *drv);
 
 /* Device discovery */
 struct fp_dscv_dev **fp_discover_devs(void);

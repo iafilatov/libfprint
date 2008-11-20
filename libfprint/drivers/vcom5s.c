@@ -372,6 +372,7 @@ struct fp_img_driver vcom5s_driver = {
 		.name = FP_COMPONENT,
 		.full_name = "Veridicom 5thSense",
 		.id_table = id_table,
+		.scan_type = FP_SCAN_TYPE_PRESS,
 	},
 	.flags = 0,
 	.img_height = IMG_HEIGHT,

@@ -532,6 +532,7 @@ struct fp_img_driver aes1610_driver = {
 		.name = FP_COMPONENT,
 		.full_name = "AuthenTec AES1610",
 		.id_table = id_table,
+		.scan_type = FP_SCAN_TYPE_SWIPE,
 	},
 	.flags = 0,
 	.img_height = -1,

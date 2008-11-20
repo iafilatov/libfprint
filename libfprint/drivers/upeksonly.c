@@ -1022,6 +1022,7 @@ struct fp_img_driver upeksonly_driver = {
 		.name = FP_COMPONENT,
 		.full_name = "UPEK TouchStrip Sensor-Only",
 		.id_table = id_table,
+		.scan_type = FP_SCAN_TYPE_SWIPE,
 	},
 	.flags = 0,
 	.img_width = IMG_WIDTH,

@@ -949,6 +949,7 @@ struct fp_img_driver aes2501_driver = {
 		.name = FP_COMPONENT,
 		.full_name = "AuthenTec AES2501",
 		.id_table = id_table,
+		.scan_type = FP_SCAN_TYPE_SWIPE,
 	},
 	.flags = 0,
 	.img_height = -1,

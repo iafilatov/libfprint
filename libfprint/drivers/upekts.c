@@ -1465,6 +1465,7 @@ struct fp_driver upekts_driver = {
 	.name = FP_COMPONENT,
 	.full_name = "UPEK TouchStrip",
 	.id_table = id_table,
+	.scan_type = FP_SCAN_TYPE_SWIPE,
 	.open = dev_init,
 	.close = dev_exit,
 	.enroll_start = enroll_start,

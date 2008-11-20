@@ -402,6 +402,7 @@ struct fp_img_driver upektc_driver = {
 		.name = FP_COMPONENT,
 		.full_name = "UPEK TouchChip",
 		.id_table = id_table,
+		.scan_type = FP_SCAN_TYPE_PRESS,
 	},
 	.flags = FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE,
 	.img_height = 288,

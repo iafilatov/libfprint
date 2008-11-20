@@ -1227,6 +1227,7 @@ struct fp_img_driver uru4000_driver = {
 		.name = FP_COMPONENT,
 		.full_name = "Digital Persona U.are.U 4000/4000B",
 		.id_table = id_table,
+		.scan_type = FP_SCAN_TYPE_PRESS,
 	},
 	.flags = FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE,
 	.img_height = 289,

@@ -710,6 +710,16 @@ API_EXPORTED uint16_t fp_driver_get_driver_id(struct fp_driver *drv)
 	return drv->id;
 }
 
+/** \ingroup drv
+ * Retrieves the scan type for the devices associated with the driver.
+ * \param drv the driver
+ * \returns the scan type
+ */
+API_EXPORTED enum fp_scan_type fp_driver_get_scan_type(struct fp_driver *drv)
+{
+	return drv->scan_type;
+}
+
 static struct fp_img_dev *dev_to_img_dev(struct fp_dev *dev)
 {
 	if (dev->drv->type != DRIVER_IMAGING)

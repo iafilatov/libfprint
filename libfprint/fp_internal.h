@@ -199,6 +199,7 @@ struct fp_driver {
 	const char *full_name;
 	const struct usb_id * const id_table;
 	enum fp_driver_type type;
+	enum fp_scan_type scan_type;
 
 	void *priv;
 
