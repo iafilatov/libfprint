@@ -146,6 +146,7 @@ int main(void)
 		fprintf(stderr, "Failed to initialize libfprint\n");
 		exit(1);
 	}
+	fp_set_debug(3);
 
 	discovered_devs = fp_discover_devs();
 	if (!discovered_devs) {

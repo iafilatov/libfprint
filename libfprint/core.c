@@ -20,11 +20,15 @@
 #include <config.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <glib.h>
 #include <libusb.h>
 
 #include "fp_internal.h"
+
+static int log_level = 0;
+static int log_level_fixed = 0;
 
 libusb_context *fpi_usb_ctx = NULL;
 GSList *opened_devices = NULL;
@@ -41,13 +45,13 @@ GSList *opened_devices = NULL;
  * designed so that you only have to do this once - by integrating your
  * software with libfprint, you'll be supporting all the fingerprint readers
  * that we have got our hands on. As such, the API is rather general (and
- * therefore hopefully easy to comprehend!), and does it's best to hide the
+ * therefore hopefully easy to comprehend!), and does its best to hide the
  * technical details that required to operate the hardware.
  *
  * This documentation is not aimed at developers wishing to develop and
  * contribute fingerprint device drivers to libfprint.
  *
- * Feedback on this API and it's associated documentation is appreciated. Was
+ * Feedback on this API and its associated documentation is appreciated. Was
  * anything unclear? Does anything seem unreasonably complicated? Is anything
  * missing? Let us know on the
  * <a href="http://www.reactivated.net/fprint/Mailing_list">mailing list</a>.
@@ -283,6 +287,15 @@ void fpi_log(enum fpi_log_level level, const char *component,
 	va_list args;
 	FILE *stream = stdout;
 	const char *prefix;
+
+#ifndef ENABLE_DEBUG_LOGGING
+	if (!log_level)
+		return;
+	if (level == LOG_LEVEL_WARNING && log_level < 2)
+		return;
+	if (level == LOG_LEVEL_INFO && log_level < 3)
+		return;
+#endif
 
 	switch (level) {
 	case LOG_LEVEL_INFO:
@@ -827,12 +840,51 @@ API_EXPORTED int fp_dev_get_img_height(struct fp_dev *dev)
 }
 
 /** \ingroup core
+ * Set message verbosity.
+ *  - Level 0: no messages ever printed by the library (default)
+ *  - Level 1: error messages are printed to stderr
+ *  - Level 2: warning and error messages are printed to stderr
+ *  - Level 3: informational messages are printed to stdout, warning and error
+ *    messages are printed to stderr
+ *
+ * The default level is 0, which means no messages are ever printed. If you
+ * choose to increase the message verbosity level, ensure that your
+ * application does not close the stdout/stderr file descriptors.
+ *
+ * You are advised to set level 3. libfprint is conservative with its message
+ * logging and most of the time, will only log messages that explain error
+ * conditions and other oddities. This will help you debug your software.
+ *
+ * If the LIBFPRINT_DEBUG environment variable was set when libfprint was
+ * initialized, this function does nothing: the message verbosity is fixed
+ * to the value in the environment variable.
+ *
+ * If libfprint was compiled without any message logging, this function does
+ * nothing: you'll never get any messages.
+ *
+ * If libfprint was compiled with verbose debug message logging, this function
+ * does nothing: you'll always get messages from all levels.
+ *
+ * \param ctx the context to operate on, or NULL for the default context
+ * \param level debug level to set
+ */
+API_EXPORTED void fp_set_debug(int level)
+{
+	if (log_level_fixed)
+		return;
+
+	log_level = level;
+	libusb_set_debug(fpi_usb_ctx, level);
+}
+
+/** \ingroup core
  * Initialise libfprint. This function must be called before you attempt to
  * use the library in any way.
  * \return 0 on success, non-zero on error.
  */
 API_EXPORTED int fp_init(void)
 {
+	char *dbg = getenv("LIBFPRINT_DEBUG");
 	int r;
 	fp_dbg("");
 
@@ -840,7 +892,14 @@ API_EXPORTED int fp_init(void)
 	if (r < 0)
 		return r;
 
-	libusb_set_debug(fpi_usb_ctx, 3);
+	if (dbg) {
+		log_level = atoi(dbg);
+		if (log_level) {
+			log_level_fixed = 1;
+			libusb_set_debug(fpi_usb_ctx, log_level);
+		}
+	}
+
 	register_drivers();
 	fpi_poll_init();
 	return 0;

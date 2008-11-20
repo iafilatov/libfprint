@@ -297,6 +297,7 @@ void fp_set_pollfd_notifiers(fp_pollfd_added_cb added_cb,
 /* Library */
 int fp_init(void);
 void fp_exit(void);
+void fp_set_debug(int level);
 
 /* Asynchronous I/O */
 
