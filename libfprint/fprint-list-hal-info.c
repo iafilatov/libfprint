@@ -53,14 +53,11 @@ static void print_driver (struct fp_driver *driver)
 		printf ("    <append key=\"info.capabilities\" type=\"strlist\">biometric.fingerprint_reader</append>\n");
 		printf ("    <merge key=\"biometric.fingerprint_reader.libfprint.driver\" type=\"string\">%s</merge>\n", driver->name);
 		printf ("    <merge key=\"biometric.fingerprint_reader.libfprint.support\" type=\"bool\">true</merge>\n");
+		printf ("    <append key=\"biometric.fingerprint_reader.scan_type\" type=\"string\">%s</append>\n",
+			fp_driver_get_scan_type (driver) == FP_SCAN_TYPE_PRESS ? "press" : "swipe");
 		printf ("   </match>\n");
 		printf ("  </match>\n");
 	}
-}
-
-static void print_imaging_driver (struct fp_img_driver *driver)
-{
-	print_driver (&(driver->driver));
 }
 
 int main (int argc, char **argv)
