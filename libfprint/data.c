@@ -73,6 +73,7 @@ void fpi_data_exit(void)
 	((finger) >= LEFT_THUMB && (finger) <= RIGHT_LITTLE)
 
 /* for debug messages only */
+#ifdef ENABLE_DEBUG_LOGGING
 static const char *finger_num_to_str(enum fp_finger finger)
 {
 	const char *names[] = {
@@ -91,6 +92,7 @@ static const char *finger_num_to_str(enum fp_finger finger)
 		return "UNKNOWN";
 	return names[finger];
 }
+#endif
 
 static struct fp_print_data *print_data_new(uint16_t driver_id,
 	uint32_t devtype, enum fp_print_data_type type, size_t length)
