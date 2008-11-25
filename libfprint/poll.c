@@ -308,9 +308,10 @@ API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
 
 	ret = g_malloc(sizeof(struct fp_pollfd) * cnt);
 	i = 0;
-	while ((usbfd = usbfds[i++]) != NULL) {
+	while ((usbfd = usbfds[i]) != NULL) {
 		ret[i].fd = usbfd->fd;
 		ret[i].events = usbfd->events;
+		i++;
 	}
 
 	*pollfds = ret;
