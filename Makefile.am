@@ -18,4 +18,4 @@ ChangeLog:
 dist-hook: ChangeLog
 
 dist-up: dist
-	ncftpput upload.sourceforge.net incoming $(distdir).tar.bz2
+	rsync $(distdir).tar.bz2 frs.sourceforge.net:uploads/
