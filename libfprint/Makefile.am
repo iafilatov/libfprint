@@ -1,6 +1,6 @@
 lib_LTLIBRARIES = libfprint.la
-noinst_PROGRAMS = fprint-list-hal-info
-MOSTLYCLEANFILES = $(hal_fdi_DATA)
+noinst_PROGRAMS = fprint-list-hal-info fprint-list-udev-rules
+MOSTLYCLEANFILES = $(hal_fdi_DATA) $(udev_rules_DATA)
 
 UPEKTS_SRC = drivers/upekts.c
 UPEKTC_SRC = drivers/upektc.c
@@ -66,6 +66,15 @@ hal_fdidir = $(datadir)/hal/fdi/information/20thirdparty/
 $(hal_fdi_DATA): fprint-list-hal-info
 	$(builddir)/fprint-list-hal-info > $@
 
+fprint_list_udev_rules_SOURCES = fprint-list-udev-rules.c
+fprint_list_udev_rules_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(IMAGEMAGICK_CFLAGS) $(CRYPTO_CFLAGS) $(AM_CFLAGS)
+fprint_list_udev_rules_LDADD = $(builddir)/libfprint.la
+
+udev_rules_DATA = 60-fprint-autosuspend.rules
+udev_rulesdir = $(sysconfdir)/udev/rules.d/
+
+$(udev_rules_DATA): fprint-list-udev-rules
+	$(builddir)/fprint-list-udev-rules > $@
 
 if ENABLE_UPEKTS
 DRIVER_SRC += $(UPEKTS_SRC)
