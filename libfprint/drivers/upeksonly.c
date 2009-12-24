@@ -248,6 +248,7 @@ static void add_to_rowbuf(struct fp_img_dev *dev, unsigned char *data, int size)
 	sdev->rowbuf_offset += size;
 	if (sdev->rowbuf_offset >= IMG_WIDTH)
 		row_complete(dev);
+
 }
 
 static void start_new_row(struct sonly_dev *sdev, unsigned char *data, int size)
@@ -282,11 +283,56 @@ static void handle_packet(struct fp_img_dev *dev, unsigned char *data)
 	int for_rowbuf;
 	int next_row_addr;
 	int diff;
+	unsigned char dummy_data[62];
+
+	/* Init dummy data to something neutral */
+	memset (dummy_data, 204, 62);
 
 	data += 2; /* skip sequence number */
 	if (seqnum != sdev->last_seqnum + 1) {
-		if (seqnum != 0 && sdev->last_seqnum != 16383)
-			fp_warn("lost some data");
+		if (seqnum != 0 && sdev->last_seqnum != 16383) {
+			int missing_data = seqnum - sdev->last_seqnum;
+			int i;
+			fp_warn("lost %d packets of data between %d and %d", missing_data, sdev->last_seqnum, seqnum );
+
+			/* Minimize distortions for readers that lose a lot of packets */
+			for (i =1; i < missing_data; i++) {
+				abs_base_addr = (sdev->last_seqnum + 1) * 62;
+
+				/* If possible take the replacement data from last row */
+				if (sdev->num_rows > 1) {
+					int row_left = IMG_WIDTH - sdev->rowbuf_offset;
+					unsigned char *last_row = g_slist_nth_data (sdev->rows, 0);
+
+					if (row_left >= 62) {
+						memcpy(dummy_data, last_row + sdev->rowbuf_offset, 62);
+					} else {
+						memcpy(dummy_data, last_row + sdev->rowbuf_offset, row_left);
+						memcpy(dummy_data + row_left, last_row , 62 - row_left);
+					}
+				}
+
+				fp_warn("adding dummy input for %d, i=%d", sdev->last_seqnum + i, i);
+				for_rowbuf = rowbuf_remaining(sdev);
+				if (for_rowbuf != -1) {
+					add_to_rowbuf(dev, dummy_data, for_rowbuf);
+					/* row boundary */
+					if (for_rowbuf < 62) {
+						start_new_row(sdev, dummy_data + for_rowbuf, 62 - for_rowbuf);
+					}
+				} else if (abs_base_addr % IMG_WIDTH == 0) {
+					start_new_row(sdev, dummy_data, 62);
+				} else {
+					/* does the data in the packet reside on a row boundary?
+					 * if so capture it */
+					next_row_addr = ((abs_base_addr / IMG_WIDTH) + 1) * IMG_WIDTH;
+					diff = next_row_addr - abs_base_addr;
+					if (diff < 62)
+						start_new_row(sdev, dummy_data + diff, 62 - diff);
+				}
+				sdev->last_seqnum = sdev->last_seqnum + 1;
+			}
+		}
 	}
 	if (seqnum <= sdev->last_seqnum) {
 		fp_dbg("detected wraparound");
@@ -302,7 +348,10 @@ static void handle_packet(struct fp_img_dev *dev, unsigned char *data)
 	for_rowbuf = rowbuf_remaining(sdev);
 	if (for_rowbuf != -1) {
 		add_to_rowbuf(dev, data, for_rowbuf);
-		/* FIXME: we drop a row here */
+		/*row boundary*/
+		if (for_rowbuf < 62) {
+			start_new_row(sdev, data + for_rowbuf, 62 - for_rowbuf);
+		}
 		return;
 	}
 
