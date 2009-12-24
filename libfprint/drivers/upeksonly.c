@@ -168,8 +168,12 @@ static void handoff_img(struct fp_img_dev *dev)
 	fp_dbg("%d rows", sdev->num_rows);
 	img->height = sdev->num_rows;
 
+	/* The scans from this device are rolled right by two colums
+	 * It feels a lot smarter to correct here than mess with it at
+	 * read time*/
 	do {
-		memcpy(img->data + offset, elem->data, IMG_WIDTH);
+		memcpy(img->data + offset, elem->data + 2, IMG_WIDTH - 2);
+		memcpy(img->data + offset + IMG_WIDTH - 2, elem->data,  2);
 		g_free(elem->data);
 		offset += IMG_WIDTH;
 	} while ((elem = g_slist_next(elem)) != NULL);
@@ -255,8 +259,7 @@ static void start_new_row(struct sonly_dev *sdev, unsigned char *data, int size)
 {
 	if (!sdev->rowbuf)
 		sdev->rowbuf = g_malloc(IMG_WIDTH);
-	memcpy(sdev->rowbuf + IMG_WIDTH - 2, data, 2);
-	memcpy(sdev->rowbuf, data + 2, size - 2);
+	memcpy(sdev->rowbuf, data, size);
 	sdev->rowbuf_offset = size;
 }
 
