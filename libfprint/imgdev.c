@@ -228,8 +228,12 @@ void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 
 	fp_img_standardize(img);
 	imgdev->acquire_img = img;
-	fpi_img_to_print_data(imgdev, img, &print);
-	if (img->minutiae->num < MIN_ACCEPTABLE_MINUTIAE) {
+	r = fpi_img_to_print_data(imgdev, img, &print);
+	if (r < 0) {
+		fp_dbg("image to print data conversion error: %d", r);
+		imgdev->action_result = FP_ENROLL_RETRY;
+		goto next_state;
+	} else if (img->minutiae->num < MIN_ACCEPTABLE_MINUTIAE) {
 		fp_dbg("not enough minutiae, %d/%d", img->minutiae->num,
 			MIN_ACCEPTABLE_MINUTIAE);
 		fp_print_data_free(print);
