@@ -31,6 +31,7 @@
 #define IMG_WIDTH 288
 #define NUM_BULK_TRANSFERS 24
 #define MAX_ROWS 700
+#define MIN_ROWS 64
 
 struct img_transfer_data {
 	int idx;
@@ -218,13 +219,22 @@ static void row_complete(struct fp_img_dev *dev)
 		int total;
 
 		compute_rows(lastrow, sdev->rowbuf, &diff, &total);
+
 		if (total < 52000) {
 			sdev->num_blank = 0;
 		} else {
 			sdev->num_blank++;
-			if (sdev->num_blank > 500) {
+			/* Don't consider the scan complete unless theres at least
+			 * MIN_ROWS recorded or very long blank read occurred.
+			 *
+			 * Typical problem spot: one brief touch before starting the
+			 * actual scan. Happens most commonly if scan is started
+			 * from before the first joint resulting in a gap after the inital touch.
+			 */
+			if ((sdev->num_blank > 500)
+			    && ((sdev->num_rows > MIN_ROWS) || (sdev->num_blank > 5000))) {
 				sdev->finger_removed = 1;
-				fp_dbg("detected finger removal");
+				fp_dbg("detected finger removal. Blank rows: %d, Full rows: %d", sdev->num_blank, sdev->num_rows);
 				handoff_img(dev);
 				return;
 			}
