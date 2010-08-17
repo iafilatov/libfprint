@@ -361,11 +361,11 @@ static struct fp_img_driver * const img_drivers[] = {
 #ifdef ENABLE_UPEKSONLY
 	&upeksonly_driver,
 #endif
-	/*
+	
 #ifdef ENABLE_AES1610
 	&aes1610_driver,
 #endif
-#ifdef ENABLE_UPEKTC
+/*#ifdef ENABLE_UPEKTC
 	&upektc_driver,
 #endif
 #ifdef ENABLE_FDU2000
