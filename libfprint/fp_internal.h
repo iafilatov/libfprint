@@ -204,7 +204,7 @@ struct fp_driver {
 	void *priv;
 
 	/* Device operations */
-	int (*discover)(const struct usb_id *usb_id, uint32_t *devtype);
+	int (*discover)(struct libusb_device_descriptor *dsc, uint32_t *devtype);
 	int (*open)(struct fp_dev *dev, unsigned long driver_data);
 	void (*close)(struct fp_dev *dev);
 	int (*enroll_start)(struct fp_dev *dev);

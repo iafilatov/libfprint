@@ -364,7 +364,7 @@ static struct fp_img_driver * const img_drivers[] = {
 #ifdef ENABLE_UPEKSONLY
 	&upeksonly_driver,
 #endif
-	
+
 #ifdef ENABLE_AES1610
 	&aes1610_driver,
 #endif
@@ -410,50 +410,79 @@ API_EXPORTED struct fp_driver **fprint_get_drivers (void)
 }
 
 static struct fp_driver *find_supporting_driver(libusb_device *udev,
-	const struct usb_id **usb_id)
+	const struct usb_id **usb_id, uint32_t *devtype)
 {
 	int ret;
 	GSList *elem = registered_drivers;
 	struct libusb_device_descriptor dsc;
+
+	const struct usb_id *best_usb_id;
+	struct fp_driver *best_drv;
+	uint32_t best_devtype;
+	int drv_score = 0;
 
 	ret = libusb_get_device_descriptor(udev, &dsc);
 	if (ret < 0) {
 		fp_err("Failed to get device descriptor");
 		return NULL;
 	}
-	
+
+	best_drv = NULL;
+	best_devtype = 0;
+
 	do {
 		struct fp_driver *drv = elem->data;
+		uint32_t type = 0;
 		const struct usb_id *id;
 
-		for (id = drv->id_table; id->vendor; id++)
+		for (id = drv->id_table; id->vendor; id++) {
 			if (dsc.idVendor == id->vendor && dsc.idProduct == id->product) {
+				if (drv->discover) {
+					int r = drv->discover(&dsc, &type);
+					if (r < 0)
+						fp_err("%s discover failed, code %d", drv->name, r);
+					if (r <= 0)
+						continue;
+					/* Has a discover function, and matched our device */
+					drv_score = 100;
+				} else {
+					/* Already got a driver as good */
+					if (drv_score >= 50)
+						continue;
+					drv_score = 50;
+				}
 				fp_dbg("driver %s supports USB device %04x:%04x",
 					drv->name, id->vendor, id->product);
-				*usb_id = id;
-				return drv;
+				best_usb_id = id;
+				best_drv = drv;
+				best_devtype = type;
+
+				/* We found the best possible driver */
+				if (drv_score == 100)
+					break;
 			}
+		}
 	} while ((elem = g_slist_next(elem)));
-	return NULL;
+
+	fp_dbg("selected driver %s supports USB device %04x:%04x",
+	       best_drv->name, dsc.idVendor, dsc.idProduct);
+	*devtype = best_devtype;
+	*usb_id = best_usb_id;
+
+	return best_drv;
 }
 
 static struct fp_dscv_dev *discover_dev(libusb_device *udev)
 {
 	const struct usb_id *usb_id;
-	struct fp_driver *drv = find_supporting_driver(udev, &usb_id);
+	struct fp_driver *drv;
 	struct fp_dscv_dev *ddev;
-	uint32_t devtype = 0;
+	uint32_t devtype;
+
+	drv = find_supporting_driver(udev, &usb_id, &devtype);
 
 	if (!drv)
 		return NULL;
-
-	if (drv->discover) {
-		int r = drv->discover(usb_id, &devtype);
-		if (r < 0)
-			fp_err("%s discover failed, code %d", drv->name, r);
-		if (r <= 0)
-			return NULL;
-	}
 
 	ddev = g_malloc0(sizeof(*ddev));
 	ddev->drv = drv;

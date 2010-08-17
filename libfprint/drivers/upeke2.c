@@ -844,6 +844,12 @@ static struct fpi_ssm *deinitsm_new(struct fp_dev *dev)
 	return fpi_ssm_new(dev, deinitsm_state_handler, DEINITSM_NUM_STATES);
 }
 
+static int discover(struct libusb_device_descriptor *dsc, uint32_t *devtype)
+{
+	/* FIXME: Detect whether dsc represents a device that we can handle */
+	return 0;
+}
+
 static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 {
 	struct upeke2_dev *upekdev = NULL;
@@ -1442,8 +1448,7 @@ static int verify_stop(struct fp_dev *dev, gboolean iterating)
 }
 
 static const struct usb_id id_table[] = {
-/* FIXME: Disabled for now, as this clashes with the upeksonly driver */
-/*	{ .vendor = 0x147e, .product = 0x2016 }, */
+	{ .vendor = 0x147e, .product = 0x2016 },
 	{ 0, 0, 0, }, /* terminating entry */
 };
 
@@ -1453,6 +1458,7 @@ struct fp_driver upeke2_driver = {
 	.full_name = "UPEK Eikon 2",
 	.id_table = id_table,
 	.scan_type = FP_SCAN_TYPE_SWIPE,
+	.discover = discover,
 	.open = dev_init,
 	.close = dev_exit,
 	.enroll_start = enroll_start,
