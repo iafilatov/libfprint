@@ -846,7 +846,10 @@ static struct fpi_ssm *deinitsm_new(struct fp_dev *dev)
 
 static int discover(struct libusb_device_descriptor *dsc, uint32_t *devtype)
 {
-	/* FIXME: Detect whether dsc represents a device that we can handle */
+	/* Revision 2 is what we're interested in */
+	if (dsc->bcdDevice == 2)
+		return 1;
+
 	return 0;
 }
 

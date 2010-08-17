@@ -1011,6 +1011,15 @@ static void dev_deinit(struct fp_img_dev *dev)
 	fpi_imgdev_close_complete(dev);
 }
 
+static int dev_discover(struct libusb_device_descriptor *dsc, uint32_t *devtype)
+{
+	/* Revision 1 is what we're interested in */
+	if (dsc->bcdDevice == 1)
+		return 1;
+
+	return 0;
+}
+
 static const struct usb_id id_table[] = {
 	{ .vendor = 0x147e, .product = 0x2016 },
 	{ 0, 0, 0, },
@@ -1023,6 +1032,7 @@ struct fp_img_driver upeksonly_driver = {
 		.full_name = "UPEK TouchStrip Sensor-Only",
 		.id_table = id_table,
 		.scan_type = FP_SCAN_TYPE_SWIPE,
+		.discover = dev_discover,
 	},
 	.flags = 0,
 	.img_width = IMG_WIDTH,
