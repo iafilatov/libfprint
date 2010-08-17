@@ -1000,6 +1000,7 @@ static void e_handle_resp00(struct fp_dev *dev, unsigned char *data,
 	case 0x0e:
 	case 0x26:
 	case 0x27:
+	case 0x2e:
 		/* if we previously completed a non-last enrollment stage, we'll
 		 * get this code to indicate successful stage completion */
 		if (upekdev->enroll_passed) {
