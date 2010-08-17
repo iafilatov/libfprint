@@ -2,6 +2,7 @@ lib_LTLIBRARIES = libfprint.la
 noinst_PROGRAMS = fprint-list-hal-info fprint-list-udev-rules
 MOSTLYCLEANFILES = $(hal_fdi_DATA) $(udev_rules_DATA)
 
+UPEKE2_SRC = drivers/upeke2.c
 UPEKTS_SRC = drivers/upekts.c
 UPEKTC_SRC = drivers/upektc.c
 UPEKSONLY_SRC = drivers/upeksonly.c
@@ -75,6 +76,10 @@ udev_rulesdir = $(sysconfdir)/udev/rules.d/
 
 $(udev_rules_DATA): fprint-list-udev-rules
 	$(builddir)/fprint-list-udev-rules > $@
+
+if ENABLE_UPEKE2
+DRIVER_SRC += $(UPEKE2_SRC)
+endif
 
 if ENABLE_UPEKTS
 DRIVER_SRC += $(UPEKTS_SRC)

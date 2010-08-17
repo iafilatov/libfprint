@@ -19,10 +19,11 @@ AC_SUBST(lt_major)
 AC_SUBST(lt_revision)
 AC_SUBST(lt_age)
 
-all_drivers="upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes2501 aes4000"
+all_drivers="upeke2 upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes2501 aes4000"
 
 require_imaging='no'
 require_aeslib='no'
+enable_upeke2='no'
 enable_upekts='no'
 enable_upektc='no'
 enable_upeksonly='no'
@@ -43,6 +44,10 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 		upekts)
 			AC_DEFINE([ENABLE_UPEKTS], [], [Build UPEK TouchStrip driver])
 			enable_upekts="yes"
+		;;
+		upeke2)
+			AC_DEFINE([ENABLE_UPEKE2], [], [Build UPEK Eikon 2])
+			enable_upeke2="yes"
 		;;
 		upektc)
 			AC_DEFINE([ENABLE_UPEKTC], [], [Build UPEK TouchChip driver])
@@ -84,6 +89,7 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 done
 
 AM_CONDITIONAL([ENABLE_UPEKTS], [test "$enable_upekts" != "no"])
+AM_CONDITIONAL([ENABLE_UPEKE2], [test "$enable_upeke2" != "no"])
 #AM_CONDITIONAL([ENABLE_UPEKTC], [test "$enable_upektc" != "no"])
 AM_CONDITIONAL([ENABLE_UPEKSONLY], [test "$enable_upeksonly" != "no"])
 AM_CONDITIONAL([ENABLE_VCOM5S], [test "$enable_vcom5s" != "no"])
