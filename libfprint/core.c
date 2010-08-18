@@ -464,10 +464,12 @@ static struct fp_driver *find_supporting_driver(libusb_device *udev,
 		}
 	} while ((elem = g_slist_next(elem)));
 
-	fp_dbg("selected driver %s supports USB device %04x:%04x",
-	       best_drv->name, dsc.idVendor, dsc.idProduct);
-	*devtype = best_devtype;
-	*usb_id = best_usb_id;
+	if (best_drv != NULL) {
+		fp_dbg("selected driver %s supports USB device %04x:%04x",
+		       best_drv->name, dsc.idVendor, dsc.idProduct);
+		*devtype = best_devtype;
+		*usb_id = best_usb_id;
+	}
 
 	return best_drv;
 }
