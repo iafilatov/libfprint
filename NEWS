@@ -1,6 +1,12 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2010-08-19: v0.2.0 release (since 0.1.0-pre2)
+ * Add gdk-pixbuf support for image manipulation
+ * Add udev rules to allow devices to autosuspend
+ * Finish port of AES1610 driver
+ * Add UPEK EikonII (TCRD4C) driver
+
 2007-12-07: v0.0.5 release
  * AES1610 imaging improvements
  * Internal cleanups for Authentec drivers

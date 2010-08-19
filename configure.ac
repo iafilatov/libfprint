@@ -1,5 +1,5 @@
-AC_INIT([libfprint], [0.1.0-pre2])
-AM_INIT_AUTOMAKE
+AC_INIT([libfprint], [0.2.0])
+AM_INIT_AUTOMAKE([1.11 dist-bzip2 no-dist-gzip check-news])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([libfprint/core.c])
 AM_CONFIG_HEADER([config.h])
