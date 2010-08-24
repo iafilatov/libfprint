@@ -23,7 +23,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <openssl/aes.h>
+#include <nss.h>
+#include <pk11pub.h>
 #include <libusb.h>
 
 #include <fp_internal.h>
@@ -92,7 +93,7 @@ static const struct uru4k_dev_profile {
 	},
 	[MS_STANDALONE_V2] = {
 		.name = "Microsoft Fingerprint Reader v2",
-		.auth_cr = TRUE,	
+		.auth_cr = TRUE,
 	},
 	[DP_URU4000] = {
 		.name = "Digital Persona U.are.U 4000",
@@ -144,7 +145,10 @@ struct uru4k_dev {
 	int fwfixer_offset;
 	unsigned char fwfixer_value;
 
-	AES_KEY aeskey;
+	CK_MECHANISM_TYPE cipher;
+	PK11SlotInfo *slot;
+	PK11SymKey *symkey;
+	SECItem *param;
 };
 
 /* For 2nd generation MS devices */
@@ -326,8 +330,10 @@ static void challenge_cb(struct fp_img_dev *dev, int status,
 	struct fpi_ssm *ssm = user_data;
 	struct uru4k_dev *urudev = dev->priv;
 	unsigned char *respdata;
-	int r;
+	PK11Context *ctx;
+	int r, outlen;
 
+	r = status;
 	if (status != 0) {
 		fpi_ssm_mark_aborted(ssm, status);
 		return;
@@ -335,12 +341,21 @@ static void challenge_cb(struct fp_img_dev *dev, int status,
 
 	/* submit response */
 	/* produce response from challenge */
-	/* FIXME would this work in-place? */
 	respdata = g_malloc(CR_LENGTH);
-	AES_encrypt(data, respdata, &urudev->aeskey);
-	
-	r = write_regs(dev, REG_RESPONSE, CR_LENGTH, respdata, response_cb, ssm);
-	g_free(respdata);
+	ctx = PK11_CreateContextBySymKey(urudev->cipher, CKA_ENCRYPT,
+					 urudev->symkey, urudev->param);
+	if (PK11_CipherOp(ctx, respdata, &outlen, CR_LENGTH, data, CR_LENGTH) != SECSuccess
+	    || PK11_Finalize(ctx) != SECSuccess) {
+		fp_err("Failed to encrypt challenge data");
+		r = -ECONNABORTED;
+		g_free(respdata);
+	}
+	PK11_DestroyContext(ctx, PR_TRUE);
+
+	if (r >= 0) {
+		r = write_regs(dev, REG_RESPONSE, CR_LENGTH, respdata, response_cb, ssm);
+		g_free(respdata);
+	}
 	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);
 }
@@ -1111,6 +1126,8 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	const struct libusb_interface_descriptor *iface_desc;
 	const struct libusb_endpoint_descriptor *ep;
 	struct uru4k_dev *urudev;
+	SECStatus rv;
+	SECItem item;
 	int i;
 	int r;
 
@@ -1175,10 +1192,40 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 		goto out;
 	}
 
+	/* Initialise NSS early */
+	rv = NSS_NoDB_Init(".");
+	if (rv != SECSuccess) {
+		fp_err("could not initialise NSS");
+		goto out;
+	}
+
 	urudev = g_malloc0(sizeof(*urudev));
 	urudev->profile = &uru4k_dev_info[driver_data];
 	urudev->interface = iface_desc->bInterfaceNumber;
-	AES_set_encrypt_key(crkey, 128, &urudev->aeskey);
+
+	/* Set up encryption */
+	urudev->cipher = CKM_AES_ECB;
+	urudev->slot = PK11_GetBestSlot(urudev->cipher, NULL);
+	if (urudev->slot == NULL) {
+		fp_err("could not get encryption slot");
+		goto out;
+	}
+	item.type = siBuffer;
+	item.data = (unsigned char*) crkey;
+	item.len = sizeof(crkey);
+	urudev->symkey = PK11_ImportSymKey(urudev->slot,
+					   urudev->cipher,
+					   PK11_OriginUnwrap,
+					   CKA_ENCRYPT,
+					   &item, NULL);
+	if (urudev->symkey == NULL) {
+		fp_err("failed to import key into NSS");
+		PK11_FreeSlot(urudev->slot);
+		urudev->slot = NULL;
+		goto out;
+	}
+	urudev->param = PK11_ParamFromIV(urudev->cipher, NULL);
+
 	dev->priv = urudev;
 	fpi_imgdev_open_complete(dev, 0);
 
@@ -1190,6 +1237,12 @@ out:
 static void dev_deinit(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = dev->priv;
+	if (urudev->symkey)
+		PK11_FreeSymKey (urudev->symkey);
+	if (urudev->param)
+		SECITEM_FreeItem(urudev->param, PR_TRUE);
+	if (urudev->slot)
+		PK11_FreeSlot(urudev->slot);
 	libusb_release_interface(dev->udev, urudev->interface);
 	g_free(urudev);
 	fpi_imgdev_close_complete(dev);
