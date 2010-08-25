@@ -1,6 +1,6 @@
 lib_LTLIBRARIES = libfprint.la
-noinst_PROGRAMS = fprint-list-hal-info fprint-list-udev-rules
-MOSTLYCLEANFILES = $(hal_fdi_DATA) $(udev_rules_DATA)
+noinst_PROGRAMS = fprint-list-udev-rules
+MOSTLYCLEANFILES = $(udev_rules_DATA)
 
 UPEKE2_SRC = drivers/upeke2.c
 UPEKTS_SRC = drivers/upekts.c
@@ -71,16 +71,6 @@ NBIS_SRC = \
 libfprint_la_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(CRYPTO_CFLAGS) $(AM_CFLAGS)
 libfprint_la_LDFLAGS = -version-info @lt_major@:@lt_revision@:@lt_age@
 libfprint_la_LIBADD = -lm $(LIBUSB_LIBS) $(GLIB_LIBS) $(CRYPTO_LIBS)
-
-fprint_list_hal_info_SOURCES = fprint-list-hal-info.c
-fprint_list_hal_info_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(IMAGEMAGICK_CFLAGS) $(CRYPTO_CFLAGS) $(AM_CFLAGS)
-fprint_list_hal_info_LDADD = $(builddir)/libfprint.la
-
-hal_fdi_DATA = 10-fingerprint-reader-fprint.fdi
-hal_fdidir = $(datadir)/hal/fdi/information/20thirdparty/
-
-$(hal_fdi_DATA): fprint-list-hal-info
-	$(builddir)/fprint-list-hal-info > $@
 
 fprint_list_udev_rules_SOURCES = fprint-list-udev-rules.c
 fprint_list_udev_rules_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(IMAGEMAGICK_CFLAGS) $(CRYPTO_CFLAGS) $(AM_CFLAGS)
