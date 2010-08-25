@@ -51,7 +51,8 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 		;;
 		upektc)
 			AC_DEFINE([ENABLE_UPEKTC], [], [Build UPEK TouchChip driver])
-			enable_upektc="yes"
+			enable_upektc="no"
+			# Driver not ported
 		;;
 		upeksonly)
 			AC_DEFINE([ENABLE_UPEKSONLY], [], [Build UPEK TouchStrip sensor-only driver])
@@ -63,7 +64,8 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 		;;
 		fdu2000)
 			AC_DEFINE([ENABLE_FDU2000], [], [Build Secugen FDU 2000 driver])
-			enable_fdu2000="yes"
+			enable_fdu2000="no"
+			# Driver not ported
 		;;
 		vcom5s)
 			AC_DEFINE([ENABLE_VCOM5S], [], [Build Veridicom 5thSense driver])
@@ -88,17 +90,17 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 	esac
 done
 
-AM_CONDITIONAL([ENABLE_UPEKTS], [test "$enable_upekts" != "no"])
-AM_CONDITIONAL([ENABLE_UPEKE2], [test "$enable_upeke2" != "no"])
-#AM_CONDITIONAL([ENABLE_UPEKTC], [test "$enable_upektc" != "no"])
-AM_CONDITIONAL([ENABLE_UPEKSONLY], [test "$enable_upeksonly" != "no"])
-AM_CONDITIONAL([ENABLE_VCOM5S], [test "$enable_vcom5s" != "no"])
-AM_CONDITIONAL([ENABLE_URU4000], [test "$enable_uru4000" != "no"])
-#AM_CONDITIONAL([ENABLE_FDU2000], [test "$enable_fdu2000" != "no"])
-AM_CONDITIONAL([ENABLE_AES1610], [test "$enable_aes1610" != "no"])
-AM_CONDITIONAL([ENABLE_AES2501], [test "$enable_aes2501" != "no"])
-AM_CONDITIONAL([ENABLE_AES4000], [test "$enable_aes4000" != "no"])
-AM_CONDITIONAL([REQUIRE_AESLIB], [test "$require_aeslib" != "no"])
+AM_CONDITIONAL([ENABLE_UPEKTS], [test "$enable_upekts" = "yes"])
+AM_CONDITIONAL([ENABLE_UPEKE2], [test "$enable_upeke2" = "yes"])
+#AM_CONDITIONAL([ENABLE_UPEKTC], [test "$enable_upektc" = "yes"])
+AM_CONDITIONAL([ENABLE_UPEKSONLY], [test "$enable_upeksonly" = "yes"])
+AM_CONDITIONAL([ENABLE_VCOM5S], [test "$enable_vcom5s" = "yes"])
+AM_CONDITIONAL([ENABLE_URU4000], [test "$enable_uru4000" = "yes"])
+AM_CONDITIONAL([ENABLE_FDU2000], [test "$enable_fdu2000" = "yes"])
+AM_CONDITIONAL([ENABLE_AES1610], [test "$enable_aes1610" = "yes"])
+AM_CONDITIONAL([ENABLE_AES2501], [test "$enable_aes2501" = "yes"])
+AM_CONDITIONAL([ENABLE_AES4000], [test "$enable_aes4000" = "yes"])
+AM_CONDITIONAL([REQUIRE_AESLIB], [test "$require_aeslib" = "yes"])
 
 
 PKG_CHECK_MODULES(LIBUSB, [libusb-1.0 >= 0.9.1])
@@ -117,21 +119,21 @@ AC_SUBST(GLIB_LIBS)
 imagemagick_found=no
 gdkpixbuf_found=no
 
-if test "$require_imaging" != "no"; then
+if test "$require_imaging" = "yes"; then
 	PKG_CHECK_MODULES(IMAGING, gthread-2.0 gdk-pixbuf-2.0, [gdkpixbuf_found=yes], [gdkpixbuf_found=no])
 	if test "$gdkpixbuf_found" != "yes"; then
 		PKG_CHECK_MODULES(IMAGING, ImageMagick, [imagemagick_found=yes], [imagemagick_found=no])
 	fi
 fi
 
-if test "$require_imaging" != "no"; then
+if test "$require_imaging" = "yes"; then
 	if test "$gdkpixbuf_found" != "yes" && test "$imagemagick_found" != "yes"; then
 		AC_MSG_ERROR([gdk-pixbuf or ImageMagick is required for imaging support])
 	fi
 fi
 
-AM_CONDITIONAL([REQUIRE_GDKPIXBUF], [test "$gdkpixbuf_found" != "no"])
-AM_CONDITIONAL([REQUIRE_IMAGEMAGICK], [test "$imagemagick_found" != "no"])
+AM_CONDITIONAL([REQUIRE_GDKPIXBUF], [test "$gdkpixbuf_found" = "yes"])
+AM_CONDITIONAL([REQUIRE_IMAGEMAGICK], [test "$imagemagick_found" = "yes"])
 AC_SUBST(IMAGING_CFLAGS)
 AC_SUBST(IMAGING_LIBS)
 
@@ -199,6 +201,72 @@ CFLAGS="$saved_cflags"
 AC_DEFINE([API_EXPORTED], [__attribute__((visibility("default")))], [Default visibility])
 AM_CFLAGS="-std=gnu99 $inline_cflags -Wall -Wundef -Wunused -Wstrict-prototypes -Werror-implicit-function-declaration -Wno-pointer-sign -Wshadow"
 AC_SUBST(AM_CFLAGS)
+
+if test "$require_imaging" = "yes"; then
+	if test x$gdkpixbuf_found != no; then
+		AC_MSG_NOTICE([** Using gdk-pixbuf for imaging])
+	else
+		AC_MSG_NOTICE([** Using ImageMagick for imaging])
+	fi
+else
+	AC_MSG_NOTICE([   Imaging support disabled])
+fi
+
+if test x$enable_upekts != xno ; then
+	AC_MSG_NOTICE([** upekts driver enabled])
+else
+	AC_MSG_NOTICE([   upekts driver disabled])
+fi
+if test x$enable_upeke2 != xno ; then
+	AC_MSG_NOTICE([** upeke2 driver enabled])
+else
+	AC_MSG_NOTICE([   upeke2 driver disabled])
+fi
+if test x$enable_upektc != xno ; then
+	AC_MSG_NOTICE([** upektc driver enabled])
+else
+	AC_MSG_NOTICE([   upektc driver disabled])
+fi
+if test x$enable_upeksonly != xno ; then
+	AC_MSG_NOTICE([** upeksonly driver enabled])
+else
+	AC_MSG_NOTICE([   upeksonly driver disabled])
+fi
+if test x$enable_vcom5s != xno ; then
+	AC_MSG_NOTICE([** vcom5s driver enabled])
+else
+	AC_MSG_NOTICE([   vcom5s driver disabled])
+fi
+if test x$enable_uru4000 != xno ; then
+	AC_MSG_NOTICE([** uru4000 driver enabled])
+else
+	AC_MSG_NOTICE([   uru4000 driver disabled])
+fi
+if test x$enable_fdu2000 != xno ; then
+	AC_MSG_NOTICE([** fdu2000 driver enabled])
+else
+	AC_MSG_NOTICE([   fdu2000 driver disabled])
+fi
+if test x$enable_aes1610 != xno ; then
+	AC_MSG_NOTICE([** aes1610 driver enabled])
+else
+	AC_MSG_NOTICE([   aes1610 driver disabled])
+fi
+if test x$enable_aes2501 != xno ; then
+	AC_MSG_NOTICE([** aes2501 driver enabled])
+else
+	AC_MSG_NOTICE([   aes2501 driver disabled])
+fi
+if test x$enable_aes4000 != xno ; then
+	AC_MSG_NOTICE([** aes4000 driver enabled])
+else
+	AC_MSG_NOTICE([   aes4000 driver disabled])
+fi
+if test x$require_aeslib != xno ; then
+	AC_MSG_NOTICE([** aeslib helper functions enabled])
+else
+	AC_MSG_NOTICE([   aeslib helper functions disabled])
+fi
 
 AC_CONFIG_FILES([libfprint.pc] [Makefile] [libfprint/Makefile] [examples/Makefile] [doc/Makefile])
 AC_OUTPUT
