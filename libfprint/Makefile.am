@@ -13,6 +13,21 @@ AES4000_SRC = drivers/aes4000.c
 FDU2000_SRC = drivers/fdu2000.c
 VCOM5S_SRC = drivers/vcom5s.c
 
+EXTRA_DIST = \
+	$(UPEKE2_SRC)		\
+	$(UPEKTS_SRC)		\
+	$(UPEKTC_SRC)		\
+	$(UPEKSONLY_SRC)	\
+	$(URU4000_SRC)		\
+	$(AES1610_SRC)		\
+	$(AES2501_SRC)		\
+	$(AES4000_SRC)		\
+	$(FDU2000_SRC)		\
+	$(VCOM5S_SRC)		\
+	aeslib.c aeslib.h	\
+	imagemagick.c		\
+	gdkpixbuf.c
+
 DRIVER_SRC =
 OTHER_SRC =
 
