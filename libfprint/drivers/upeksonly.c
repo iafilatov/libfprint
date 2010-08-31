@@ -663,7 +663,7 @@ static void sm_await_intr(struct fpi_ssm *ssm)
 
 /***** AWAIT FINGER *****/
 
-static const struct sonly_regwrite awfsm_writev_1[] = {
+static const struct sonly_regwrite awfsm_2016_writev_1[] = {
 	{ 0x0a, 0x00 }, { 0x0a, 0x00 }, { 0x09, 0x20 }, { 0x03, 0x3b },
 	{ 0x00, 0x67 }, { 0x00, 0x67 },
 };
@@ -683,7 +683,7 @@ static const struct sonly_regwrite awfsm_1000_writev_1[] = {
 	{ 0x10, 0x00 }, { 0x11, 0xbf },
 };
 
-static const struct sonly_regwrite awfsm_writev_2[] = {
+static const struct sonly_regwrite awfsm_2016_writev_2[] = {
 	{ 0x01, 0xc6 }, { 0x0c, 0x13 }, { 0x0d, 0x0d }, { 0x0e, 0x0e },
 	{ 0x0f, 0x0d }, { 0x0b, 0x00 },
 };
@@ -693,12 +693,12 @@ static const struct sonly_regwrite awfsm_1000_writev_2[] = {
 	{ 0x30, 0xe1 }, { 0x15, 0x06 }, { 0x15, 0x86 },
 };
 
-static const struct sonly_regwrite awfsm_writev_3[] = {
+static const struct sonly_regwrite awfsm_2016_writev_3[] = {
 	{ 0x13, 0x45 }, { 0x30, 0xe0 }, { 0x12, 0x01 }, { 0x20, 0x01 },
 	{ 0x09, 0x20 }, { 0x0a, 0x00 }, { 0x30, 0xe0 }, { 0x20, 0x01 },
 };
 
-static const struct sonly_regwrite awfsm_writev_4[] = {
+static const struct sonly_regwrite awfsm_2016_writev_4[] = {
 	{ 0x08, 0x00 }, { 0x10, 0x00 }, { 0x12, 0x01 }, { 0x11, 0xbf },
 	{ 0x12, 0x01 }, { 0x07, 0x10 }, { 0x07, 0x10 }, { 0x04, 0x00 },\
 	{ 0x05, 0x00 }, { 0x0b, 0x00 },
@@ -708,18 +708,18 @@ static const struct sonly_regwrite awfsm_writev_4[] = {
 	{ 0x15, 0x84 },
 };
 
-enum awfsm_states {
-	AWFSM_WRITEV_1,
-	AWFSM_READ_01,
-	AWFSM_WRITE_01,
-	AWFSM_WRITEV_2,
-	AWFSM_READ_13,
-	AWFSM_WRITE_13,
-	AWFSM_WRITEV_3,
-	AWFSM_READ_07,
-	AWFSM_WRITE_07,
-	AWFSM_WRITEV_4,
-	AWFSM_NUM_STATES,
+enum awfsm_2016_states {
+	AWFSM_2016_WRITEV_1,
+	AWFSM_2016_READ_01,
+	AWFSM_2016_WRITE_01,
+	AWFSM_2016_WRITEV_2,
+	AWFSM_2016_READ_13,
+	AWFSM_2016_WRITE_13,
+	AWFSM_2016_WRITEV_3,
+	AWFSM_2016_READ_07,
+	AWFSM_2016_WRITE_07,
+	AWFSM_2016_WRITEV_4,
+	AWFSM_2016_NUM_STATES,
 };
 
 enum awfsm_1000_states {
@@ -728,49 +728,49 @@ enum awfsm_1000_states {
 	AWFSM_1000_NUM_STATES,
 };
 
-static void awfsm_run_state(struct fpi_ssm *ssm)
+static void awfsm_2016_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct sonly_dev *sdev = dev->priv;
 
 	switch (ssm->cur_state) {
-	case AWFSM_WRITEV_1:
-		sm_write_regs(ssm, awfsm_writev_1, G_N_ELEMENTS(awfsm_writev_1));
+	case AWFSM_2016_WRITEV_1:
+		sm_write_regs(ssm, awfsm_2016_writev_1, G_N_ELEMENTS(awfsm_2016_writev_1));
 		break;
-	case AWFSM_READ_01:
+	case AWFSM_2016_READ_01:
 		sm_read_reg(ssm, 0x01);
 		break;
-	case AWFSM_WRITE_01:
+	case AWFSM_2016_WRITE_01:
 		if (sdev->read_reg_result != 0xc6)
 			sm_write_reg(ssm, 0x01, 0x46);
 		else
 			sm_write_reg(ssm, 0x01, 0xc6);
 		break;
-	case AWFSM_WRITEV_2:
-		sm_write_regs(ssm, awfsm_writev_2, G_N_ELEMENTS(awfsm_writev_2));
+	case AWFSM_2016_WRITEV_2:
+		sm_write_regs(ssm, awfsm_2016_writev_2, G_N_ELEMENTS(awfsm_2016_writev_2));
 		break;
-	case AWFSM_READ_13:
+	case AWFSM_2016_READ_13:
 		sm_read_reg(ssm, 0x13);
 		break;
-	case AWFSM_WRITE_13:
+	case AWFSM_2016_WRITE_13:
 		if (sdev->read_reg_result != 0x45)
 			sm_write_reg(ssm, 0x13, 0x05);
 		else
 			sm_write_reg(ssm, 0x13, 0x45);
 		break;
-	case AWFSM_WRITEV_3:
-		sm_write_regs(ssm, awfsm_writev_3, G_N_ELEMENTS(awfsm_writev_3));
+	case AWFSM_2016_WRITEV_3:
+		sm_write_regs(ssm, awfsm_2016_writev_3, G_N_ELEMENTS(awfsm_2016_writev_3));
 		break;
-	case AWFSM_READ_07:
+	case AWFSM_2016_READ_07:
 		sm_read_reg(ssm, 0x07);
 		break;
-	case AWFSM_WRITE_07:
+	case AWFSM_2016_WRITE_07:
 		if (sdev->read_reg_result != 0x10 && sdev->read_reg_result != 0x90)
 			fp_warn("odd reg7 value %x", sdev->read_reg_result);
 		sm_write_reg(ssm, 0x07, sdev->read_reg_result);
 		break;
-	case AWFSM_WRITEV_4:
-		sm_write_regs(ssm, awfsm_writev_4, G_N_ELEMENTS(awfsm_writev_4));
+	case AWFSM_2016_WRITEV_4:
+		sm_write_regs(ssm, awfsm_2016_writev_4, G_N_ELEMENTS(awfsm_2016_writev_4));
 		break;
 	}
 }
@@ -789,7 +789,7 @@ static void awfsm_1000_run_state(struct fpi_ssm *ssm)
 
 /***** CAPTURE MODE *****/
 
-static const struct sonly_regwrite capsm_writev[] = {
+static const struct sonly_regwrite capsm_2016_writev[] = {
 	/* enter capture mode */
 	{ 0x09, 0x28 }, { 0x13, 0x55 }, { 0x0b, 0x80 }, { 0x04, 0x00 },
 	{ 0x05, 0x00 },
@@ -799,13 +799,13 @@ static const struct sonly_regwrite capsm_1000_writev[] = {
 	{ 0x08, 0x80 }, { 0x13, 0x55 }, { 0x0b, 0x80 }, /* Enter capture mode */
 };
 
-enum capsm_states {
-	CAPSM_INIT,
-	CAPSM_WRITE_15,
-	CAPSM_WRITE_30,
-	CAPSM_FIRE_BULK,
-	CAPSM_WRITEV,
-	CAPSM_NUM_STATES,
+enum capsm_2016_states {
+	CAPSM_2016_INIT,
+	CAPSM_2016_WRITE_15,
+	CAPSM_2016_WRITE_30,
+	CAPSM_2016_FIRE_BULK,
+	CAPSM_2016_WRITEV,
+	CAPSM_2016_NUM_STATES,
 };
 
 enum capsm_1000_states {
@@ -845,13 +845,13 @@ static void capsm_fire_bulk(struct fpi_ssm *ssm)
 	fpi_ssm_next_state(ssm);
 }
 
-static void capsm_run_state(struct fpi_ssm *ssm)
+static void capsm_2016_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct sonly_dev *sdev = dev->priv;
 
 	switch (ssm->cur_state) {
-	case CAPSM_INIT:
+	case CAPSM_2016_INIT:
 		sdev->rowbuf_offset = -1;
 		sdev->num_rows = 0;
 		sdev->wraparounds = -1;
@@ -861,17 +861,17 @@ static void capsm_run_state(struct fpi_ssm *ssm)
 		sdev->killing_transfers = 0;
 		fpi_ssm_next_state(ssm);
 		break;
-	case CAPSM_WRITE_15:
+	case CAPSM_2016_WRITE_15:
 		sm_write_reg(ssm, 0x15, 0x20);
 		break;
-	case CAPSM_WRITE_30:
+	case CAPSM_2016_WRITE_30:
 		sm_write_reg(ssm, 0x30, 0xe0);
 		break;
-	case CAPSM_FIRE_BULK: ;
+	case CAPSM_2016_FIRE_BULK: ;
 		capsm_fire_bulk (ssm);
 		break;
-	case CAPSM_WRITEV:
-		sm_write_regs(ssm, capsm_writev, G_N_ELEMENTS(capsm_writev));
+	case CAPSM_2016_WRITEV:
+		sm_write_regs(ssm, capsm_2016_writev, G_N_ELEMENTS(capsm_2016_writev));
 		break;
 	}
 }
@@ -903,7 +903,7 @@ static void capsm_1000_run_state(struct fpi_ssm *ssm)
 
 /***** DEINITIALIZATION *****/
 
-static const struct sonly_regwrite deinitsm_writev[] = {
+static const struct sonly_regwrite deinitsm_2016_writev[] = {
 	/* reset + enter low power mode */
 	{ 0x0b, 0x00 }, { 0x09, 0x20 }, { 0x13, 0x45 }, { 0x13, 0x45 },
 };
@@ -915,9 +915,9 @@ static const struct sonly_regwrite deinitsm_1000_writev[] = {
 };
 
 
-enum deinitsm_states {
-	DEINITSM_WRITEV,
-	DEINITSM_NUM_STATES,
+enum deinitsm_2016_states {
+	DEINITSM_2016_WRITEV,
+	DEINITSM_2016_NUM_STATES,
 };
 
 enum deinitsm_1000_states {
@@ -925,11 +925,11 @@ enum deinitsm_1000_states {
 	DEINITSM_1000_NUM_STATES,
 };
 
-static void deinitsm_run_state(struct fpi_ssm *ssm)
+static void deinitsm_2016_run_state(struct fpi_ssm *ssm)
 {
 	switch (ssm->cur_state) {
-	case DEINITSM_WRITEV:
-		sm_write_regs(ssm, deinitsm_writev, G_N_ELEMENTS(deinitsm_writev));
+	case DEINITSM_2016_WRITEV:
+		sm_write_regs(ssm, deinitsm_2016_writev, G_N_ELEMENTS(deinitsm_2016_writev));
 		break;
 	}
 }
@@ -945,7 +945,7 @@ static void deinitsm_1000_run_state(struct fpi_ssm *ssm)
 
 /***** INITIALIZATION *****/
 
-static const struct sonly_regwrite initsm_writev_1[] = {
+static const struct sonly_regwrite initsm_2016_writev_1[] = {
 	{ 0x49, 0x00 },
 	
 	/* BSAPI writes different values to register 0x3e each time. I initially
@@ -971,15 +971,15 @@ static const struct sonly_regwrite initsm_1000_writev_1[] = {
 	{ 0x0b, 0x00 }, { 0x08, 0x00 }, /* Initialize capture control registers */
 };
 
-enum initsm_states {
-	INITSM_WRITEV_1,
-	INITSM_READ_09,
-	INITSM_WRITE_09,
-	INITSM_READ_13,
-	INITSM_WRITE_13,
-	INITSM_WRITE_04,
-	INITSM_WRITE_05,
-	INITSM_NUM_STATES,
+enum initsm_2016_states {
+	INITSM_2016_WRITEV_1,
+	INITSM_2016_READ_09,
+	INITSM_2016_WRITE_09,
+	INITSM_2016_READ_13,
+	INITSM_2016_WRITE_13,
+	INITSM_2016_WRITE_04,
+	INITSM_2016_WRITE_05,
+	INITSM_2016_NUM_STATES,
 };
 
 enum initsm_1000_states {
@@ -987,31 +987,31 @@ enum initsm_1000_states {
 	INITSM_1000_NUM_STATES,
 };
 
-static void initsm_run_state(struct fpi_ssm *ssm)
+static void initsm_2016_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct sonly_dev *sdev = dev->priv;
 
 	switch (ssm->cur_state) {
-	case INITSM_WRITEV_1:
-		sm_write_regs(ssm, initsm_writev_1, G_N_ELEMENTS(initsm_writev_1));
+	case INITSM_2016_WRITEV_1:
+		sm_write_regs(ssm, initsm_2016_writev_1, G_N_ELEMENTS(initsm_2016_writev_1));
 		break;
-	case INITSM_READ_09:
+	case INITSM_2016_READ_09:
 		sm_read_reg(ssm, 0x09);
 		break;
-	case INITSM_WRITE_09:
+	case INITSM_2016_WRITE_09:
 		sm_write_reg(ssm, 0x09, sdev->read_reg_result & ~0x08);
 		break;
-	case INITSM_READ_13:
+	case INITSM_2016_READ_13:
 		sm_read_reg(ssm, 0x13);
 		break;
-	case INITSM_WRITE_13:
+	case INITSM_2016_WRITE_13:
 		sm_write_reg(ssm, 0x13, sdev->read_reg_result & ~0x10);
 		break;
-	case INITSM_WRITE_04:
+	case INITSM_2016_WRITE_04:
 		sm_write_reg(ssm, 0x04, 0x00);
 		break;
-	case INITSM_WRITE_05:
+	case INITSM_2016_WRITE_05:
 		sm_write_reg(ssm, 0x05, 0x00);
 		break;
 	}
@@ -1054,8 +1054,8 @@ static void loopsm_run_state(struct fpi_ssm *ssm)
 			struct fpi_ssm *awfsm = NULL;
 			switch (sdev->dev_model) {
 			case UPEKSONLY_2016:
-				awfsm = fpi_ssm_new(dev->dev, awfsm_run_state,
-					AWFSM_NUM_STATES);
+				awfsm = fpi_ssm_new(dev->dev, awfsm_2016_run_state,
+					AWFSM_2016_NUM_STATES);
 				break;
 			case UPEKSONLY_1000:
 				awfsm = fpi_ssm_new(dev->dev, awfsm_1000_run_state,
@@ -1073,8 +1073,8 @@ static void loopsm_run_state(struct fpi_ssm *ssm)
 		struct fpi_ssm *capsm = NULL;
 		switch (sdev->dev_model) {
 		case UPEKSONLY_2016:
-			capsm = fpi_ssm_new(dev->dev, capsm_run_state,
-				CAPSM_NUM_STATES);
+			capsm = fpi_ssm_new(dev->dev, capsm_2016_run_state,
+				CAPSM_2016_NUM_STATES);
 			break;
 		case UPEKSONLY_1000:
 			capsm = fpi_ssm_new(dev->dev, capsm_1000_run_state,
@@ -1092,8 +1092,8 @@ static void loopsm_run_state(struct fpi_ssm *ssm)
 		struct fpi_ssm *deinitsm = NULL;
 		switch (sdev->dev_model) {
 		case UPEKSONLY_2016:
-			deinitsm = fpi_ssm_new(dev->dev, deinitsm_run_state,
-				DEINITSM_NUM_STATES);
+			deinitsm = fpi_ssm_new(dev->dev, deinitsm_2016_run_state,
+				DEINITSM_2016_NUM_STATES);
 			break;
 		case UPEKSONLY_1000:
 			deinitsm = fpi_ssm_new(dev->dev, deinitsm_1000_run_state,
@@ -1210,7 +1210,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 	switch (sdev->dev_model) {
 	case UPEKSONLY_2016:
-		ssm = fpi_ssm_new(dev->dev, initsm_run_state, INITSM_NUM_STATES);
+		ssm = fpi_ssm_new(dev->dev, initsm_2016_run_state, INITSM_2016_NUM_STATES);
 		break;
 	case UPEKSONLY_1000:
 		ssm = fpi_ssm_new(dev->dev, initsm_1000_run_state, INITSM_1000_NUM_STATES);
