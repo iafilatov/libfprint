@@ -2,6 +2,9 @@
  * UPEK TouchStrip Sensor-Only driver for libfprint
  * Copyright (C) 2008 Daniel Drake <dsd@gentoo.org>
  *
+ * TCS4C (USB ID 147e:1000) support:
+ * Copyright (C) 2010 Hugo Grostabussiat <dw23.devel@gmail.com>
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -33,6 +36,11 @@
 #define MAX_ROWS 700
 #define MIN_ROWS 64
 
+enum {
+        UPEKSONLY_2016,
+        UPEKSONLY_1000,
+};
+
 struct img_transfer_data {
 	int idx;
 	struct fp_img_dev *dev;
@@ -60,6 +68,8 @@ struct sonly_dev {
 	gboolean capturing;
 	gboolean deactivating;
 	uint8_t read_reg_result;
+
+	int dev_model;
 
 	struct fpi_ssm *loopsm;
 	struct libusb_transfer *img_transfer[NUM_BULK_TRANSFERS];
@@ -658,9 +668,29 @@ static const struct sonly_regwrite awfsm_writev_1[] = {
 	{ 0x00, 0x67 }, { 0x00, 0x67 },
 };
 
+static const struct sonly_regwrite awfsm_1000_writev_1[] = {
+	/* Initialize sensor settings */
+	{ 0x0a, 0x00 }, { 0x09, 0x20 }, { 0x03, 0x37 }, { 0x00, 0x5f },
+	{ 0x01, 0x6e }, { 0x01, 0xee }, { 0x0c, 0x13 }, { 0x0d, 0x0d },
+	{ 0x0e, 0x0e }, { 0x0f, 0x0d },
+
+	{ 0x13, 0x05 }, { 0x13, 0x45 },
+
+	/* Initialize finger detection registers (not enabling yet) */
+	{ 0x30, 0xe0 }, { 0x15, 0x26 },
+
+	{ 0x12, 0x01 }, { 0x20, 0x01 }, { 0x07, 0x10 },
+	{ 0x10, 0x00 }, { 0x11, 0xbf },
+};
+
 static const struct sonly_regwrite awfsm_writev_2[] = {
 	{ 0x01, 0xc6 }, { 0x0c, 0x13 }, { 0x0d, 0x0d }, { 0x0e, 0x0e },
 	{ 0x0f, 0x0d }, { 0x0b, 0x00 },
+};
+
+static const struct sonly_regwrite awfsm_1000_writev_2[] = {
+	/* Enable finger detection */
+	{ 0x30, 0xe1 }, { 0x15, 0x06 }, { 0x15, 0x86 },
 };
 
 static const struct sonly_regwrite awfsm_writev_3[] = {
@@ -690,6 +720,12 @@ enum awfsm_states {
 	AWFSM_WRITE_07,
 	AWFSM_WRITEV_4,
 	AWFSM_NUM_STATES,
+};
+
+enum awfsm_1000_states {
+	AWFSM_1000_WRITEV_1,
+	AWFSM_1000_WRITEV_2,
+	AWFSM_1000_NUM_STATES,
 };
 
 static void awfsm_run_state(struct fpi_ssm *ssm)
@@ -739,12 +775,28 @@ static void awfsm_run_state(struct fpi_ssm *ssm)
 	}
 }
 
+static void awfsm_1000_run_state(struct fpi_ssm *ssm)
+{
+	switch (ssm->cur_state) {
+	case AWFSM_1000_WRITEV_1:
+		sm_write_regs(ssm, awfsm_1000_writev_1, G_N_ELEMENTS(awfsm_1000_writev_1));
+		break;
+	case AWFSM_1000_WRITEV_2:
+		sm_write_regs(ssm, awfsm_1000_writev_2, G_N_ELEMENTS(awfsm_1000_writev_2));
+		break;
+	}
+}
+
 /***** CAPTURE MODE *****/
 
 static const struct sonly_regwrite capsm_writev[] = {
 	/* enter capture mode */
 	{ 0x09, 0x28 }, { 0x13, 0x55 }, { 0x0b, 0x80 }, { 0x04, 0x00 },
 	{ 0x05, 0x00 },
+};
+
+static const struct sonly_regwrite capsm_1000_writev[] = {
+	{ 0x08, 0x80 }, { 0x13, 0x55 }, { 0x0b, 0x80 }, /* Enter capture mode */
 };
 
 enum capsm_states {
@@ -755,6 +807,43 @@ enum capsm_states {
 	CAPSM_WRITEV,
 	CAPSM_NUM_STATES,
 };
+
+enum capsm_1000_states {
+	CAPSM_1000_INIT,
+	CAPSM_1000_FIRE_BULK,
+	CAPSM_1000_WRITEV,
+	CAPSM_1000_NUM_STATES,
+};
+
+static void capsm_fire_bulk(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct sonly_dev *sdev = dev->priv;
+	int i;
+	for (i = 0; i < NUM_BULK_TRANSFERS; i++) {
+		int r = libusb_submit_transfer(sdev->img_transfer[i]);
+		if (r < 0) {
+			if (i == 0) {
+				/* first one failed: easy peasy */
+				fpi_ssm_mark_aborted(ssm, r);
+				return;
+			}
+
+			/* cancel all flying transfers, and request that the SSM
+			 * gets aborted when the last transfer has dropped out of
+			 * the sky */
+			sdev->killing_transfers = ABORT_SSM;
+			sdev->kill_ssm = ssm;
+			sdev->kill_status_code = r;
+			cancel_img_transfers(dev);
+			return;
+		}
+		sdev->img_transfer_data[i].flying = TRUE;
+		sdev->num_flying++;
+	}
+	sdev->capturing = TRUE;
+	fpi_ssm_next_state(ssm);
+}
 
 static void capsm_run_state(struct fpi_ssm *ssm)
 {
@@ -779,33 +868,35 @@ static void capsm_run_state(struct fpi_ssm *ssm)
 		sm_write_reg(ssm, 0x30, 0xe0);
 		break;
 	case CAPSM_FIRE_BULK: ;
-		int i;
-		for (i = 0; i < NUM_BULK_TRANSFERS; i++) {
-			int r = libusb_submit_transfer(sdev->img_transfer[i]);
-			if (r < 0) {
-				if (i == 0) {
-					/* first one failed: easy peasy */
-					fpi_ssm_mark_aborted(ssm, r);
-					return;
-				}
-
-				/* cancel all flying transfers, and request that the SSM
-				 * gets aborted when the last transfer has dropped out of
-				 * the sky */
-				sdev->killing_transfers = ABORT_SSM;
-				sdev->kill_ssm = ssm;
-				sdev->kill_status_code = r;
-				cancel_img_transfers(dev);
-				return;
-			}
-			sdev->img_transfer_data[i].flying = TRUE;
-			sdev->num_flying++;
-		}
-		sdev->capturing = TRUE;
-		fpi_ssm_next_state(ssm);
+		capsm_fire_bulk (ssm);
 		break;
 	case CAPSM_WRITEV:
 		sm_write_regs(ssm, capsm_writev, G_N_ELEMENTS(capsm_writev));
+		break;
+	}
+}
+
+static void capsm_1000_run_state(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct sonly_dev *sdev = dev->priv;
+
+	switch (ssm->cur_state) {
+	case CAPSM_1000_INIT:
+		sdev->rowbuf_offset = -1;
+		sdev->num_rows = 0;
+		sdev->wraparounds = -1;
+		sdev->num_blank = 0;
+		sdev->finger_removed = 0;
+		sdev->last_seqnum = 16383;
+		sdev->killing_transfers = 0;
+		fpi_ssm_next_state(ssm);
+		break;
+	case CAPSM_1000_FIRE_BULK: ;
+		capsm_fire_bulk (ssm);
+		break;
+	case CAPSM_1000_WRITEV:
+		sm_write_regs(ssm, capsm_1000_writev, G_N_ELEMENTS(capsm_1000_writev));
 		break;
 	}
 }
@@ -817,9 +908,21 @@ static const struct sonly_regwrite deinitsm_writev[] = {
 	{ 0x0b, 0x00 }, { 0x09, 0x20 }, { 0x13, 0x45 }, { 0x13, 0x45 },
 };
 
+static const struct sonly_regwrite deinitsm_1000_writev[] = {
+	{ 0x15, 0x26 }, { 0x30, 0xe0 }, /* Disable finger detection */
+
+	{ 0x0b, 0x00 }, { 0x13, 0x45 }, { 0x08, 0x00 }, /* Disable capture mode */
+};
+
+
 enum deinitsm_states {
 	DEINITSM_WRITEV,
 	DEINITSM_NUM_STATES,
+};
+
+enum deinitsm_1000_states {
+	DEINITSM_1000_WRITEV,
+	DEINITSM_1000_NUM_STATES,
 };
 
 static void deinitsm_run_state(struct fpi_ssm *ssm)
@@ -827,6 +930,15 @@ static void deinitsm_run_state(struct fpi_ssm *ssm)
 	switch (ssm->cur_state) {
 	case DEINITSM_WRITEV:
 		sm_write_regs(ssm, deinitsm_writev, G_N_ELEMENTS(deinitsm_writev));
+		break;
+	}
+}
+
+static void deinitsm_1000_run_state(struct fpi_ssm *ssm)
+{
+	switch (ssm->cur_state) {
+	case DEINITSM_1000_WRITEV:
+		sm_write_regs(ssm, deinitsm_1000_writev, G_N_ELEMENTS(deinitsm_1000_writev));
 		break;
 	}
 }
@@ -846,6 +958,19 @@ static const struct sonly_regwrite initsm_writev_1[] = {
 	{ 0x44, 0x00 }, { 0x0b, 0x00 },
 };
 
+static const struct sonly_regwrite initsm_1000_writev_1[] = {
+	{ 0x49, 0x00 }, /* Encryption disabled */
+
+	/* Setting encryption key. Doesn't need to be random since we don't use any
+	 * encryption. */
+	{ 0x3e, 0x7f }, { 0x3e, 0x7f }, { 0x3e, 0x7f }, { 0x3e, 0x7f },
+	{ 0x3e, 0x7f }, { 0x3e, 0x7f }, { 0x3e, 0x7f }, { 0x3e, 0x7f },
+
+	{ 0x04, 0x00 }, { 0x05, 0x00 },
+
+	{ 0x0b, 0x00 }, { 0x08, 0x00 }, /* Initialize capture control registers */
+};
+
 enum initsm_states {
 	INITSM_WRITEV_1,
 	INITSM_READ_09,
@@ -855,6 +980,11 @@ enum initsm_states {
 	INITSM_WRITE_04,
 	INITSM_WRITE_05,
 	INITSM_NUM_STATES,
+};
+
+enum initsm_1000_states {
+	INITSM_1000_WRITEV_1,
+	INITSM_1000_NUM_STATES,
 };
 
 static void initsm_run_state(struct fpi_ssm *ssm)
@@ -887,6 +1017,18 @@ static void initsm_run_state(struct fpi_ssm *ssm)
 	}
 }
 
+static void initsm_1000_run_state(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct sonly_dev *sdev = dev->priv;
+
+	switch (ssm->cur_state) {
+	case INITSM_1000_WRITEV_1:
+		sm_write_regs(ssm, initsm_1000_writev_1, G_N_ELEMENTS(initsm_1000_writev_1));
+		break;
+	}
+}
+
 /***** CAPTURE LOOP *****/
 
 enum loopsm_states {
@@ -909,8 +1051,17 @@ static void loopsm_run_state(struct fpi_ssm *ssm)
 		if (sdev->deactivating) {
 			fpi_ssm_mark_completed(ssm);
 		} else {
-			struct fpi_ssm *awfsm = fpi_ssm_new(dev->dev, awfsm_run_state,
-				AWFSM_NUM_STATES);
+			struct fpi_ssm *awfsm = NULL;
+			switch (sdev->dev_model) {
+			case UPEKSONLY_2016:
+				awfsm = fpi_ssm_new(dev->dev, awfsm_run_state,
+					AWFSM_NUM_STATES);
+				break;
+			case UPEKSONLY_1000:
+				awfsm = fpi_ssm_new(dev->dev, awfsm_1000_run_state,
+					AWFSM_1000_NUM_STATES);
+				break;
+			}
 			awfsm->priv = dev;
 			fpi_ssm_start_subsm(ssm, awfsm);
 		}
@@ -919,8 +1070,17 @@ static void loopsm_run_state(struct fpi_ssm *ssm)
 		sm_await_intr(ssm);
 		break;
 	case LOOPSM_RUN_CAPSM: ;
-		struct fpi_ssm *capsm = fpi_ssm_new(dev->dev, capsm_run_state,
-			CAPSM_NUM_STATES);
+		struct fpi_ssm *capsm = NULL;
+		switch (sdev->dev_model) {
+		case UPEKSONLY_2016:
+			capsm = fpi_ssm_new(dev->dev, capsm_run_state,
+				CAPSM_NUM_STATES);
+			break;
+		case UPEKSONLY_1000:
+			capsm = fpi_ssm_new(dev->dev, capsm_1000_run_state,
+				CAPSM_1000_NUM_STATES);
+			break;
+		}
 		capsm->priv = dev;
 		fpi_ssm_start_subsm(ssm, capsm);
 		break;
@@ -929,8 +1089,17 @@ static void loopsm_run_state(struct fpi_ssm *ssm)
 		 * to push us into next state */
 		break;
 	case LOOPSM_RUN_DEINITSM: ;
-		struct fpi_ssm *deinitsm = fpi_ssm_new(dev->dev, deinitsm_run_state,
-			DEINITSM_NUM_STATES);
+		struct fpi_ssm *deinitsm = NULL;
+		switch (sdev->dev_model) {
+		case UPEKSONLY_2016:
+			deinitsm = fpi_ssm_new(dev->dev, deinitsm_run_state,
+				DEINITSM_NUM_STATES);
+			break;
+		case UPEKSONLY_1000:
+			deinitsm = fpi_ssm_new(dev->dev, deinitsm_1000_run_state,
+				DEINITSM_1000_NUM_STATES);
+			break;
+		}
 		sdev->capturing = FALSE;
 		deinitsm->priv = dev;
 		fpi_ssm_start_subsm(ssm, deinitsm);
@@ -1039,7 +1208,14 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 			4096, img_data_cb, &sdev->img_transfer_data[i], 0);
 	}
 
-	ssm = fpi_ssm_new(dev->dev, initsm_run_state, INITSM_NUM_STATES);
+	switch (sdev->dev_model) {
+	case UPEKSONLY_2016:
+		ssm = fpi_ssm_new(dev->dev, initsm_run_state, INITSM_NUM_STATES);
+		break;
+	case UPEKSONLY_1000:
+		ssm = fpi_ssm_new(dev->dev, initsm_1000_run_state, INITSM_1000_NUM_STATES);
+		break;
+	}
 	ssm->priv = dev;
 	fpi_ssm_start(ssm, initsm_complete);
 	return 0;
@@ -1062,6 +1238,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	dev->priv = g_malloc0(sizeof(struct sonly_dev));
+	((struct sonly_dev*)dev->priv)->dev_model = (int)driver_data;
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
@@ -1075,15 +1252,21 @@ static void dev_deinit(struct fp_img_dev *dev)
 
 static int dev_discover(struct libusb_device_descriptor *dsc, uint32_t *devtype)
 {
-	/* Revision 1 is what we're interested in */
-	if (dsc->bcdDevice == 1)
-		return 1;
+	if (dsc->idProduct == 0x2016) {
+		if (dsc->bcdDevice == 1) /* Revision 1 is what we're interested in */
+			return 1;
+	}
+	if (dsc->idProduct == 0x1000) {
+		if (dsc->bcdDevice == 0x0033) /* Looking for revision 0.33 */
+			return 1;
+	}
 
 	return 0;
 }
 
 static const struct usb_id id_table[] = {
-	{ .vendor = 0x147e, .product = 0x2016 },
+	{ .vendor = 0x147e, .product = 0x2016, .driver_data = UPEKSONLY_2016 },
+	{ .vendor = 0x147e, .product = 0x1000, .driver_data = UPEKSONLY_1000 },
 	{ 0, 0, 0, },
 };
 
