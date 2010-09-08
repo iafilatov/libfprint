@@ -20,6 +20,10 @@
 #ifndef __FPRINT_H__
 #define __FPRINT_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <sys/time.h>
 
@@ -335,6 +339,10 @@ int fp_async_identify_start(struct fp_dev *dev, struct fp_print_data **gallery,
 typedef void (*fp_identify_stop_cb)(struct fp_dev *dev, void *user_data);
 int fp_async_identify_stop(struct fp_dev *dev, fp_identify_stop_cb callback,
 	void *user_data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 
