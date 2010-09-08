@@ -1,6 +1,13 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2010-09-08: v0.3.0 release
+ * Add support for UPEK TCS4C (USB ID 147e:1000)
+ * Use NSS instead of OpenSSL for GPL compliance
+ * upeksonly driver bug fixes
+ * Fix a crash if a scan was shorter than 8 lines
+ * Fix compilation with C++ compiler
+
 2010-08-19: v0.2.0 release (since 0.1.0-pre2)
  * Add gdk-pixbuf support for image manipulation
  * Add udev rules to allow devices to autosuspend
