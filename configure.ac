@@ -9,6 +9,7 @@ AC_PROG_CC
 AC_PROG_LIBTOOL
 AC_C_INLINE
 AM_PROG_CC_C_O
+AC_PROG_CXX
 AC_DEFINE([_GNU_SOURCE], [], [Use GNU extensions])
 
 # Library versioning
