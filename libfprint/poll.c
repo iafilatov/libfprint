@@ -270,6 +270,14 @@ API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
 	if (r_fprint == 0 && r_libusb == 0)
 		return 0;
 
+	/* if fprint have no pending timeouts return libusb timeout */
+	else if (r_fprint == 0)
+		*tv = libusb_timeout;
+
+	/* if libusb have no pending timeouts return fprint timeout */
+	else if (r_libusb == 0)
+		*tv = fprint_timeout;
+
 	/* otherwise return the smaller of the 2 timeouts */
 	else if (timercmp(&fprint_timeout, &libusb_timeout, <))
 		*tv = fprint_timeout;
