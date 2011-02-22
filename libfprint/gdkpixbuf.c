@@ -75,7 +75,7 @@ struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int factor)
 		for (x = 0; x < newimg->width; x++) {
 			guchar *p, *r;
 
-			r = img->data + y * img->width + x;
+			r = newimg->data + y * newimg->width + x;
 			p = pixels + y * rowstride + x * 3;
 			r[0] = p[0];
 		}
