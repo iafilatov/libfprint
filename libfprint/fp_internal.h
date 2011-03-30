@@ -265,6 +265,9 @@ extern struct fp_img_driver fdu2000_driver;
 #ifdef ENABLE_VCOM5S
 extern struct fp_img_driver vcom5s_driver;
 #endif
+#ifdef ENABLE_VFS101
+extern struct fp_img_driver vfs101_driver;
+#endif
 
 extern libusb_context *fpi_usb_ctx;
 extern GSList *opened_devices;
