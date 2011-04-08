@@ -4,6 +4,9 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([libfprint/core.c])
 AM_CONFIG_HEADER([config.h])
 
+# Enable silent build when available (Automake 1.11)
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
 AC_PREREQ([2.50])
 AC_PROG_CC
 AC_PROG_LIBTOOL
