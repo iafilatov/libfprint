@@ -1,6 +1,12 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2011-04-18: v0.4.0 release
+ * Add support for Validity VFS101 (USB ID 138a:0001)
+ * Fix crasher when resizing a fingerprint image
+ * Fix wrong timeout being returned when either of
+   libusb or libfprint doesn't have a timeout
+
 2010-09-08: v0.3.0 release
  * Add support for UPEK TCS4C (USB ID 147e:1000)
  * Use NSS instead of OpenSSL for GPL compliance
