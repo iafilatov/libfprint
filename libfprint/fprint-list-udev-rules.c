@@ -52,7 +52,7 @@ static void print_driver (struct fp_driver *driver)
 	if (blacklist)
 	    continue;
 
-	printf ("SUBSYSTEM==\"usb\", ATTRS{idVendor}==\"%04x\", ATTRS{idProduct}==\"%04x\", ATTRS{dev}==\"*\", ATTR{power/level}=\"auto\"\n", driver->id_table[i].vendor, driver->id_table[i].product);
+	printf ("SUBSYSTEM==\"usb\", ATTRS{idVendor}==\"%04x\", ATTRS{idProduct}==\"%04x\", ATTRS{dev}==\"*\", ATTR{power/control}=\"auto\"\n", driver->id_table[i].vendor, driver->id_table[i].product);
     }
 }
 
