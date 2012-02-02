@@ -37,20 +37,34 @@ struct fp_driver whitelist = {
     .id_table = whitelist_id_table,
 };
 
+GHashTable *printed = NULL;
+
 static void print_driver (struct fp_driver *driver)
 {
     int i, j, blacklist;
 
     for (i = 0; driver->id_table[i].vendor != 0; i++) {
+        char *key;
+
 	blacklist = 0;
 	for (j = 0; blacklist_id_table[j].vendor != 0; j++) {
 	    if (driver->id_table[i].vendor == blacklist_id_table[j].vendor &&
 		driver->id_table[j].product == blacklist_id_table[j].product) {
 		blacklist = 1;
+		break;
 	    }
 	}
 	if (blacklist)
 	    continue;
+
+	key = g_strdup_printf ("%04x:%04x", driver->id_table[i].vendor, driver->id_table[i].product);
+
+	if (g_hash_table_lookup (printed, key) != NULL) {
+	    g_free (key);
+	    continue;
+	}
+
+	g_hash_table_insert (printed, key, GINT_TO_POINTER (1));
 
 	printf ("SUBSYSTEM==\"usb\", ATTRS{idVendor}==\"%04x\", ATTRS{idProduct}==\"%04x\", ATTRS{dev}==\"*\", ATTR{power/control}=\"auto\"\n", driver->id_table[i].vendor, driver->id_table[i].product);
     }
@@ -63,11 +77,15 @@ int main (int argc, char **argv)
 
     list = fprint_get_drivers ();
 
+    printed = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
     for (i = 0; list[i] != NULL; i++) {
 	print_driver (list[i]);
     }
 
     print_driver (&whitelist);
+
+    g_hash_table_destroy (printed);
 
     return 0;
 }
