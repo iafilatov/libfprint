@@ -129,6 +129,8 @@ AC_SUBST(GLIB_LIBS)
 imagemagick_found=no
 gdkpixbuf_found=no
 
+AC_SUBST([udev_rulesdir], [$($PKG_CONFIG --variable=udevdir udev)/rules.d])
+
 if test "$require_imaging" = "yes"; then
 	PKG_CHECK_MODULES(IMAGING, gthread-2.0 gdk-pixbuf-2.0, [gdkpixbuf_found=yes], [gdkpixbuf_found=no])
 	if test "$gdkpixbuf_found" != "yes"; then

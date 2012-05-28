@@ -79,7 +79,6 @@ fprint_list_udev_rules_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(L
 fprint_list_udev_rules_LDADD = $(builddir)/libfprint.la
 
 udev_rules_DATA = 60-fprint-autosuspend.rules
-udev_rulesdir = $(libdir)/udev/rules.d/
 
 $(udev_rules_DATA): fprint-list-udev-rules
 	$(builddir)/fprint-list-udev-rules > $@
