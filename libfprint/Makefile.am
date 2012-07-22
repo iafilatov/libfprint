@@ -13,6 +13,7 @@ AES4000_SRC = drivers/aes4000.c
 FDU2000_SRC = drivers/fdu2000.c
 VCOM5S_SRC = drivers/vcom5s.c
 VFS101_SRC = drivers/vfs101.c
+VFS301_SRC = drivers/vfs301.c drivers/vfs301_proto.c  drivers/vfs301_proto.h drivers/vfs301_proto_fragments.h
 
 EXTRA_DIST = \
 	$(UPEKE2_SRC)		\
@@ -26,6 +27,7 @@ EXTRA_DIST = \
 	$(FDU2000_SRC)		\
 	$(VCOM5S_SRC)		\
 	$(VFS101_SRC)		\
+	$(VFS301_SRC)		\
 	aeslib.c aeslib.h	\
 	imagemagick.c		\
 	gdkpixbuf.c		\
@@ -128,6 +130,10 @@ endif
 
 if ENABLE_VFS101
 DRIVER_SRC += $(VFS101_SRC)
+endif
+
+if ENABLE_VFS301
+DRIVER_SRC += $(VFS301_SRC)
 endif
 
 if REQUIRE_IMAGEMAGICK
