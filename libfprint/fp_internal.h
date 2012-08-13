@@ -33,10 +33,10 @@
         (type *)( (char *)__mptr - offsetof(type,member) );})
 
 enum fpi_log_level {
-	LOG_LEVEL_DEBUG,
-	LOG_LEVEL_INFO,
-	LOG_LEVEL_WARNING,
-	LOG_LEVEL_ERROR,
+	FPRINT_LOG_LEVEL_DEBUG,
+	FPRINT_LOG_LEVEL_INFO,
+	FPRINT_LOG_LEVEL_WARNING,
+	FPRINT_LOG_LEVEL_ERROR,
 };
 
 void fpi_log(enum fpi_log_level, const char *component, const char *function,
@@ -53,14 +53,14 @@ void fpi_log(enum fpi_log_level, const char *component, const char *function,
 #endif
 
 #ifdef ENABLE_DEBUG_LOGGING
-#define fp_dbg(fmt...) _fpi_log(LOG_LEVEL_DEBUG, fmt)
+#define fp_dbg(fmt...) _fpi_log(FPRINT_LOG_LEVEL_DEBUG, fmt)
 #else
 #define fp_dbg(fmt...)
 #endif
 
-#define fp_info(fmt...) _fpi_log(LOG_LEVEL_INFO, fmt)
-#define fp_warn(fmt...) _fpi_log(LOG_LEVEL_WARNING, fmt)
-#define fp_err(fmt...) _fpi_log(LOG_LEVEL_ERROR, fmt)
+#define fp_info(fmt...) _fpi_log(FPRINT_LOG_LEVEL_INFO, fmt)
+#define fp_warn(fmt...) _fpi_log(FPRINT_LOG_LEVEL_WARNING, fmt)
+#define fp_err(fmt...) _fpi_log(FPRINT_LOG_LEVEL_ERROR, fmt)
 
 #ifndef NDEBUG
 #define BUG_ON(condition) \
