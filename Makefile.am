@@ -9,6 +9,8 @@ if BUILD_EXAMPLES
 SUBDIRS += examples
 endif
 
+DIST_SUBDIRS = libfprint doc examples
+
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=libfprint.pc
 
