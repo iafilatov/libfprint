@@ -28,7 +28,8 @@ EXTRA_DIST = \
 	$(VFS101_SRC)		\
 	aeslib.c aeslib.h	\
 	imagemagick.c		\
-	gdkpixbuf.c
+	gdkpixbuf.c		\
+	60-fprint-autosuspend.rules
 
 DRIVER_SRC =
 OTHER_SRC =
