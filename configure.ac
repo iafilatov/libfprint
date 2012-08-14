@@ -129,6 +129,16 @@ AC_SUBST(GLIB_LIBS)
 imagemagick_found=no
 gdkpixbuf_found=no
 
+AC_ARG_ENABLE(udev-rules,
+	AC_HELP_STRING([--enable-udev-rules],[Update the udev rules]),
+	[case "${enableval}" in
+	yes) ENABLE_UDEV_RULES=yes ;;
+	no) ENABLE_UDEV_RULES=no ;;
+	*) AC_MSG_ERROR(bad value ${enableval} for --enable-udev-rules) ;;
+	esac],
+	[ENABLE_UDEV_RULES=yes]) dnl Default value
+AM_CONDITIONAL(ENABLE_UDEV_RULES, test x$ENABLE_UDEV_RULES = "xyes")
+
 AC_ARG_WITH(udev-rules-dir,
 	    AS_HELP_STRING([--with-udev-rules-dir=DIR],[Installation path for udev rules @<:@auto@:>@]),
 	    [ac_with_udev_rules_dir=$withval],
