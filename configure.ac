@@ -192,17 +192,17 @@ if test "x$build_x11_examples" != "xno"; then
 		AC_MSG_CHECKING(for Xv extensions)
 		AC_TRY_COMPILE([
 		#include <X11/Xlib.h>
-	 	#include <X11/extensions/Xvlib.h>],[
+		#include <X11/extensions/Xvlib.h>],[
 		int main(void) { (void) XvGetPortAttribute(0, 0, 0, 0); return 0; }
 		],xv=yes,xv=no);
 		AC_MSG_RESULT($xv)
-	 	if test x$xv = xyes; then
-    	       XV_LIBS="-lXv -lXext"
-        	   XV_CFLAGS=""
+		if test x$xv = xyes; then
+	       XV_LIBS="-lXv -lXext"
+	       XV_CFLAGS=""
 		   AC_DEFINE(HAVE_XV,1,[defined if XV video overlay is available])
 		else
 			AC_MSG_ERROR([XV is required for X11 examples])
- 		fi
+		fi
 	])
 	AC_CHECK_XV
 fi
