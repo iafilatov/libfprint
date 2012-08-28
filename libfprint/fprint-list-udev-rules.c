@@ -35,13 +35,16 @@ static const struct usb_id blacklist_id_table[] = {
 
 struct fp_driver whitelist = {
     .id_table = whitelist_id_table,
+    .full_name = "Hardcoded whitelist"
 };
 
 GHashTable *printed = NULL;
 
 static void print_driver (struct fp_driver *driver)
 {
-    int i, j, blacklist;
+    int i, j, blacklist, num_printed;
+
+    num_printed = 0;
 
     for (i = 0; driver->id_table[i].vendor != 0; i++) {
         char *key;
@@ -66,8 +69,15 @@ static void print_driver (struct fp_driver *driver)
 
 	g_hash_table_insert (printed, key, GINT_TO_POINTER (1));
 
+	if (num_printed == 0)
+	    printf ("# %s\n", driver->full_name);
+
 	printf ("SUBSYSTEM==\"usb\", ATTRS{idVendor}==\"%04x\", ATTRS{idProduct}==\"%04x\", ATTRS{dev}==\"*\", ATTR{power/control}=\"auto\"\n", driver->id_table[i].vendor, driver->id_table[i].product);
+	num_printed++;
     }
+
+    if (num_printed > 0)
+        printf ("\n");
 }
 
 int main (int argc, char **argv)
