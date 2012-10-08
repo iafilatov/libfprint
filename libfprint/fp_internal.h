@@ -256,6 +256,9 @@ extern struct fp_img_driver aes1610_driver;
 #ifdef ENABLE_AES2501
 extern struct fp_img_driver aes2501_driver;
 #endif
+#ifdef ENABLE_AES2550
+extern struct fp_img_driver aes2550_driver;
+#endif
 #ifdef ENABLE_AES4000
 extern struct fp_img_driver aes4000_driver;
 #endif

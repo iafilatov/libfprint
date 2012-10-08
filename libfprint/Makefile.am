@@ -9,6 +9,7 @@ UPEKSONLY_SRC = drivers/upeksonly.c
 URU4000_SRC = drivers/uru4000.c
 AES1610_SRC = drivers/aes1610.c
 AES2501_SRC = drivers/aes2501.c drivers/aes2501.h
+AES2550_SRC = drivers/aes2550.c drivers/aes2550.h
 AES4000_SRC = drivers/aes4000.c
 FDU2000_SRC = drivers/fdu2000.c
 VCOM5S_SRC = drivers/vcom5s.c
@@ -23,6 +24,7 @@ EXTRA_DIST = \
 	$(URU4000_SRC)		\
 	$(AES1610_SRC)		\
 	$(AES2501_SRC)		\
+	$(AES2550_SRC)		\
 	$(AES4000_SRC)		\
 	$(FDU2000_SRC)		\
 	$(VCOM5S_SRC)		\
@@ -122,6 +124,10 @@ endif
 
 if ENABLE_AES2501
 DRIVER_SRC += $(AES2501_SRC)
+endif
+
+if ENABLE_AES2550
+DRIVER_SRC += $(AES2550_SRC)
 endif
 
 if ENABLE_AES4000

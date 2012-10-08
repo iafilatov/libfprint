@@ -355,6 +355,9 @@ static struct fp_img_driver * const img_drivers[] = {
 #ifdef ENABLE_AES2501
 	&aes2501_driver,
 #endif
+#ifdef ENABLE_AES2550
+	&aes2550_driver,
+#endif
 #ifdef ENABLE_URU4000
 	&uru4000_driver,
 #endif
