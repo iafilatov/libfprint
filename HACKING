@@ -85,11 +85,11 @@ be reflected by updating the appropriate doxygen comments.
 Contributing
 ============
 
-Patches should be sent to the fprint mailing list detailed on the website.
-A subscription is required.
+Patches should be sent to the fprint bugzilla:
+https://bugs.freedesktop.org/enter_bug.cgi?product=libfprint
 
 Information about libfprint development repositories can be found here:
-http://www.reactivated.net/fprint/Libfprint_development
+http://www.freedesktop.org/wiki/Software/fprint/libfprint
 
 If you're looking for ideas for things to work on, look at the TODO file or
 grep the source code for FIXMEs.
