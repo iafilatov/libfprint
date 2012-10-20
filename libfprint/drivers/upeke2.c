@@ -738,14 +738,14 @@ static void initsm_run_state(struct fpi_ssm *ssm)
 		break;
     case SEND28_51: ;
 		unsigned char dummy28_51[] = { 0x04, 0x0a, 0x00, 0x00, 0x00 };
-		initsm_send_msg28_handler(ssm, 0x51, &dummy28_51, 5);
+		initsm_send_msg28_handler(ssm, 0x51, dummy28_51, 5);
 		break;
 	case READ28_51:
 		initsm_read_msg_handler(ssm, read28_51_cb);
 		break;
 	case SEND28_07: ;
 		unsigned char dummy28_07[] = { 0x04, 0x20, 0x00, 0x00, 0x00 };
-		initsm_send_msg28_handler(ssm, 0x07, &dummy28_07, 5);
+		initsm_send_msg28_handler(ssm, 0x07, dummy28_07, 5);
 		break;
 	case READ28_07:
 		initsm_read_msg_handler(ssm, read28_07_cb);
