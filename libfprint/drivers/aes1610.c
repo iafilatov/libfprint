@@ -500,7 +500,6 @@ static void finger_det_reqs_cb(struct fp_img_dev *dev, int result, void *user_da
 static void start_finger_detection(struct fp_img_dev *dev)
 {
 	struct aes1610_dev *aesdev = dev->priv;
-	struct libusb_transfer *transfer;
 
 	if (aesdev->deactivating) {
 		complete_deactivation(dev);
@@ -780,7 +779,7 @@ static int adjust_gain(unsigned char *buffer, int status)
 
 /*
  * Restore the default gain values */
-static void restore_gain()
+static void restore_gain(void)
 {
 	strip_scan_reqs[0].value = list_BE_values[0];
 	strip_scan_reqs[1].value = 0x04;
@@ -815,7 +814,6 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	struct aes1610_dev *aesdev = dev->priv;
 	unsigned char *data = transfer->buffer;
 	int sum, i;
-	int threshold;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_mark_aborted(ssm, -EIO);
