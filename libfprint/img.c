@@ -290,7 +290,7 @@ int fpi_img_detect_minutiae(struct fp_img *img)
                          &low_contrast_map, &low_flow_map, &high_curve_map,
                          &map_w, &map_h, &bdata, &bw, &bh, &bd,
                          img->data, img->width, img->height, 8,
-						 DEFAULT_PPI / (double)25.4, &lfsparms_V2);
+						 DEFAULT_PPI / (double)25.4, &g_lfsparms_V2);
 	g_timer_stop(timer);
 	fp_dbg("minutiae scan completed in %f secs", g_timer_elapsed(timer, NULL));
 	g_timer_destroy(timer);

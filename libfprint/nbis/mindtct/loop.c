@@ -110,14 +110,14 @@ static int chain_code_loop(int **ochain, int *onchain,
       /* Derive chain code index from neighbor deltas.                  */
       /* The deltas are on the range [-1..1], so to use them as indices */
       /* into the code list, they must first be incremented by one.     */
-      chain[i] = *(chaincodes_nbr8+((dy+1)*NBR8_DIM)+dx+1);
+      chain[i] = *(g_chaincodes_nbr8+((dy+1)*NBR8_DIM)+dx+1);
    }
 
    /* Now derive chain code between last and first points in the */
    /* contour list.                                              */
    dx = contour_x[0] - contour_x[i];
    dy = contour_y[0] - contour_y[i];
-   chain[i] = *(chaincodes_nbr8+((dy+1)*NBR8_DIM)+dx+1);
+   chain[i] = *(g_chaincodes_nbr8+((dy+1)*NBR8_DIM)+dx+1);
 
    /* Store results to the output pointers. */
    *ochain = chain;

@@ -2521,7 +2521,7 @@ int process_horizontal_scan_minutia(MINUTIAE *minutiae,
    /* Feature location should always point to either ending  */
    /* of ridge or (for bifurcations) ending of valley.       */
    /* So, if detected feature is APPEARING...                */ 
-   if(feature_patterns[feature_id].appearing){
+   if(g_feature_patterns[feature_id].appearing){
       /* Set y location to second scan row. */
       y_loc = cy+1;
       /* Set y location of neighboring edge pixel to the first scan row. */
@@ -2550,15 +2550,15 @@ int process_horizontal_scan_minutia(MINUTIAE *minutiae,
    else{
       /* Get minutia direction based on current IMAP value. */
       idir = get_low_curvature_direction(SCAN_HORIZONTAL,
-                     feature_patterns[feature_id].appearing,
+                     g_feature_patterns[feature_id].appearing,
                      imapval, lfsparms->num_directions);
    }
 
    /* Create a minutia object based on derived attributes. */
    if((ret = create_minutia(&minutia, x_loc, y_loc, x_edge, y_edge, idir,
                      DEFAULT_RELIABILITY,
-                     feature_patterns[feature_id].type,
-                     feature_patterns[feature_id].appearing, feature_id)))
+                     g_feature_patterns[feature_id].type,
+                     g_feature_patterns[feature_id].appearing, feature_id)))
       /* Return system error. */
       return(ret);
 
@@ -2627,7 +2627,7 @@ int process_horizontal_scan_minutia_V2(MINUTIAE *minutiae,
    /* Feature location should always point to either ending  */
    /* of ridge or (for bifurcations) ending of valley.       */
    /* So, if detected feature is APPEARING...                */ 
-   if(feature_patterns[feature_id].appearing){
+   if(g_feature_patterns[feature_id].appearing){
       /* Set y location to second scan row. */
       y_loc = cy+1;
       /* Set y location of neighboring edge pixel to the first scan row. */
@@ -2665,7 +2665,7 @@ int process_horizontal_scan_minutia_V2(MINUTIAE *minutiae,
    else{
       /* Get minutia direction based on current block's direction. */
       idir = get_low_curvature_direction(SCAN_HORIZONTAL,
-                     feature_patterns[feature_id].appearing, dmapval,
+                     g_feature_patterns[feature_id].appearing, dmapval,
                      lfsparms->num_directions);
    }
 
@@ -2680,8 +2680,8 @@ int process_horizontal_scan_minutia_V2(MINUTIAE *minutiae,
    /* Create a minutia object based on derived attributes. */
    if((ret = create_minutia(&minutia, x_loc, y_loc, x_edge, y_edge, idir,
                      reliability,
-                     feature_patterns[feature_id].type,
-                     feature_patterns[feature_id].appearing, feature_id)))
+                     g_feature_patterns[feature_id].type,
+                     g_feature_patterns[feature_id].appearing, feature_id)))
       /* Return system error. */
       return(ret);
 
@@ -2740,7 +2740,7 @@ int process_vertical_scan_minutia(MINUTIAE *minutiae,
    /* Feature location should always point to either ending  */
    /* of ridge or (for bifurcations) ending of valley.       */
    /* So, if detected feature is APPEARING...                */ 
-   if(feature_patterns[feature_id].appearing){
+   if(g_feature_patterns[feature_id].appearing){
       /* Set x location to second scan column. */
       x_loc = cx+1;
       /* Set x location of neighboring edge pixel to the first scan column. */
@@ -2776,15 +2776,15 @@ int process_vertical_scan_minutia(MINUTIAE *minutiae,
    else{
       /* Get minutia direction based on current IMAP value. */
       idir = get_low_curvature_direction(SCAN_VERTICAL,
-                     feature_patterns[feature_id].appearing,
+                     g_feature_patterns[feature_id].appearing,
                      imapval, lfsparms->num_directions);
    }
 
    /* Create a minutia object based on derived attributes. */
    if((ret = create_minutia(&minutia, x_loc, y_loc, x_edge, y_edge, idir,
                      DEFAULT_RELIABILITY,
-                     feature_patterns[feature_id].type,
-                     feature_patterns[feature_id].appearing, feature_id)))
+                     g_feature_patterns[feature_id].type,
+                     g_feature_patterns[feature_id].appearing, feature_id)))
       /* Return system error. */
       return(ret);
 
@@ -2845,7 +2845,7 @@ int process_vertical_scan_minutia_V2(MINUTIAE *minutiae,
    /* Feature location should always point to either ending  */
    /* of ridge or (for bifurcations) ending of valley.       */
    /* So, if detected feature is APPEARING...                */ 
-   if(feature_patterns[feature_id].appearing){
+   if(g_feature_patterns[feature_id].appearing){
       /* Set x location to second scan column. */
       x_loc = cx+1;
       /* Set x location of neighboring edge pixel to the first scan column. */
@@ -2890,7 +2890,7 @@ int process_vertical_scan_minutia_V2(MINUTIAE *minutiae,
    else{
       /* Get minutia direction based on current block's direction. */
       idir = get_low_curvature_direction(SCAN_VERTICAL,
-                     feature_patterns[feature_id].appearing, dmapval,
+                     g_feature_patterns[feature_id].appearing, dmapval,
                      lfsparms->num_directions);
    }
 
@@ -2905,8 +2905,8 @@ int process_vertical_scan_minutia_V2(MINUTIAE *minutiae,
    /* Create a minutia object based on derived attributes. */
    if((ret = create_minutia(&minutia, x_loc, y_loc, x_edge, y_edge, idir,
                      reliability,
-                     feature_patterns[feature_id].type,
-                     feature_patterns[feature_id].appearing, feature_id)))
+                     g_feature_patterns[feature_id].type,
+                     g_feature_patterns[feature_id].appearing, feature_id)))
       /* Return system error. */
       return(ret);
 

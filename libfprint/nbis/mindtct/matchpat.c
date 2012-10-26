@@ -69,8 +69,8 @@ int match_1st_pair(unsigned char p1, unsigned char p2,
    /* Foreach set of feature pairs ... */
    for(i = 0; i < NFEATURES; i++){
       /* If current scan pair matches first pair for feature ... */
-      if((p1==feature_patterns[i].first[0]) &&
-         (p2==feature_patterns[i].first[1])){
+      if((p1==g_feature_patterns[i].first[0]) &&
+         (p2==g_feature_patterns[i].first[1])){
          /* Store feature as a possible match. */
          possible[*nposs] = i;
          /* Bump number of stored possibilities. */
@@ -117,8 +117,8 @@ int match_2nd_pair(unsigned char p1, unsigned char p2,
    /* Foreach possible match based on first pair ... */
    for(i = 0; i < tnposs; i++){
       /* If current scan pair matches second pair for feature ... */
-      if((p1==feature_patterns[possible[i]].second[0]) &&
-         (p2==feature_patterns[possible[i]].second[1])){
+      if((p1==g_feature_patterns[possible[i]].second[0]) &&
+         (p2==g_feature_patterns[possible[i]].second[1])){
          /* Store feature as a possible match. */
          possible[*nposs] = possible[i];
          /* Bump number of stored possibilities. */
@@ -160,8 +160,8 @@ int match_3rd_pair(unsigned char p1, unsigned char p2,
    /* Foreach possible match based on first and second pairs ... */
    for(i = 0; i < tnposs; i++){
       /* If current scan pair matches third pair for feature ... */
-      if((p1==feature_patterns[possible[i]].third[0]) &&
-         (p2==feature_patterns[possible[i]].third[1])){
+      if((p1==g_feature_patterns[possible[i]].third[0]) &&
+         (p2==g_feature_patterns[possible[i]].third[1])){
          /* Store feature as a possible match. */
          possible[*nposs] = possible[i];
          /* Bump number of stored possibilities. */

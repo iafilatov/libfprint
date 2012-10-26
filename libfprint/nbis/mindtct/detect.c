@@ -122,7 +122,7 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
 
    /* Initialize wave form lookup tables for DFT analyses. */
    /* used for direction binarization.                             */
-   if((ret = init_dftwaves(&dftwaves, dft_coefs, lfsparms->num_dft_waves,
+   if((ret = init_dftwaves(&dftwaves, g_dft_coefs, lfsparms->num_dft_waves,
                         lfsparms->windowsize))){
       /* Free memory allocated to this point. */
       free_dir2rad(dir2rad);

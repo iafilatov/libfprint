@@ -1021,12 +1021,12 @@ extern int closest_dir_dist(const int, const int, const int);
 /*************************************************************************/
 /*        EXTERNAL GLOBAL VARIABLE DEFINITIONS                           */
 /*************************************************************************/
-extern double dft_coefs[];
-extern LFSPARMS lfsparms;
-extern LFSPARMS lfsparms_V2;
-extern int nbr8_dx[];
-extern int nbr8_dy[];
-extern int chaincodes_nbr8[];
-extern FEATURE_PATTERN feature_patterns[];
+extern double g_dft_coefs[];
+extern LFSPARMS g_lfsparms;
+extern LFSPARMS g_lfsparms_V2;
+extern int g_nbr8_dx[];
+extern int g_nbr8_dy[];
+extern int g_chaincodes_nbr8[];
+extern FEATURE_PATTERN g_feature_patterns[];
 
 #endif

@@ -40,7 +40,7 @@ identified are necessarily the best available for the purpose.
 /*************************************************************************/
 
 #ifdef LOG_REPORT
-FILE *logfp;
+FILE *g_logfp;
 #endif
 
 /* Constants (C) for defining 4 DFT frequencies, where  */
@@ -50,10 +50,10 @@ FILE *logfp;
 /*      2 = twice the frequency in range X.             */
 /*      3 = three times the frequency in reange X.      */
 /*      4 = four times the frequency in ranage X.       */
-double dft_coefs[NUM_DFT_WAVES] = { 1,2,3,4 };
+double g_dft_coefs[NUM_DFT_WAVES] = { 1,2,3,4 };
 
 /* Allocate and initialize a global LFS parameters structure. */
-LFSPARMS lfsparms = {
+LFSPARMS g_lfsparms = {
    /* Image Controls */
    PAD_VALUE,
    JOIN_LINE_RADIUS,
@@ -137,7 +137,7 @@ LFSPARMS lfsparms = {
 
 
 /* Allocate and initialize VERSION 2 global LFS parameters structure. */
-LFSPARMS lfsparms_V2 = {
+LFSPARMS g_lfsparms_V2 = {
    /* Image Controls */
    PAD_VALUE,
    JOIN_LINE_RADIUS,
@@ -221,17 +221,17 @@ LFSPARMS lfsparms_V2 = {
 
 /* Variables for conducting 8-connected neighbor analyses. */
 /* Pixel neighbor offsets:  0  1  2  3  4  5  6  7  */     /* 7 0 1 */
-int nbr8_dx[] =          {  0, 1, 1, 1, 0,-1,-1,-1 };      /* 6 C 2 */
-int nbr8_dy[] =          { -1,-1, 0, 1, 1, 1, 0,-1 };      /* 5 4 3 */
+int g_nbr8_dx[] =          {  0, 1, 1, 1, 0,-1,-1,-1 };      /* 6 C 2 */
+int g_nbr8_dy[] =          { -1,-1, 0, 1, 1, 1, 0,-1 };      /* 5 4 3 */
 
 /* The chain code lookup matrix for 8-connected neighbors. */
 /* Should put this in globals.                             */
-int chaincodes_nbr8[]={ 3, 2, 1,
+int g_chaincodes_nbr8[]={ 3, 2, 1,
                         4,-1, 0,
                         5, 6, 7};
 
 /* Global array of feature pixel pairs. */
-FEATURE_PATTERN feature_patterns[]=
+FEATURE_PATTERN g_feature_patterns[]=
                        {{RIDGE_ENDING,  /* a. Ridge Ending (appearing) */
                          APPEARING,
                          {0,0},

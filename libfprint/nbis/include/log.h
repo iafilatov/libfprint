@@ -36,10 +36,10 @@ identified are necessarily the best available for the purpose.
 #define LOG_FILE     "log.txt"
 #endif
 
-extern FILE *logfp;
-extern int avrdir;
-extern float dir_strength;
-extern int nvalid;
+extern FILE *g_logfp;
+extern int g_avrdir;
+extern float g_dir_strength;
+extern int g_nvalid;
 
 extern int open_logfile(void);
 extern int close_logfile(void);

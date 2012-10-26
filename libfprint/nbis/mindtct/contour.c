@@ -742,8 +742,8 @@ static int next_contour_pixel(int *next_x_loc, int *next_y_loc,
       /* Set current scan pixel to the new neighbor.                   */
       /* REMEMBER: the neighbors are being scanned around the original */
       /* feature point.                                                */
-      cur_nbr_x = cur_x_loc + nbr8_dx[nbr_i];
-      cur_nbr_y = cur_y_loc + nbr8_dy[nbr_i];
+      cur_nbr_x = cur_x_loc + g_nbr8_dx[nbr_i];
+      cur_nbr_y = cur_y_loc + g_nbr8_dy[nbr_i];
 
       /* If new neighbor is not within image boundaries... */
       if((cur_nbr_x < 0) || (cur_nbr_x >= iw) ||
@@ -766,8 +766,8 @@ static int next_contour_pixel(int *next_x_loc, int *next_y_loc,
          if(nbr_i % 2){
             /* To do this, look ahead one more neighbor pixel. */
             ni = next_scan_nbr(nbr_i, scan_clock);
-            nx = cur_x_loc + nbr8_dx[ni];
-            ny = cur_y_loc + nbr8_dy[ni];
+            nx = cur_x_loc + g_nbr8_dx[ni];
+            ny = cur_y_loc + g_nbr8_dy[ni];
             /* If new neighbor is not within image boundaries... */
             if((nx < 0) || (nx >= iw) ||
                (ny < 0) || (ny >= ih))
