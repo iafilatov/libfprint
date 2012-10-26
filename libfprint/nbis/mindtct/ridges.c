@@ -565,7 +565,7 @@ static int ridge_count(const int first, const int second, MINUTIAE *minutiae,
    MINUTIA *minutia1, *minutia2;
    int i, ret, found;
    int *xlist, *ylist, num;
-   int ridge_count, ridge_start, ridge_end;
+   int ridge_cnt, ridge_start, ridge_end;
    int prevpix, curpix;
 
    minutia1 = minutiae->list[first];
@@ -614,7 +614,7 @@ static int ridge_count(const int first, const int second, MINUTIAE *minutiae,
    }
 
    /* Ready to count ridges, so initialize counter to 0. */
-   ridge_count = 0;
+   ridge_cnt = 0;
 
    print2log("RIDGE COUNT: %d,%d to %d,%d ", minutia1->x, minutia1->y,
                                                minutia2->x, minutia2->y);
@@ -630,7 +630,7 @@ static int ridge_count(const int first, const int second, MINUTIAE *minutiae,
          print2log("\n");
 
          /* Return number of ridges counted to this point. */
-         return(ridge_count);
+         return(ridge_cnt);
       }
       /* Otherwise, we found a new ridge start transition, so store */
       /* its location (the location of the 1 in 0-to-1 transition). */
@@ -647,7 +647,7 @@ static int ridge_count(const int first, const int second, MINUTIAE *minutiae,
          print2log("\n");
 
          /* Return number of ridges counted to this point. */
-         return(ridge_count);
+         return(ridge_cnt);
       }
       /* Otherwise, we found a new ridge end transition, so store   */
       /* its location (the location of the 0 in 1-to-0 transition). */
@@ -680,7 +680,7 @@ static int ridge_count(const int first, const int second, MINUTIAE *minutiae,
       if(ret){
          /* Then assume we have found a valid ridge crossing and bump */
          /* the ridge counter.                                        */
-         ridge_count++;
+         ridge_cnt++;
       }
 
       /* Otherwise, ignore the current ridge start and end transitions */
@@ -694,7 +694,7 @@ static int ridge_count(const int first, const int second, MINUTIAE *minutiae,
    print2log("\n");
 
    /* Return the number of ridges counted. */
-   return(ridge_count);
+   return(ridge_cnt);
 }
 
 /*************************************************************************
@@ -719,7 +719,7 @@ static int count_minutia_ridges(const int first, MINUTIAE *minutiae,
                       unsigned char *bdata, const int iw, const int ih,
                       const LFSPARMS *lfsparms)
 {
-   int i, ret, *nbr_list, *nbr_nridges, nnbrs;
+   int i, ret, *nbr_list = NULL, *nbr_nridges, nnbrs;
 
    /* Find up to the maximum number of qualifying neighbors. */
    if((ret = find_neighbors(&nbr_list, &nnbrs, lfsparms->max_nbrs,

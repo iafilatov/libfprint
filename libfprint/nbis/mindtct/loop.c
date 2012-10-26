@@ -782,7 +782,6 @@ int process_loop(MINUTIAE *minutiae,
              unsigned char *bdata, const int iw, const int ih,
              const LFSPARMS *lfsparms)
 {
-   int halfway;
    int idir, type, appearing;
    double min_dist, max_dist;
    int min_fr, max_fr, min_to, max_to;
@@ -799,9 +798,6 @@ int process_loop(MINUTIAE *minutiae,
    if(ncontour > lfsparms->min_loop_len){
       /* Get pixel value of feature's interior. */
       feature_pix = *(bdata + (contour_y[0] * iw) + contour_x[0]);
-
-      /* Compute half the perimeter of the loop. */
-      halfway = ncontour>>1;
 
       /* Get the aspect dimensions of the loop in units of */
       /* squared distance.                                 */
@@ -940,7 +936,6 @@ int process_loop_V2(MINUTIAE *minutiae,
              unsigned char *bdata, const int iw, const int ih,
              int *plow_flow_map, const LFSPARMS *lfsparms)
 {
-   int halfway;
    int idir, type, appearing;
    double min_dist, max_dist;
    int min_fr, max_fr, min_to, max_to;
@@ -959,9 +954,6 @@ int process_loop_V2(MINUTIAE *minutiae,
    if(ncontour > lfsparms->min_loop_len){
       /* Get pixel value of feature's interior. */
       feature_pix = *(bdata + (contour_y[0] * iw) + contour_x[0]);
-
-      /* Compute half the perimeter of the loop. */
-      halfway = ncontour>>1;
 
       /* Get the aspect dimensions of the loop in units of */
       /* squared distance.                                 */
