@@ -320,7 +320,6 @@ static void verify_stop_cb(struct fp_dev *dev, void *user_data)
 API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 	struct fp_print_data *enrolled_print, struct fp_img **img)
 {
-	struct fp_driver *drv = dev->drv;
 	struct sync_verify_data *vdata;
 	gboolean stopped = FALSE;
 	int r;
@@ -335,7 +334,7 @@ API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 		return -EINVAL;
 	}
 
-	fp_dbg("to be handled by %s", drv->name);
+	fp_dbg("to be handled by %s", dev->drv->name);
 	vdata = g_malloc0(sizeof(struct sync_verify_data));
 	r = fp_async_verify_start(dev, enrolled_print, sync_verify_cb, vdata);
 	if (r < 0) {
@@ -452,13 +451,12 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset,
 	struct fp_img **img)
 {
-	struct fp_driver *drv = dev->drv;
 	gboolean stopped = FALSE;
 	struct sync_identify_data *idata
 		= g_malloc0(sizeof(struct sync_identify_data));
 	int r;
 
-	fp_dbg("to be handled by %s", drv->name);
+	fp_dbg("to be handled by %s", dev->drv->name);
 
 	r = fp_async_identify_start(dev, print_gallery, sync_identify_cb, idata);
 	if (r < 0) {
