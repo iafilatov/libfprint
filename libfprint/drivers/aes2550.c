@@ -59,6 +59,7 @@ struct aes2550_dev {
 	GSList *strips;
 	size_t strips_len;
 	gboolean deactivating;
+	int heartbeat_cnt;
 };
 
 /****** IMAGE PROCESSING ******/
@@ -369,6 +370,7 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
+	struct aes2550_dev *aesdev = ssm->priv;
 	unsigned char *data = transfer->buffer;
 	int r;
 
@@ -390,14 +392,21 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 				fpi_ssm_mark_aborted(ssm, -EPROTO);
 				goto out;
 			}
+			aesdev->heartbeat_cnt = 0;
 			fpi_ssm_jump_to_state(ssm, CAPTURE_READ_DATA);
 			break;
 		case AES2550_HEARTBEAT_SIZE:
 			if (data[0] == AES2550_HEARTBEAT_MAGIC) {
-				/* No data for a long time, looks like finger was removed (or no movement) */
-				/* assemble image and submit it to library */
-				fp_dbg("Got heartbeat => last frame");
-				fpi_ssm_next_state(ssm);
+				/* No data for a long time => finger was removed or there's no movement */
+				aesdev->heartbeat_cnt++;
+				if (aesdev->heartbeat_cnt == 3) {
+					/* Got 3 heartbeat message, that's enough to consider that finger was removed,
+					 * assemble image and submit it to the library */
+					fp_dbg("Got 3 heartbeats => finger removed");
+					fpi_ssm_next_state(ssm);
+				} else {
+					fpi_ssm_jump_to_state(ssm, CAPTURE_READ_DATA);
+				}
 			}
 			break;
 		default:
@@ -498,6 +507,7 @@ static void start_capture(struct fp_img_dev *dev)
 		return;
 	}
 
+	aesdev->heartbeat_cnt = 0;
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
 	fp_dbg("");
 	ssm->priv = dev;
