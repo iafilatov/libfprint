@@ -167,4 +167,10 @@ enum aes2501_sensor_gain2 {
 #define AES2501_LPONT_MIN_VALUE 0x00	/* 0 ms */
 #define AES2501_LPONT_MAX_VALUE 0x1f	/* About 16 ms */
 
+#define AES2501_ADREFHI_MIN_VALUE 0x28
+#define AES2501_ADREFHI_MAX_VALUE 0x58
+
+#define AES2501_SUM_HIGH_THRESH 1000
+#define AES2501_SUM_LOW_THRESH 700
+
 #endif	/* __AES2501_H */

@@ -515,13 +515,13 @@ static const struct aes_regwrite capture_reqs_2[] = {
 	{ AES2501_REG_CTRL2, AES2501_CTRL2_SET_ONE_SHOT },
 };
 
-static const struct aes_regwrite strip_scan_reqs[] = {
+static struct aes_regwrite strip_scan_reqs[] = {
 	{ AES2501_REG_IMAGCTRL,
 		AES2501_IMAGCTRL_TST_REG_ENABLE | AES2501_IMAGCTRL_HISTO_DATA_ENABLE },
 	{ AES2501_REG_STRTCOL, 0x00 },
 	{ AES2501_REG_ENDCOL, 0x2f },
 	{ AES2501_REG_CHANGAIN, AES2501_CHANGAIN_STAGE1_16X },
-	{ AES2501_REG_ADREFHI, 0x5b },
+	{ AES2501_REG_ADREFHI, AES2501_ADREFHI_MAX_VALUE },
 	{ AES2501_REG_ADREFLO, 0x20 },
 	{ AES2501_REG_CTRL2, AES2501_CTRL2_SET_ONE_SHOT },
 };
@@ -573,6 +573,17 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 		goto out;
 	}
 	fp_dbg("sum=%d", sum);
+
+	if (sum < AES2501_SUM_LOW_THRESH) {
+		strip_scan_reqs[4].value -= 0x8;
+		if (strip_scan_reqs[4].value < AES2501_ADREFHI_MIN_VALUE)
+			strip_scan_reqs[4].value = AES2501_ADREFHI_MIN_VALUE;
+	} else if (sum > AES2501_SUM_HIGH_THRESH) {
+		strip_scan_reqs[4].value += 0x8;
+		if (strip_scan_reqs[4].value > AES2501_ADREFHI_MAX_VALUE)
+			strip_scan_reqs[4].value = AES2501_ADREFHI_MAX_VALUE;
+	}
+	fp_dbg("ADREFHI is %.2x", strip_scan_reqs[4].value);
 
 	/* Sum is 0, maybe finger was removed? Wait for 3 empty frames
 	 * to ensure
@@ -682,6 +693,8 @@ static void start_capture(struct fp_img_dev *dev)
 	}
 
 	aesdev->no_finger_cnt = 0;
+	/* Reset gain */
+	strip_scan_reqs[4].value = AES2501_ADREFHI_MAX_VALUE;
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
 	fp_dbg("");
 	ssm->priv = dev;
