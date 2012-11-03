@@ -67,6 +67,7 @@ struct aes2501_dev {
 	GSList *strips;
 	size_t strips_len;
 	gboolean deactivating;
+	int no_finger_cnt;
 };
 
 typedef void (*aes2501_read_regs_cb)(struct fp_img_dev *dev, int status,
@@ -559,12 +560,6 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 		goto out;
 	}
 
-	/* FIXME: would preallocating strip buffers be a decent optimization? */
-	stripdata = g_malloc(192 * 8);
-	memcpy(stripdata, data + 1, 192*8);
-	aesdev->strips = g_slist_prepend(aesdev->strips, stripdata);
-	aesdev->strips_len++;
-
 	threshold = regval_from_dump(data + 1 + 192*8 + 1 + 16*2 + 1 + 8,
 		AES2501_REG_DATFMT);
 	if (threshold < 0) {
@@ -572,27 +567,36 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 		goto out;
 	}
 
-    sum = sum_histogram_values(data + 1 + 192*8, threshold & 0x0f);
+	sum = sum_histogram_values(data + 1 + 192*8, threshold & 0x0f);
 	if (sum < 0) {
 		fpi_ssm_mark_aborted(ssm, sum);
 		goto out;
 	}
 	fp_dbg("sum=%d", sum);
 
-	/* FIXME: 0 might be too low as a threshold */
-	/* FIXME: sometimes we get 0 in the middle of a scan, should we wait for
-	 * a few consecutive zeroes? */
-	/* FIXME: we should have an upper limit on the number of strips */
-
-	/* If sum is 0, finger has been removed */
+	/* Sum is 0, maybe finger was removed? Wait for 3 empty frames
+	 * to ensure
+	 */
 	if (sum == 0) {
-		/* assemble image and submit it to library */
-		assemble_and_submit_image(dev);
-		fpi_imgdev_report_finger_status(dev, FALSE);
-		/* marking machine complete will re-trigger finger detection loop */
-		fpi_ssm_mark_completed(ssm);
+		aesdev->no_finger_cnt++;
+		if (aesdev->no_finger_cnt == 3) {
+			/* assemble image and submit it to library */
+			assemble_and_submit_image(dev);
+			fpi_imgdev_report_finger_status(dev, FALSE);
+			/* marking machine complete will re-trigger finger detection loop */
+			fpi_ssm_mark_completed(ssm);
+		} else {
+			fpi_ssm_jump_to_state(ssm, CAPTURE_REQUEST_STRIP);
+		}
 	} else {
 		/* obtain next strip */
+		/* FIXME: would preallocating strip buffers be a decent optimization? */
+		stripdata = g_malloc(192 * 8);
+		memcpy(stripdata, data + 1, 192*8);
+		aesdev->no_finger_cnt = 0;
+		aesdev->strips = g_slist_prepend(aesdev->strips, stripdata);
+		aesdev->strips_len++;
+
 		fpi_ssm_jump_to_state(ssm, CAPTURE_REQUEST_STRIP);
 	}
 
@@ -677,6 +681,7 @@ static void start_capture(struct fp_img_dev *dev)
 		return;
 	}
 
+	aesdev->no_finger_cnt = 0;
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
 	fp_dbg("");
 	ssm->priv = dev;
