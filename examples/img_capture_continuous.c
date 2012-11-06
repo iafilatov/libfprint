@@ -29,7 +29,7 @@
 #define FORMAT 0x32595559
 
 static int adaptor = -1;
-static unsigned char *framebuffer = NULL;
+static char *framebuffer = NULL;
 
 static Display *display = NULL;
 static Window window=(Window)NULL;
@@ -50,7 +50,7 @@ static int connection = -1;
   u = u > 255 ? 255 : u;\
   v = v > 255 ? 255 : v
 
-static void grey2yuy2 (unsigned char *grey, unsigned char *YUV, int num) {
+static void grey2yuy2 (unsigned char *grey, char *YUV, int num) {
 	int i, j;
 	int y0, y1, u0, u1, v0, v1;
 	int gval;
@@ -86,7 +86,7 @@ static void display_frame(struct fp_img *img)
 
 static void QueryXv()
 {
-	int num_adaptors;
+	unsigned int num_adaptors;
 	int num_formats;
 	XvImageFormatValues *formats = NULL;
 	int i,j;
