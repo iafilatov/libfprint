@@ -34,6 +34,8 @@
 
 #include <fp_internal.h>
 
+#include "driver_ids.h"
+
 #define CTRL_IN 0xc0
 #define CTRL_OUT 0x40
 #define CTRL_TIMEOUT	1000
@@ -368,7 +370,7 @@ static const struct usb_id id_table[] = {
 
 struct fp_img_driver vcom5s_driver = {
 	.driver = {
-		.id = 8,
+		.id = VCOM5S_ID,
 		.name = FP_COMPONENT,
 		.full_name = "Veridicom 5thSense",
 		.id_table = id_table,

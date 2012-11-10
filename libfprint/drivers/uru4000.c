@@ -30,6 +30,8 @@
 
 #include <fp_internal.h>
 
+#include "driver_ids.h"
+
 #define EP_INTR			(1 | LIBUSB_ENDPOINT_IN)
 #define EP_DATA			(2 | LIBUSB_ENDPOINT_IN)
 #define USB_RQ			0x04
@@ -1359,7 +1361,7 @@ static const struct usb_id id_table[] = {
 
 struct fp_img_driver uru4000_driver = {
 	.driver = {
-		.id = 2,
+		.id = URU4000_ID,
 		.name = FP_COMPONENT,
 		.full_name = "Digital Persona U.are.U 4000/4000B/4500",
 		.id_table = id_table,

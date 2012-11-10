@@ -24,7 +24,9 @@
 #include <string.h>
 #include <libusb.h>
 #include <fp_internal.h>
+
 #include "upektc.h"
+#include "driver_ids.h"
 
 #define EP_IN (2 | LIBUSB_ENDPOINT_IN)
 #define EP_OUT (3 | LIBUSB_ENDPOINT_OUT)
@@ -446,7 +448,7 @@ static const struct usb_id id_table[] = {
 
 struct fp_img_driver upektc_driver = {
 	.driver = {
-		.id = 5,
+		.id = UPEKTC_ID,
 		.name = FP_COMPONENT,
 		.full_name = "UPEK TouchChip",
 		.id_table = id_table,

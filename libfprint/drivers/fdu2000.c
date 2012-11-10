@@ -26,6 +26,8 @@
 #define FP_COMPONENT "fdu2000"
 #include <fp_internal.h>
 
+#include "driver_ids.h"
+
 #ifndef HAVE_MEMMEM
 gpointer
 memmem(const gpointer haystack, size_t haystack_len, const gpointer needle, size_t needle_len) {
@@ -305,7 +307,7 @@ static const struct usb_id id_table[] = {
 
 struct fp_img_driver fdu2000_driver = {
 	.driver = {
-		.id = 7,
+		.id = FDU2000_ID,
 		.name = FP_COMPONENT,
 		.full_name = "Secugen FDU 2000",
 		.id_table = id_table,

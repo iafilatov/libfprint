@@ -34,6 +34,8 @@
 
 #include <fp_internal.h>
 
+#include "driver_ids.h"
+
 /************************** GENERIC STUFF *************************************/
 
 /* Callback of asynchronous sleep */
@@ -285,7 +287,7 @@ struct fp_img_driver vfs301_driver =
 	/* Driver specification */
 	.driver =
 	{
-		.id = 11,
+		.id = VFS301_ID,
 		.name = FP_COMPONENT,
 		.full_name = "Validity VFS301",
 		.id_table = id_table,

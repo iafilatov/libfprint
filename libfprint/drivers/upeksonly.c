@@ -30,6 +30,8 @@
 
 #include <fp_internal.h>
 
+#include "driver_ids.h"
+
 #define CTRL_TIMEOUT	1000
 #define IMG_WIDTH 288
 #define NUM_BULK_TRANSFERS 24
@@ -1267,7 +1269,7 @@ static const struct usb_id id_table[] = {
 
 struct fp_img_driver upeksonly_driver = {
 	.driver = {
-		.id = 9,
+		.id = UPEKSONLY_ID,
 		.name = FP_COMPONENT,
 		.full_name = "UPEK TouchStrip Sensor-Only",
 		.id_table = id_table,

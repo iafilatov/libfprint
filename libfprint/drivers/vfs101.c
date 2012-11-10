@@ -25,6 +25,8 @@
 
 #include <fp_internal.h>
 
+#include "driver_ids.h"
+
 /* Input-Output usb endpoint */
 #define EP_IN(n)	(n | LIBUSB_ENDPOINT_IN)
 #define EP_OUT(n)	(n | LIBUSB_ENDPOINT_OUT)
@@ -1549,7 +1551,7 @@ struct fp_img_driver vfs101_driver =
 	/* Driver specification */
 	.driver =
 	{
-		.id = 10,
+		.id = VFS101_ID,
 		.name = FP_COMPONENT,
 		.full_name = "Validity VFS101",
 		.id_table = id_table,

@@ -30,7 +30,9 @@
 
 #include <aeslib.h>
 #include <fp_internal.h>
+
 #include "aes2501.h"
+#include "driver_ids.h"
 
 static void start_capture(struct fp_img_dev *dev);
 static void complete_deactivation(struct fp_img_dev *dev);
@@ -963,7 +965,7 @@ static const struct usb_id id_table[] = {
 
 struct fp_img_driver aes2501_driver = {
 	.driver = {
-		.id = 4,
+		.id = AES2501_ID,
 		.name = FP_COMPONENT,
 		.full_name = "AuthenTec AES2501",
 		.id_table = id_table,

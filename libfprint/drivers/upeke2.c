@@ -37,6 +37,8 @@
 
 #include <fp_internal.h>
 
+#include "driver_ids.h"
+
 #define EP_IN (1 | LIBUSB_ENDPOINT_IN)
 #define EP_OUT (2 | LIBUSB_ENDPOINT_OUT)
 #define TIMEOUT 5000
@@ -1456,7 +1458,7 @@ static const struct usb_id id_table[] = {
 };
 
 struct fp_driver upeke2_driver = {
-	.id = 1,
+	.id = UPEKE2_ID,
 	.name = FP_COMPONENT,
 	.full_name = "UPEK Eikon 2",
 	.id_table = id_table,
