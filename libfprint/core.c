@@ -377,10 +377,10 @@ static struct fp_img_driver * const img_drivers[] = {
 #ifdef ENABLE_VFS301
 	&vfs301_driver,
 #endif
-/*#ifdef ENABLE_UPEKTC
+#ifdef ENABLE_UPEKTC
 	&upektc_driver,
 #endif
-#ifdef ENABLE_FDU2000
+/*#ifdef ENABLE_FDU2000
 	&fdu2000_driver,
 #endif
 	*/

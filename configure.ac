@@ -58,8 +58,7 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 		;;
 		upektc)
 			AC_DEFINE([ENABLE_UPEKTC], [], [Build UPEK TouchChip driver])
-			enable_upektc="no"
-			# Driver not ported
+			enable_upektc="yes"
 		;;
 		upeksonly)
 			AC_DEFINE([ENABLE_UPEKSONLY], [], [Build UPEK TouchStrip sensor-only driver])
@@ -112,7 +111,7 @@ done
 
 AM_CONDITIONAL([ENABLE_UPEKTS], [test "$enable_upekts" = "yes"])
 AM_CONDITIONAL([ENABLE_UPEKE2], [test "$enable_upeke2" = "yes"])
-#AM_CONDITIONAL([ENABLE_UPEKTC], [test "$enable_upektc" = "yes"])
+AM_CONDITIONAL([ENABLE_UPEKTC], [test "$enable_upektc" = "yes"])
 AM_CONDITIONAL([ENABLE_UPEKSONLY], [test "$enable_upeksonly" = "yes"])
 AM_CONDITIONAL([ENABLE_VCOM5S], [test "$enable_vcom5s" = "yes"])
 AM_CONDITIONAL([ENABLE_URU4000], [test "$enable_uru4000" = "yes"])
