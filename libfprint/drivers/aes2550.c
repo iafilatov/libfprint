@@ -370,7 +370,8 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct aes2550_dev *aesdev = ssm->priv;
+	struct fp_img_dev *dev = ssm->priv;
+	struct aes2550_dev *aesdev = dev->priv;
 	unsigned char *data = transfer->buffer;
 	int r;
 
