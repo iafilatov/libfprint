@@ -689,8 +689,8 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 		fp_dbg("hw header lines %d", img->num_lines);
 
 		if (img->num_lines >= IMAGE_HEIGHT ||
-		    urudev->img_transfer->actual_length != img->num_lines * IMAGE_WIDTH + 64) {
-			fp_err("bad captured image (%d lines) or size mismatch %d != %d",
+		    urudev->img_transfer->actual_length < img->num_lines * IMAGE_WIDTH + 64) {
+			fp_err("bad captured image (%d lines) or size mismatch %d < %d",
 				img->num_lines,
 				urudev->img_transfer->actual_length,
 				img->num_lines * IMAGE_WIDTH + 64);
