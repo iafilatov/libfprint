@@ -20,6 +20,7 @@
 #define FP_COMPONENT "aeslib"
 
 #include <errno.h>
+#include <string.h>
 
 #include <libusb.h>
 #include <glib.h>
@@ -171,3 +172,113 @@ void aes_assemble_image(unsigned char *input, size_t width, size_t height,
 	}
 }
 
+/* find overlapping parts of  frames */
+static unsigned int find_overlap(unsigned char *first_frame,
+	unsigned char *second_frame, unsigned int *min_error,
+	unsigned int frame_width, unsigned int frame_height)
+{
+	unsigned int dy;
+	unsigned int not_overlapped_height = 0;
+	/* 255 is highest brightness value for an 8bpp image */
+	*min_error = 255 * frame_width * frame_height;
+	for (dy = 0; dy < frame_height; dy++) {
+		/* Calculating difference (error) between parts of frames */
+		unsigned int i;
+		unsigned int error = 0;
+		for (i = 0; i < frame_width * (frame_height - dy); i++) {
+			/* Using ? operator to avoid abs function */
+			error += first_frame[i] > second_frame[i] ?
+					(first_frame[i] - second_frame[i]) :
+					(second_frame[i] - first_frame[i]);
+		}
+
+		/* Normalize error */
+		error *= 15;
+		error /= i;
+		if (error < *min_error) {
+			*min_error = error;
+			not_overlapped_height = dy;
+		}
+		first_frame += frame_width;
+	}
+
+	return not_overlapped_height;
+}
+
+/* assemble a series of frames into a single image */
+static unsigned int assemble(GSList *list_entry, size_t num_stripes,
+	unsigned int frame_width, unsigned int frame_height,
+	unsigned char *output, gboolean reverse, unsigned int *errors_sum)
+{
+	uint8_t *assembled = output;
+	int frame;
+	uint32_t image_height = frame_height;
+	unsigned int min_error, frame_size = frame_width * frame_height;
+	*errors_sum = 0;
+
+	if (reverse)
+		output += (num_stripes - 1) * frame_size;
+	for (frame = 0; frame < num_stripes; frame++) {
+		aes_assemble_image(list_entry->data, frame_width, frame_height, output);
+
+		if (reverse)
+		    output -= frame_size;
+		else
+		    output += frame_size;
+		list_entry = g_slist_next(list_entry);
+	}
+
+	/* Detecting where frames overlaped */
+	output = assembled;
+	for (frame = 1; frame < num_stripes; frame++) {
+		int not_overlapped;
+
+		output += frame_size;
+		not_overlapped = find_overlap(assembled, output, &min_error,
+			frame_width, frame_height);
+		*errors_sum += min_error;
+		image_height += not_overlapped;
+		assembled += frame_width * not_overlapped;
+		memcpy(assembled, output, frame_size);
+	}
+	return image_height;
+}
+
+struct fp_img *aes_assemble(GSList *stripes, size_t stripes_len,
+	unsigned int frame_width, unsigned int frame_height)
+{
+	size_t final_size;
+	struct fp_img *img;
+	unsigned int frame_size = frame_width * frame_height;
+	unsigned int errors_sum, r_errors_sum;
+
+	BUG_ON(stripes_len == 0);
+
+	/* create buffer big enough for max image */
+	img = fpi_img_new(stripes_len * frame_size);
+
+	img->flags = FP_IMG_COLORS_INVERTED;
+	img->height = assemble(stripes, stripes_len,
+		frame_width, frame_height,
+		img->data, FALSE, &errors_sum);
+	img->height = assemble(stripes, stripes_len,
+		frame_width, frame_height,
+		img->data, TRUE, &r_errors_sum);
+
+	if (r_errors_sum > errors_sum) {
+		img->height = assemble(stripes, stripes_len,
+			frame_width, frame_height,
+			img->data, FALSE, &errors_sum);
+		img->flags |= FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
+		fp_dbg("normal scan direction");
+	} else {
+		fp_dbg("reversed scan direction");
+	}
+
+	/* now that overlap has been removed, resize output image buffer */
+	final_size = img->height * frame_width;
+	img = fpi_img_resize(img, final_size);
+	img->width = frame_width;
+
+	return img;
+}

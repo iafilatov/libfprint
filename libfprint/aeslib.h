@@ -36,5 +36,8 @@ void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
 void aes_assemble_image(unsigned char *input, size_t width, size_t height,
 	unsigned char *output);
 
+struct fp_img *aes_assemble(GSList *stripes, size_t stripes_len,
+	unsigned int frame_width, unsigned int frame_height);
+
 #endif
 

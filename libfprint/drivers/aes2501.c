@@ -248,119 +248,6 @@ static int sum_histogram_values(unsigned char *data, uint8_t threshold)
 	return r;
 }
 
-/* find overlapping parts of  frames */
-static unsigned int find_overlap(unsigned char *first_frame,
-	unsigned char *second_frame, unsigned int *min_error)
-{
-	unsigned int dy;
-	unsigned int not_overlapped_height = 0;
-	*min_error = 255 * FRAME_SIZE;
-	for (dy = 0; dy < FRAME_HEIGHT; dy++) {
-		/* Calculating difference (error) between parts of frames */
-		unsigned int i;
-		unsigned int error = 0;
-		for (i = 0; i < FRAME_WIDTH * (FRAME_HEIGHT - dy); i++) {
-			/* Using ? operator to avoid abs function */
-			error += first_frame[i] > second_frame[i] ? 
-					(first_frame[i] - second_frame[i]) :
-					(second_frame[i] - first_frame[i]); 
-		}
-		
-		/* Normalize error */
-		error *= 15;
-		error /= i;
-		if (error < *min_error) {
-			*min_error = error;
-			not_overlapped_height = dy;
-		}
-		first_frame += FRAME_WIDTH;
-	}
-	
-	return not_overlapped_height; 
-}
-
-/* assemble a series of frames into a single image */
-static unsigned int assemble(struct aes2501_dev *aesdev, unsigned char *output,
-	gboolean reverse, unsigned int *errors_sum)
-{
-	uint8_t *assembled = output;
-	int frame;
-	uint32_t image_height = FRAME_HEIGHT;
-	unsigned int min_error;
-	size_t num_strips = aesdev->strips_len;
-	GSList *list_entry = aesdev->strips;
-	*errors_sum = 0;
-
-	/* Rotating given data by 90 degrees 
-	 * Taken from document describing aes2501 image format
-	 * TODO: move reversing detection here */
-
-	if (reverse)
-		output += (num_strips - 1) * FRAME_SIZE;
-	for (frame = 0; frame < num_strips; frame++) {
-		aes_assemble_image(list_entry->data, FRAME_WIDTH, FRAME_HEIGHT, output);
-
-		if (reverse)
-		    output -= FRAME_SIZE;
-		else
-		    output += FRAME_SIZE;
-		list_entry = g_slist_next(list_entry);
-	}
-
-	/* Detecting where frames overlaped */
-	output = assembled;
-	for (frame = 1; frame < num_strips; frame++) {
-		int not_overlapped;
-
-		output += FRAME_SIZE;
-		not_overlapped = find_overlap(assembled, output, &min_error);
-		*errors_sum += min_error;
-		image_height += not_overlapped;
-		assembled += FRAME_WIDTH * not_overlapped;
-		memcpy(assembled, output, FRAME_SIZE); 
-	}
-	return image_height;
-}
-
-static void assemble_and_submit_image(struct fp_img_dev *dev)
-{
-	struct aes2501_dev *aesdev = dev->priv;
-	size_t final_size;
-	struct fp_img *img;
-	unsigned int errors_sum, r_errors_sum;
-
-	BUG_ON(aesdev->strips_len == 0);
-
-	/* reverse list */
-	aesdev->strips = g_slist_reverse(aesdev->strips);
-
-	/* create buffer big enough for max image */
-	img = fpi_img_new(aesdev->strips_len * FRAME_SIZE);
-
-	img->flags = FP_IMG_COLORS_INVERTED;
-	img->height = assemble(aesdev, img->data, FALSE, &errors_sum);
-	img->height = assemble(aesdev, img->data, TRUE, &r_errors_sum);
-	
-	if (r_errors_sum > errors_sum) {
-	    img->height = assemble(aesdev, img->data, FALSE, &errors_sum);
-		img->flags |= FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
-		fp_dbg("normal scan direction");
-	} else {
-		fp_dbg("reversed scan direction");
-	}
-
-	/* now that overlap has been removed, resize output image buffer */
-	final_size = img->height * FRAME_WIDTH;
-	img = fpi_img_resize(img, final_size);
-	fpi_imgdev_image_captured(dev, img);
-
-	/* free strips and strip list */
-	g_slist_foreach(aesdev->strips, (GFunc) g_free, NULL);
-	g_slist_free(aesdev->strips);
-	aesdev->strips = NULL;
-}
-
-
 /****** FINGER PRESENCE DETECTION ******/
 
 static const struct aes_regwrite finger_det_reqs[] = {
@@ -593,8 +480,15 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	if (sum == 0) {
 		aesdev->no_finger_cnt++;
 		if (aesdev->no_finger_cnt == 3) {
-			/* assemble image and submit it to library */
-			assemble_and_submit_image(dev);
+			struct fp_img *img;
+
+			aesdev->strips = g_slist_reverse(aesdev->strips);
+			img = aes_assemble(aesdev->strips, aesdev->strips_len,
+				FRAME_WIDTH, FRAME_HEIGHT);
+			g_slist_free_full(aesdev->strips, (GFunc) g_free);
+			aesdev->strips = NULL;
+			aesdev->strips_len = 0;
+			fpi_imgdev_image_captured(dev, img);
 			fpi_imgdev_report_finger_status(dev, FALSE);
 			/* marking machine complete will re-trigger finger detection loop */
 			fpi_ssm_mark_completed(ssm);
