@@ -165,8 +165,8 @@ void aes_assemble_image(unsigned char *input, size_t width, size_t height,
 
 	for (column = 0; column < width; column++) {
 		for (row = 0; row < height; row += 2) {
-			output[width * row + column] = (*input & 0x07) * 36;
-			output[width * (row + 1) + column] = ((*input & 0x70) >> 4) * 36;
+			output[width * row + column] = (*input & 0x0f) * 17;
+			output[width * (row + 1) + column] = ((*input & 0xf0) >> 4) * 17;
 			input++;
 		}
 	}
