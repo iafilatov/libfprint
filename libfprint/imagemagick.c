@@ -22,14 +22,14 @@
 
 #include "fp_internal.h"
 
-struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int factor)
+struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor)
 {
 	Image *mimg;
 	Image *resized;
 	ExceptionInfo exception;
 	MagickBooleanType ret;
-	int new_width = img->width * factor;
-	int new_height = img->height * factor;
+	int new_width = img->width * w_factor;
+	int new_height = img->height * h_factor;
 	struct fp_img *newimg;
 
 	/* It is possible to implement resizing using a simple algorithm, however

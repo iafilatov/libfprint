@@ -22,10 +22,10 @@
 
 #include "fp_internal.h"
 
-struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int factor)
+struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor)
 {
-	int new_width = img->width * factor;
-	int new_height = img->height * factor;
+	int new_width = img->width * w_factor;
+	int new_height = img->height * h_factor;
 	GdkPixbuf *orig, *resized;
 	struct fp_img *newimg;
 	guchar *pixels;

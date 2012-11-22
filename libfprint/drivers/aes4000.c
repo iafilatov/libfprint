@@ -155,7 +155,7 @@ static void img_cb(struct libusb_transfer *transfer)
 
 	/* FIXME: this is an ugly hack to make the image big enough for NBIS
 	 * to process reliably */
-	img = fpi_im_resize(tmp, ENLARGE_FACTOR);
+	img = fpi_im_resize(tmp, ENLARGE_FACTOR, ENLARGE_FACTOR);
 	fp_img_free(tmp);
 	fpi_imgdev_image_captured(dev, img);
 
