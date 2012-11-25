@@ -371,6 +371,9 @@ static struct fp_img_driver * const img_drivers[] = {
 #ifdef ENABLE_AES1610
 	&aes1610_driver,
 #endif
+#ifdef ENABLE_AES1660
+	&aes1660_driver,
+#endif
 #ifdef ENABLE_VFS101
 	&vfs101_driver,
 #endif

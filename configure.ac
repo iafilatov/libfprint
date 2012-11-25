@@ -23,7 +23,7 @@ AC_SUBST(lt_major)
 AC_SUBST(lt_revision)
 AC_SUBST(lt_age)
 
-all_drivers="upeke2 upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes2501 aes2550 aes4000 vfs101 vfs301"
+all_drivers="upeke2 upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes1660 aes2501 aes2550 aes4000 vfs101 vfs301"
 
 require_imaging='no'
 require_aeslib='no'
@@ -35,6 +35,7 @@ enable_vcom5s='no'
 enable_uru4000='no'
 enable_fdu2000='no'
 enable_aes1610='no'
+enable_aes1660='no'
 enable_aes2501='no'
 enable_aes2550='no'
 enable_aes4000='no'
@@ -92,6 +93,12 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 			require_aeslib="yes"
 			enable_aes1610="yes"
 		;;
+		aes1660)
+			AC_DEFINE([ENABLE_AES1660], [], [Build AuthenTec AES1660 driver])
+			require_aeslib="yes"
+			require_aesX660="yes"
+			enable_aes1660="yes"
+		;;
 		aes4000)
 			AC_DEFINE([ENABLE_AES4000], [], [Build AuthenTec AES4000 driver])
 			require_aeslib="yes"
@@ -117,6 +124,7 @@ AM_CONDITIONAL([ENABLE_VCOM5S], [test "$enable_vcom5s" = "yes"])
 AM_CONDITIONAL([ENABLE_URU4000], [test "$enable_uru4000" = "yes"])
 AM_CONDITIONAL([ENABLE_FDU2000], [test "$enable_fdu2000" = "yes"])
 AM_CONDITIONAL([ENABLE_AES1610], [test "$enable_aes1610" = "yes"])
+AM_CONDITIONAL([ENABLE_AES1660], [test "$enable_aes1660" = "yes"])
 AM_CONDITIONAL([ENABLE_AES2501], [test "$enable_aes2501" = "yes"])
 AM_CONDITIONAL([ENABLE_AES2550], [test "$enable_aes2550" = "yes"])
 AM_CONDITIONAL([ENABLE_AES4000], [test "$enable_aes4000" = "yes"])
@@ -295,6 +303,11 @@ if test x$enable_aes1610 != xno ; then
 	AC_MSG_NOTICE([** aes1610 driver enabled])
 else
 	AC_MSG_NOTICE([   aes1610 driver disabled])
+fi
+if test x$enable_aes1660 != xno ; then
+	AC_MSG_NOTICE([** aes1660 driver enabled])
+else
+	AC_MSG_NOTICE([   aes1660 driver disabled])
 fi
 if test x$enable_aes2501 != xno ; then
 	AC_MSG_NOTICE([** aes2501 driver enabled])
