@@ -31,6 +31,7 @@ EXTRA_DIST = \
 	$(VFS101_SRC)		\
 	$(VFS301_SRC)		\
 	aeslib.c aeslib.h	\
+	aesx660.c aesx660.h	\
 	imagemagick.c		\
 	gdkpixbuf.c		\
 	60-fprint-autosuspend.rules
@@ -156,6 +157,10 @@ endif
 
 if REQUIRE_AESLIB
 OTHER_SRC += aeslib.c aeslib.h
+endif
+
+if REQUIRE_AESX660
+OTHER_SRC += drivers/aesx660.c drivers/aesx660.h
 endif
 
 libfprint_la_SOURCES =	\

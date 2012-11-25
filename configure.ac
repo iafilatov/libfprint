@@ -121,6 +121,7 @@ AM_CONDITIONAL([ENABLE_AES2501], [test "$enable_aes2501" = "yes"])
 AM_CONDITIONAL([ENABLE_AES2550], [test "$enable_aes2550" = "yes"])
 AM_CONDITIONAL([ENABLE_AES4000], [test "$enable_aes4000" = "yes"])
 AM_CONDITIONAL([REQUIRE_AESLIB], [test "$require_aeslib" = "yes"])
+AM_CONDITIONAL([REQUIRE_AESX660], [test "$require_aesX660" = "yes"])
 AM_CONDITIONAL([ENABLE_VFS101], [test "$enable_vfs101" = "yes"])
 AM_CONDITIONAL([ENABLE_VFS301], [test "$enable_vfs301" = "yes"])
 
@@ -324,6 +325,11 @@ if test x$require_aeslib != xno ; then
 	AC_MSG_NOTICE([** aeslib helper functions enabled])
 else
 	AC_MSG_NOTICE([   aeslib helper functions disabled])
+fi
+if test x$require_aesX660 != xno ; then
+	AC_MSG_NOTICE([** aesX660 common routines enabled])
+else
+	AC_MSG_NOTICE([   aesX660 common routines disabled])
 fi
 
 AC_CONFIG_FILES([libfprint.pc] [Makefile] [libfprint/Makefile] [examples/Makefile] [doc/Makefile])
