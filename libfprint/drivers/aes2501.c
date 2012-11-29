@@ -485,7 +485,7 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 			aesdev->strips = g_slist_reverse(aesdev->strips);
 			img = aes_assemble(aesdev->strips, aesdev->strips_len,
 				FRAME_WIDTH, FRAME_HEIGHT);
-			g_slist_free_full(aesdev->strips, (GFunc) g_free);
+			g_slist_free_full(aesdev->strips, g_free);
 			aesdev->strips = NULL;
 			aesdev->strips_len = 0;
 			fpi_imgdev_image_captured(dev, img);
