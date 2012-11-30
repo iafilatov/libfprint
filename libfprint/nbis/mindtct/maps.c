@@ -307,6 +307,10 @@ int gen_initial_maps(int **odmap, int **olcmap, int **olfmap,
    xmaxlimit = pw - dftgrids->pad - lfsparms->windowsize - 1;
    ymaxlimit = ph - dftgrids->pad - lfsparms->windowsize - 1;
 
+   /* max limits should not be negative */
+   xmaxlimit = MAX(xmaxlimit, 0);
+   ymaxlimit = MAX(ymaxlimit, 0);
+
    /* Foreach block in image ... */
    for(bi = 0; bi < bsize; bi++){
       /* Adjust block offset from pointing to block origin to pointing */
