@@ -4,7 +4,7 @@ MOSTLYCLEANFILES = $(udev_rules_DATA)
 
 UPEKE2_SRC = drivers/upeke2.c
 UPEKTS_SRC = drivers/upekts.c
-UPEKTC_SRC = drivers/upektc.c
+UPEKTC_SRC = drivers/upektc.c drivers/upektc.h
 UPEKSONLY_SRC = drivers/upeksonly.c
 URU4000_SRC = drivers/uru4000.c
 AES1610_SRC = drivers/aes1610.c
@@ -34,8 +34,10 @@ EXTRA_DIST = \
 	$(VCOM5S_SRC)		\
 	$(VFS101_SRC)		\
 	$(VFS301_SRC)		\
+	drivers/aesx660.c	\
+	drivers/aesx660.h	\
+	drivers/driver_ids.h	\
 	aeslib.c aeslib.h	\
-	aesx660.c aesx660.h	\
 	imagemagick.c		\
 	gdkpixbuf.c		\
 	60-fprint-autosuspend.rules
