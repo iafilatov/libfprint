@@ -27,6 +27,7 @@ all_drivers="upeke2 upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes16
 
 require_imaging='no'
 require_aeslib='no'
+require_aesX660='no'
 enable_upeke2='no'
 enable_upekts='no'
 enable_upektc='no'
