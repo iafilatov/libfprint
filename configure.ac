@@ -49,6 +49,10 @@ AC_ARG_WITH([drivers],[AS_HELP_STRING([--with-drivers],
 	[drivers="$withval"],
 	[drivers="$all_drivers"])
 
+if test x$drivers = xall ; then
+	drivers=$all_drivers
+fi
+
 for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 	case ${driver} in
 		upekts)
