@@ -49,7 +49,7 @@ AC_ARG_WITH([drivers],[AS_HELP_STRING([--with-drivers],
 	[drivers="$withval"],
 	[drivers="$all_drivers"])
 
-if test x$drivers = xall ; then
+if test "x$drivers" = "xall" ; then
 	drivers=$all_drivers
 fi
 
