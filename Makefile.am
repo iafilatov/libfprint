@@ -1,4 +1,3 @@
-AUTOMAKE_OPTIONS = dist-bzip2
 ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST = THANKS TODO HACKING libfprint.pc.in
 DISTCLEANFILES = ChangeLog libfprint.pc
