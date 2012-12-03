@@ -789,14 +789,17 @@ static void imaging_complete(struct fpi_ssm *ssm)
 	int r = ssm->error;
 	fpi_ssm_free(ssm);
 
+	/* Report error before exiting imaging loop - the error handler
+	 * can request state change, which needs to be postponed to end of
+	 * this function. */
+	if (r)
+		fpi_imgdev_session_error(dev, r);
+
 	g_free(urudev->img_data);
 	urudev->img_data = NULL;
 
 	libusb_free_transfer(urudev->img_transfer);
 	urudev->img_transfer = NULL;
-
-	if (r)
-		fpi_imgdev_session_error(dev, r);
 
 	r = execute_state_change(dev);
 	if (r)
