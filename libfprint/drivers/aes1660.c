@@ -48,16 +48,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	dev->priv = aesdev = g_malloc0(sizeof(struct aesX660_dev));
-	if (!aesdev)
-		return -ENOMEM;
-
 	aesdev->buffer = g_malloc0(AES1660_FRAME_SIZE + AESX660_HEADER_SIZE);
-	if (!aesdev->buffer) {
-		g_free(aesdev);
-		dev->priv = NULL;
-		return -ENOMEM;
-	}
-
 	aesdev->h_scale_factor = SCALE_FACTOR;
 	aesdev->init_seqs[0] = aes1660_init_1;
 	aesdev->init_seqs_len[0] = array_n_elements(aes1660_init_1);

@@ -278,10 +278,6 @@ static int process_stripe_data(struct fpi_ssm *ssm, unsigned char *data)
 	struct aesX660_dev *aesdev = dev->priv;
 
 	stripdata = g_malloc(aesdev->frame_width * FRAME_HEIGHT / 2); /* 4 bits per pixel */
-	if (!stripdata) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
-		return 1;
-	}
 
 	fp_dbg("Processing frame %.2x %.2x", data[AESX660_IMAGE_OK_OFFSET],
 		data[AESX660_LAST_FRAME_OFFSET]);

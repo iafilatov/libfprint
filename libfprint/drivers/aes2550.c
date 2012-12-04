@@ -215,10 +215,6 @@ static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
 		fp_dbg("Bogus frame len: %.4x\n", len);
 	}
 	stripdata = g_malloc(FRAME_WIDTH * FRAME_HEIGHT / 2); /* 4 bits per pixel */
-	if (!stripdata) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
-		return -ENOMEM;
-	}
 	memcpy(stripdata, data + 33, FRAME_WIDTH * FRAME_HEIGHT / 2);
 	aesdev->strips = g_slist_prepend(aesdev->strips, stripdata);
 	aesdev->strips_len++;
