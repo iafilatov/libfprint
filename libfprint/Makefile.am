@@ -19,6 +19,7 @@ VCOM5S_SRC = drivers/vcom5s.c
 VFS101_SRC = drivers/vfs101.c
 VFS301_SRC = drivers/vfs301.c drivers/vfs301_proto.c  drivers/vfs301_proto.h drivers/vfs301_proto_fragments.h
 UPEKTC_IMG_SRC = drivers/upektc_img.c drivers/upektc_img.h
+ETES603_SRC = drivers/etes603.c
 
 EXTRA_DIST = \
 	$(UPEKE2_SRC)		\
@@ -38,6 +39,7 @@ EXTRA_DIST = \
 	$(VFS101_SRC)		\
 	$(VFS301_SRC)		\
 	$(UPEKTC_IMG_SRC)	\
+	$(ETES603_SRC)		\
 	drivers/aesx660.c	\
 	drivers/aesx660.h	\
 	drivers/aes3k.c 	\
@@ -169,6 +171,10 @@ endif
 
 if ENABLE_UPEKTC_IMG
 DRIVER_SRC += $(UPEKTC_IMG_SRC)
+endif
+
+if ENABLE_ETES603
+DRIVER_SRC += $(ETES603_SRC)
 endif
 
 if REQUIRE_IMAGEMAGICK
