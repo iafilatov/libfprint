@@ -173,6 +173,10 @@ AC_ARG_ENABLE(udev-rules,
 	[ENABLE_UDEV_RULES=yes]) dnl Default value
 AM_CONDITIONAL(ENABLE_UDEV_RULES, test x$ENABLE_UDEV_RULES = "xyes")
 
+if test $ENABLE_UDEV_RULES = no && test -d .git/ ; then
+	AC_MSG_ERROR(--disable-udev-rules can only be used when building from tarballs)
+fi
+
 AC_ARG_WITH(udev-rules-dir,
 	    AS_HELP_STRING([--with-udev-rules-dir=DIR],[Installation path for udev rules @<:@auto@:>@]),
 	    [ac_with_udev_rules_dir=$withval],
