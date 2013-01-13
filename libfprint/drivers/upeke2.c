@@ -46,6 +46,11 @@
 #define MSG_READ_BUF_SIZE 0x40
 #define MAX_DATA_IN_READ_BUF (MSG_READ_BUF_SIZE - 9)
 
+enum {
+        UPEKE2_2016,
+        UPEKE2_2020,
+};
+
 struct upeke2_dev {
 	gboolean enroll_passed;
 	gboolean first_verify_iteration;
@@ -848,8 +853,10 @@ static struct fpi_ssm *deinitsm_new(struct fp_dev *dev)
 
 static int discover(struct libusb_device_descriptor *dsc, uint32_t *devtype)
 {
-	/* Revision 2 is what we're interested in */
-	if (dsc->bcdDevice == 2)
+	if (dsc->idProduct == 0x2016 && dsc->bcdDevice == 2)
+		return 1;
+
+	if (dsc->idProduct == 0x2020 && dsc->bcdDevice == 1)
 		return 1;
 
 	return 0;
@@ -1453,7 +1460,8 @@ static int verify_stop(struct fp_dev *dev, gboolean iterating)
 }
 
 static const struct usb_id id_table[] = {
-	{ .vendor = 0x147e, .product = 0x2016 },
+	{ .vendor = 0x147e, .product = 0x2016, .driver_data = UPEKE2_2016 },
+	{ .vendor = 0x147e, .product = 0x2020, .driver_data = UPEKE2_2020 },
 	{ 0, 0, 0, }, /* terminating entry */
 };
 
