@@ -294,6 +294,9 @@ extern struct fp_img_driver vfs101_driver;
 #ifdef ENABLE_VFS301
 extern struct fp_img_driver vfs301_driver;
 #endif
+#ifdef ENABLE_UPEKTC_IMG
+extern struct fp_img_driver upektc_img_driver;
+#endif
 
 extern libusb_context *fpi_usb_ctx;
 extern GSList *opened_devices;

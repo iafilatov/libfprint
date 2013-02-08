@@ -389,6 +389,9 @@ static struct fp_img_driver * const img_drivers[] = {
 #ifdef ENABLE_UPEKTC
 	&upektc_driver,
 #endif
+#ifdef ENABLE_UPEKTC_IMG
+	&upektc_img_driver,
+#endif
 /*#ifdef ENABLE_FDU2000
 	&fdu2000_driver,
 #endif

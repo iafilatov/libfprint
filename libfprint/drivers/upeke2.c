@@ -48,7 +48,6 @@
 
 enum {
         UPEKE2_2016,
-        UPEKE2_2020,
 };
 
 struct upeke2_dev {
@@ -856,9 +855,6 @@ static int discover(struct libusb_device_descriptor *dsc, uint32_t *devtype)
 	if (dsc->idProduct == 0x2016 && dsc->bcdDevice == 2)
 		return 1;
 
-	if (dsc->idProduct == 0x2020 && dsc->bcdDevice == 1)
-		return 1;
-
 	return 0;
 }
 
@@ -1461,7 +1457,6 @@ static int verify_stop(struct fp_dev *dev, gboolean iterating)
 
 static const struct usb_id id_table[] = {
 	{ .vendor = 0x147e, .product = 0x2016, .driver_data = UPEKE2_2016 },
-	{ .vendor = 0x147e, .product = 0x2020, .driver_data = UPEKE2_2020 },
 	{ 0, 0, 0, }, /* terminating entry */
 };
 

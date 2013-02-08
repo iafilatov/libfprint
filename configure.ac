@@ -23,7 +23,7 @@ AC_SUBST(lt_major)
 AC_SUBST(lt_revision)
 AC_SUBST(lt_age)
 
-all_drivers="upeke2 upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes1660 aes2501 aes2550 aes2660 aes3500 aes4000 vfs101 vfs301"
+all_drivers="upeke2 upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes1660 aes2501 aes2550 aes2660 aes3500 aes4000 vfs101 vfs301 upektc_img"
 
 require_imaging='no'
 require_aeslib='no'
@@ -45,6 +45,7 @@ enable_aes3500='no'
 enable_aes4000='no'
 enable_vfs101='no'
 enable_vfs301='no'
+enable_upektc_img='no'
 
 AC_ARG_WITH([drivers],[AS_HELP_STRING([--with-drivers],
 	[List of drivers to enable])],
@@ -135,6 +136,10 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 			AC_DEFINE([ENABLE_VFS301], [], [Build Validity VFS301/VFS300 driver])
 			enable_vfs301="yes"
 		;;
+		upektc_img)
+			AC_DEFINE([ENABLE_UPEKTC_IMG], [], [Build Upek TouchChip Fingerprint Coprocessor driver])
+			enable_upektc_img="yes"
+		;;
 	esac
 done
 
@@ -157,6 +162,7 @@ AM_CONDITIONAL([REQUIRE_AESX660], [test "$require_aesX660" = "yes"])
 AM_CONDITIONAL([REQUIRE_AES3K], [test "$require_aes3k" = "yes"])
 AM_CONDITIONAL([ENABLE_VFS101], [test "$enable_vfs101" = "yes"])
 AM_CONDITIONAL([ENABLE_VFS301], [test "$enable_vfs301" = "yes"])
+AM_CONDITIONAL([ENABLE_UPEKTC_IMG], [test "$enable_upektc_img" = "yes"])
 
 
 PKG_CHECK_MODULES(LIBUSB, [libusb-1.0 >= 0.9.1])
@@ -372,6 +378,11 @@ if test x$enable_vfs301 != xno ; then
 	AC_MSG_NOTICE([** vfs301 driver enabled])
 else
 	AC_MSG_NOTICE([   vfs301 driver disabled])
+fi
+if test x$enable_upektc_img != xno ; then
+	AC_MSG_NOTICE([** upektc_img driver enabled])
+else
+	AC_MSG_NOTICE([   upektc_img driver disabled])
 fi
 if test x$require_aeslib != xno ; then
 	AC_MSG_NOTICE([** aeslib helper functions enabled])
