@@ -163,6 +163,9 @@ void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
 			imgdev->identify_match_offset, img);
 		fp_print_data_free(data);
 		break;
+	case IMG_ACTION_CAPTURE:
+		fpi_drvcb_report_capture_result(imgdev->dev, r, img);
+		break;
 	default:
 		fp_err("unhandled action %d", imgdev->action);
 		break;
@@ -231,18 +234,20 @@ void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 
 	fp_img_standardize(img);
 	imgdev->acquire_img = img;
-	r = fpi_img_to_print_data(imgdev, img, &print);
-	if (r < 0) {
-		fp_dbg("image to print data conversion error: %d", r);
-		imgdev->action_result = FP_ENROLL_RETRY;
-		goto next_state;
-	} else if (img->minutiae->num < MIN_ACCEPTABLE_MINUTIAE) {
-		fp_dbg("not enough minutiae, %d/%d", img->minutiae->num,
-			MIN_ACCEPTABLE_MINUTIAE);
-		fp_print_data_free(print);
-		/* depends on FP_ENROLL_RETRY == FP_VERIFY_RETRY */
-		imgdev->action_result = FP_ENROLL_RETRY;
-		goto next_state;
+	if (imgdev->action != IMG_ACTION_CAPTURE) {
+		r = fpi_img_to_print_data(imgdev, img, &print);
+		if (r < 0) {
+			fp_dbg("image to print data conversion error: %d", r);
+			imgdev->action_result = FP_ENROLL_RETRY;
+			goto next_state;
+		} else if (img->minutiae->num < MIN_ACCEPTABLE_MINUTIAE) {
+			fp_dbg("not enough minutiae, %d/%d", img->minutiae->num,
+				MIN_ACCEPTABLE_MINUTIAE);
+			fp_print_data_free(print);
+			/* depends on FP_ENROLL_RETRY == FP_VERIFY_RETRY */
+			imgdev->action_result = FP_ENROLL_RETRY;
+			goto next_state;
+		}
 	}
 
 	imgdev->acquire_data = print;
@@ -255,6 +260,9 @@ void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 		break;
 	case IMG_ACTION_IDENTIFY:
 		identify_process_img(imgdev);
+		break;
+	case IMG_ACTION_CAPTURE:
+		imgdev->action_result = FP_CAPTURE_COMPLETE;
 		break;
 	default:
 		BUG();
@@ -280,6 +288,9 @@ void fpi_imgdev_session_error(struct fp_img_dev *imgdev, int error)
 	case IMG_ACTION_IDENTIFY:
 		fpi_drvcb_report_identify_result(imgdev->dev, error, 0, NULL);
 		break;
+	case IMG_ACTION_CAPTURE:
+		fpi_drvcb_report_capture_result(imgdev->dev, error, NULL);
+		break;
 	default:
 		fp_err("unhandled action %d", imgdev->action);
 		break;
@@ -299,6 +310,9 @@ void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status)
 		break;
 	case IMG_ACTION_IDENTIFY:
 		fpi_drvcb_identify_started(imgdev->dev, status);
+		break;
+	case IMG_ACTION_CAPTURE:
+		fpi_drvcb_capture_started(imgdev->dev, status);
 		break;
 	default:
 		fp_err("unhandled action %d", imgdev->action);
@@ -324,6 +338,9 @@ void fpi_imgdev_deactivate_complete(struct fp_img_dev *imgdev)
 		break;
 	case IMG_ACTION_IDENTIFY:
 		fpi_drvcb_identify_stopped(imgdev->dev);
+		break;
+	case IMG_ACTION_CAPTURE:
+		fpi_drvcb_capture_stopped(imgdev->dev);
 		break;
 	default:
 		fp_err("unhandled action %d", imgdev->action);
@@ -421,6 +438,14 @@ static int img_dev_identify_start(struct fp_dev *dev)
 	return generic_acquire_start(dev, IMG_ACTION_IDENTIFY);
 }
 
+static int img_dev_capture_start(struct fp_dev *dev)
+{
+	/* Unconditional capture is not supported yet */
+	if (dev->unconditional_capture)
+		return -ENOTSUP;
+	return generic_acquire_start(dev, IMG_ACTION_CAPTURE);
+}
+
 static int img_dev_enroll_stop(struct fp_dev *dev)
 {
 	struct fp_img_dev *imgdev = dev->priv;
@@ -446,6 +471,14 @@ static int img_dev_identify_stop(struct fp_dev *dev, gboolean iterating)
 	return 0;
 }
 
+static int img_dev_capture_stop(struct fp_dev *dev)
+{
+	struct fp_img_dev *imgdev = dev->priv;
+	BUG_ON(imgdev->action != IMG_ACTION_CAPTURE);
+	generic_acquire_stop(imgdev);
+	return 0;
+}
+
 void fpi_img_driver_setup(struct fp_img_driver *idriver)
 {
 	idriver->driver.type = DRIVER_IMAGING;
@@ -457,5 +490,7 @@ void fpi_img_driver_setup(struct fp_img_driver *idriver)
 	idriver->driver.verify_stop = img_dev_verify_stop;
 	idriver->driver.identify_start = img_dev_identify_start;
 	idriver->driver.identify_stop = img_dev_identify_stop;
+	idriver->driver.capture_start = img_dev_capture_start;
+	idriver->driver.capture_stop = img_dev_capture_stop;
 }
 

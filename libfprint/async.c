@@ -412,3 +412,101 @@ void fpi_drvcb_identify_stopped(struct fp_dev *dev)
 		dev->identify_stop_cb(dev, dev->identify_stop_cb_data);
 }
 
+API_EXPORTED int fp_async_capture_start(struct fp_dev *dev, int unconditional,
+	fp_capture_cb callback, void *user_data)
+{
+	struct fp_driver *drv = dev->drv;
+	int r;
+
+	fp_dbg("");
+	if (!drv->capture_start)
+		return -ENOTSUP;
+
+	dev->state = DEV_STATE_CAPTURE_STARTING;
+	dev->capture_cb = callback;
+	dev->capture_cb_data = user_data;
+	dev->unconditional_capture = unconditional;
+
+	r = drv->capture_start(dev);
+	if (r < 0) {
+		dev->capture_cb = NULL;
+		dev->state = DEV_STATE_ERROR;
+		fp_err("failed to start verification, error %d", r);
+	}
+	return r;
+}
+
+/* Drivers call this when capture has started */
+void fpi_drvcb_capture_started(struct fp_dev *dev, int status)
+{
+	fp_dbg("");
+	BUG_ON(dev->state != DEV_STATE_CAPTURE_STARTING);
+	if (status) {
+		if (status > 0) {
+			status = -status;
+			fp_dbg("adjusted to %d", status);
+		}
+		dev->state = DEV_STATE_ERROR;
+		if (dev->capture_cb)
+			dev->capture_cb(dev, status, NULL, dev->capture_cb_data);
+	} else {
+		dev->state = DEV_STATE_CAPTURING;
+	}
+}
+
+/* Drivers call this to report a capture result (which might mark completion) */
+void fpi_drvcb_report_capture_result(struct fp_dev *dev, int result,
+	struct fp_img *img)
+{
+	fp_dbg("result %d", result);
+	BUG_ON(dev->state != DEV_STATE_CAPTURING);
+	if (result < 0 || result == FP_CAPTURE_COMPLETE)
+		dev->state = DEV_STATE_CAPTURE_DONE;
+
+	if (dev->capture_cb)
+		dev->capture_cb(dev, result, img, dev->capture_cb_data);
+	else
+		fp_dbg("ignoring capture result as no callback is subscribed");
+}
+
+/* Drivers call this when capture has stopped */
+void fpi_drvcb_capture_stopped(struct fp_dev *dev)
+{
+	fp_dbg("");
+	BUG_ON(dev->state != DEV_STATE_CAPTURE_STOPPING);
+	dev->state = DEV_STATE_INITIALIZED;
+	if (dev->capture_stop_cb)
+		dev->capture_stop_cb(dev, dev->capture_stop_cb_data);
+}
+
+API_EXPORTED int fp_async_capture_stop(struct fp_dev *dev,
+	fp_capture_stop_cb callback, void *user_data)
+{
+	struct fp_driver *drv = dev->drv;
+	int r;
+
+	fp_dbg("");
+	BUG_ON(dev->state != DEV_STATE_ERROR
+		&& dev->state != DEV_STATE_CAPTURING
+		&& dev->state != DEV_STATE_CAPTURE_DONE);
+
+	dev->capture_cb = NULL;
+	dev->capture_stop_cb = callback;
+	dev->capture_stop_cb_data = user_data;
+	dev->state = DEV_STATE_CAPTURE_STOPPING;
+
+	if (!drv->capture_start)
+		return -ENOTSUP;
+	if (!drv->capture_stop) {
+		dev->state = DEV_STATE_INITIALIZED;
+		fpi_drvcb_capture_stopped(dev);
+		return 0;
+	}
+
+	r = drv->capture_stop(dev);
+	if (r < 0) {
+		fp_err("failed to stop verification");
+		dev->capture_stop_cb = NULL;
+	}
+	return r;
+}

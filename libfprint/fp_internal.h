@@ -91,6 +91,10 @@ enum fp_dev_state {
 	DEV_STATE_IDENTIFYING,
 	DEV_STATE_IDENTIFY_DONE,
 	DEV_STATE_IDENTIFY_STOPPING,
+	DEV_STATE_CAPTURE_STARTING,
+	DEV_STATE_CAPTURING,
+	DEV_STATE_CAPTURE_DONE,
+	DEV_STATE_CAPTURE_STOPPING,
 };
 
 struct fp_driver **fprint_get_drivers (void);
@@ -108,8 +112,8 @@ struct fp_dev {
 
 	/* drivers should not mess with any of the below */
 	enum fp_dev_state state;
-
 	int __enroll_stage;
+	int unconditional_capture;
 
 	/* async I/O callbacks and data */
 	/* FIXME: convert this to generic state operational data mechanism? */
@@ -129,6 +133,10 @@ struct fp_dev {
 	void *identify_cb_data;
 	fp_identify_stop_cb identify_stop_cb;
 	void *identify_stop_cb_data;
+	fp_capture_cb capture_cb;
+	void *capture_cb_data;
+	fp_capture_stop_cb capture_stop_cb;
+	void *capture_stop_cb_data;
 
 	/* FIXME: better place to put this? */
 	struct fp_print_data **identify_gallery;
@@ -146,6 +154,7 @@ enum fp_imgdev_action {
 	IMG_ACTION_ENROLL,
 	IMG_ACTION_VERIFY,
 	IMG_ACTION_IDENTIFY,
+	IMG_ACTION_CAPTURE,
 };
 
 enum fp_imgdev_enroll_state {
@@ -179,8 +188,6 @@ struct fp_img_dev {
 	void *priv;
 };
 
-int fpi_imgdev_capture(struct fp_img_dev *imgdev, int unconditional,
-	struct fp_img **image);
 int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev);
 int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev);
 
@@ -215,6 +222,8 @@ struct fp_driver {
 	int (*verify_stop)(struct fp_dev *dev, gboolean iterating);
 	int (*identify_start)(struct fp_dev *dev);
 	int (*identify_stop)(struct fp_dev *dev, gboolean iterating);
+	int (*capture_start)(struct fp_dev *dev);
+	int (*capture_stop)(struct fp_dev *dev);
 };
 
 enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv);
@@ -438,6 +447,11 @@ void fpi_drvcb_identify_started(struct fp_dev *dev, int status);
 void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
 	size_t match_offset, struct fp_img *img);
 void fpi_drvcb_identify_stopped(struct fp_dev *dev);
+
+void fpi_drvcb_capture_started(struct fp_dev *dev, int status);
+void fpi_drvcb_report_capture_result(struct fp_dev *dev, int result,
+	struct fp_img *img);
+void fpi_drvcb_capture_stopped(struct fp_dev *dev);
 
 /* for image drivers */
 void fpi_imgdev_open_complete(struct fp_img_dev *imgdev, int status);

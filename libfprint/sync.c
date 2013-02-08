@@ -512,3 +512,100 @@ err:
 	return r;
 }
 
+struct sync_capture_data {
+	gboolean populated;
+	int result;
+	struct fp_img *img;
+};
+
+static void sync_capture_cb(struct fp_dev *dev, int result, struct fp_img *img,
+	void *user_data)
+{
+	struct sync_capture_data *vdata = user_data;
+	vdata->result = result;
+	vdata->img = img;
+	vdata->populated = TRUE;
+}
+
+static void capture_stop_cb(struct fp_dev *dev, void *user_data)
+{
+	gboolean *stopped = user_data;
+	fp_dbg("");
+	*stopped = TRUE;
+}
+/** \ingroup dev
+ * Captures an \ref img "image" from a device. The returned image is the raw
+ * image provided by the device, you may wish to \ref img_std "standardize" it.
+ *
+ * If set, the <tt>unconditional</tt> flag indicates that the device should
+ * capture an image unconditionally, regardless of whether a finger is there
+ * or not. If unset, this function will block until a finger is detected on
+ * the sensor.
+ *
+ * \param dev the device
+ * \param unconditional whether to unconditionally capture an image, or to only capture when a finger is detected
+ * \param img a location to return the captured image. Must be freed with
+ * fp_img_free() after use.
+ * \return 0 on success, non-zero on error. -ENOTSUP indicates that either the
+ * unconditional flag was set but the device does not support this, or that the
+ * device does not support imaging.
+ * \sa fp_dev_supports_imaging()
+ */
+API_EXPORTED int fp_dev_img_capture(struct fp_dev *dev, int unconditional,
+	struct fp_img **img)
+{
+	struct sync_capture_data *vdata;
+	gboolean stopped = FALSE;
+	int r;
+
+	if (!dev->drv->capture_start) {
+		fp_dbg("image capture is not supported on %s device", dev->drv->name);
+		return -ENOTSUP;
+	}
+
+	fp_dbg("to be handled by %s", dev->drv->name);
+	vdata = g_malloc0(sizeof(struct sync_capture_data));
+	r = fp_async_capture_start(dev, unconditional, sync_capture_cb, vdata);
+	if (r < 0) {
+		fp_dbg("capture_start error %d", r);
+		g_free(vdata);
+		return r;
+	}
+
+	while (!vdata->populated) {
+		r = fp_handle_events();
+		if (r < 0) {
+			g_free(vdata);
+			goto err;
+		}
+	}
+
+	if (img)
+		*img = vdata->img;
+	else
+		fp_img_free(vdata->img);
+
+	r = vdata->result;
+	g_free(vdata);
+	switch (r) {
+	case FP_CAPTURE_COMPLETE:
+		fp_dbg("result: complete");
+		break;
+	case FP_CAPTURE_FAIL:
+		fp_dbg("result: fail");
+		break;
+	default:
+		fp_err("unrecognised return code %d", r);
+		r = -EINVAL;
+	}
+
+err:
+	fp_dbg("ending capture");
+	if (fp_async_capture_stop(dev, capture_stop_cb, &stopped) == 0)
+		while (!stopped)
+			if (fp_handle_events() < 0)
+				break;
+
+	return r;
+}
+

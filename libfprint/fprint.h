@@ -107,6 +107,17 @@ uint32_t fp_dev_get_devtype(struct fp_dev *dev);
 int fp_dev_supports_print_data(struct fp_dev *dev, struct fp_print_data *data);
 int fp_dev_supports_dscv_print(struct fp_dev *dev, struct fp_dscv_print *print);
 
+/** \ingroup dev
+ * Image capture result codes returned from fp_dev_img_capture().
+ */
+enum fp_capture_result {
+	/** Capture completed successfully, the capture data has been
+	 * returned to the caller. */
+	FP_CAPTURE_COMPLETE = 0,
+	/** Capture failed for some reason */
+	FP_CAPTURE_FAIL,
+};
+
 int fp_dev_supports_imaging(struct fp_dev *dev);
 int fp_dev_img_capture(struct fp_dev *dev, int unconditional,
 	struct fp_img **image);
@@ -339,6 +350,13 @@ int fp_async_identify_start(struct fp_dev *dev, struct fp_print_data **gallery,
 typedef void (*fp_identify_stop_cb)(struct fp_dev *dev, void *user_data);
 int fp_async_identify_stop(struct fp_dev *dev, fp_identify_stop_cb callback,
 	void *user_data);
+
+typedef void (*fp_capture_cb)(struct fp_dev *dev, int result,
+	struct fp_img *img, void *user_data);
+int fp_async_capture_start(struct fp_dev *dev, int unconditional, fp_capture_cb callback, void *user_data);
+
+typedef void (*fp_capture_stop_cb)(struct fp_dev *dev, void *user_data);
+int fp_async_capture_stop(struct fp_dev *dev, fp_capture_stop_cb callback, void *user_data);
 
 #ifdef __cplusplus
 }

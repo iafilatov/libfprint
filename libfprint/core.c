@@ -804,7 +804,7 @@ static struct fp_img_dev *dev_to_img_dev(struct fp_dev *dev)
  */
 API_EXPORTED int fp_dev_supports_imaging(struct fp_dev *dev)
 {
-	return dev->drv->type == DRIVER_IMAGING;
+	return dev->drv->capture_start != NULL;
 }
 
 /** \ingroup dev
@@ -817,38 +817,6 @@ API_EXPORTED int fp_dev_supports_imaging(struct fp_dev *dev)
 API_EXPORTED int fp_dev_supports_identification(struct fp_dev *dev)
 {
 	return dev->drv->identify_start != NULL;
-}
-
-/** \ingroup dev
- * Captures an \ref img "image" from a device. The returned image is the raw
- * image provided by the device, you may wish to \ref img_std "standardize" it.
- *
- * If set, the <tt>unconditional</tt> flag indicates that the device should
- * capture an image unconditionally, regardless of whether a finger is there
- * or not. If unset, this function will block until a finger is detected on
- * the sensor.
- *
- * \param dev the device
- * \param unconditional whether to unconditionally capture an image, or to only capture when a finger is detected
- * \param image a location to return the captured image. Must be freed with
- * fp_img_free() after use.
- * \return 0 on success, non-zero on error. -ENOTSUP indicates that either the
- * unconditional flag was set but the device does not support this, or that the
- * device does not support imaging.
- * \sa fp_dev_supports_imaging()
- */
-API_EXPORTED int fp_dev_img_capture(struct fp_dev *dev, int unconditional,
-	struct fp_img **image)
-{
-	struct fp_img_dev *imgdev = dev_to_img_dev(dev);
-	if (!imgdev) {
-		fp_dbg("image capture on non-imaging device");
-		return -ENOTSUP;
-	}
-
-	//return fpi_imgdev_capture(imgdev, unconditional, image);
-	/* FIXME reimplement async */
-	return -ENOTSUP;
 }
 
 /** \ingroup dev
