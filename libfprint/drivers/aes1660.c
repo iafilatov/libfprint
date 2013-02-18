@@ -104,12 +104,6 @@ struct fp_img_driver aes1660_driver = {
 	.img_height = -1,
 	.img_width = FRAME_WIDTH * SCALE_FACTOR,
 
-	/* temporarily lowered until we sort out image processing code
-	 * binarized scan quality is good, minutiae detection is accurate,
-	 * it's just that we get fewer minutiae than other scanners (less scanning
-	 * area) */
-	.bz3_threshold = 25,
-
 	.open = dev_init,
 	.close = dev_deinit,
 	.activate = aesX660_dev_activate,
