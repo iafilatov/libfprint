@@ -25,6 +25,7 @@
 
 #define MIN_ACCEPTABLE_MINUTIAE 10
 #define BOZORTH3_DEFAULT_THRESHOLD 40
+#define IMG_ENROLL_STAGES 5
 
 static int img_dev_open(struct fp_dev *dev, unsigned long driver_data)
 {
@@ -33,8 +34,9 @@ static int img_dev_open(struct fp_dev *dev, unsigned long driver_data)
 	int r = 0;
 
 	imgdev->dev = dev;
+	imgdev->enroll_stage = 0;
 	dev->priv = imgdev;
-	dev->nr_enroll_stages = 1;
+	dev->nr_enroll_stages = IMG_ENROLL_STAGES;
 
 	/* for consistency in driver code, allow udev access through imgdev */
 	imgdev->udev = dev->udev;
@@ -144,7 +146,13 @@ void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
 	switch (imgdev->action) {
 	case IMG_ACTION_ENROLL:
 		fp_dbg("reporting enroll result");
-		fpi_drvcb_enroll_stage_completed(imgdev->dev, r, data, img);
+		data = imgdev->enroll_data;
+		if (r == FP_ENROLL_COMPLETE) {
+			imgdev->enroll_data = NULL;
+		}
+		fpi_drvcb_enroll_stage_completed(imgdev->dev, r,
+			r == FP_ENROLL_COMPLETE ? data : NULL,
+			img);
 		/* the callback can cancel enrollment, so recheck current
 		 * action and the status to see if retry is needed */
 		if (imgdev->action == IMG_ACTION_ENROLL &&
@@ -253,7 +261,22 @@ void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 	imgdev->acquire_data = print;
 	switch (imgdev->action) {
 	case IMG_ACTION_ENROLL:
-		imgdev->action_result = FP_ENROLL_COMPLETE;
+		if (!imgdev->enroll_data) {
+			imgdev->enroll_data = fpi_print_data_new(imgdev->dev);
+		}
+		BUG_ON(g_slist_length(print->prints) != 1);
+		/* Move print data from acquire data into enroll_data */
+		imgdev->enroll_data->prints =
+			g_slist_prepend(imgdev->enroll_data->prints, print->prints->data);
+		print->prints = g_slist_remove(print->prints, print->prints->data);
+
+		fp_print_data_free(imgdev->acquire_data);
+		imgdev->acquire_data = NULL;
+		imgdev->enroll_stage++;
+		if (imgdev->enroll_stage == imgdev->dev->nr_enroll_stages)
+			imgdev->action_result = FP_ENROLL_COMPLETE;
+		else
+			imgdev->action_result = FP_ENROLL_PASS;
 		break;
 	case IMG_ACTION_VERIFY:
 		verify_process_img(imgdev);
@@ -402,6 +425,7 @@ static int generic_acquire_start(struct fp_dev *dev, int action)
 	fp_dbg("action %d", action);
 	imgdev->action = action;
 	imgdev->action_state = IMG_ACQUIRE_STATE_ACTIVATING;
+	imgdev->enroll_stage = 0;
 
 	r = dev_activate(imgdev, IMGDEV_STATE_AWAIT_FINGER_ON);
 	if (r < 0)
@@ -417,8 +441,10 @@ static void generic_acquire_stop(struct fp_img_dev *imgdev)
 	dev_deactivate(imgdev);
 
 	fp_print_data_free(imgdev->acquire_data);
+	fp_print_data_free(imgdev->enroll_data);
 	fp_img_free(imgdev->acquire_img);
 	imgdev->acquire_data = NULL;
+	imgdev->enroll_data = NULL;
 	imgdev->acquire_img = NULL;
 	imgdev->action_result = 0;
 }

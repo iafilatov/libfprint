@@ -95,21 +95,33 @@ static const char *finger_num_to_str(enum fp_finger finger)
 #endif
 
 static struct fp_print_data *print_data_new(uint16_t driver_id,
-	uint32_t devtype, enum fp_print_data_type type, size_t length)
+	uint32_t devtype, enum fp_print_data_type type)
 {
-	struct fp_print_data *data = g_malloc0(sizeof(*data) + length);
-	fp_dbg("length=%zd driver=%02x devtype=%04x", length, driver_id, devtype);
+	struct fp_print_data *data = g_malloc0(sizeof(*data));
+	fp_dbg("driver=%02x devtype=%04x", driver_id, devtype);
 	data->driver_id = driver_id;
 	data->devtype = devtype;
 	data->type = type;
-	data->length = length;
 	return data;
 }
 
-struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length)
+void fpi_print_data_item_free(struct fp_print_data_item *item)
+{
+	g_free(item);
+}
+
+struct fp_print_data_item *fpi_print_data_item_new(size_t length)
+{
+	struct fp_print_data_item *item = g_malloc(sizeof(*item) + length);
+	item->length = length;
+
+	return item;
+}
+
+struct fp_print_data *fpi_print_data_new(struct fp_dev *dev)
 {
 	return print_data_new(dev->drv->id, dev->devtype,
-		fpi_driver_get_data_type(dev->drv), length);
+		fpi_driver_get_data_type(dev->drv));
 }
 
 /** \ingroup print_data
@@ -124,25 +136,113 @@ struct fp_print_data *fpi_print_data_new(struct fp_dev *dev, size_t length)
 API_EXPORTED size_t fp_print_data_get_data(struct fp_print_data *data,
 	unsigned char **ret)
 {
-	struct fpi_print_data_fp1 *buf;
-	size_t buflen;
+	struct fpi_print_data_fp2 *out_data;
+	struct fpi_print_data_item_fp2 *out_item;
+	struct fp_print_data_item *item;
+	size_t buflen = 0;
+	GSList *list_item;
+	unsigned char *buf;
 
 	fp_dbg("");
 
-	buflen = sizeof(*buf) + data->length;
-	buf = malloc(buflen);
-	if (!buf)
-		return 0;
+	list_item = data->prints;
+	while (list_item) {
+		item = list_item->data;
+		buflen += sizeof(*out_item);
+		buflen += item->length;
+		list_item = g_slist_next(list_item);
+	}
 
-	*ret = (unsigned char *) buf;
-	buf->prefix[0] = 'F';
-	buf->prefix[1] = 'P';
-	buf->prefix[2] = '1';
-	buf->driver_id = GUINT16_TO_LE(data->driver_id);
-	buf->devtype = GUINT32_TO_LE(data->devtype);
-	buf->data_type = data->type;
-	memcpy(buf->data, data->data, data->length);
+	buflen += sizeof(*out_data);
+	out_data = g_malloc(buflen);
+
+	*ret = (unsigned char *) out_data;
+	buf = out_data->data;
+	out_data->prefix[0] = 'F';
+	out_data->prefix[1] = 'P';
+	out_data->prefix[2] = '2';
+	out_data->driver_id = GUINT16_TO_LE(data->driver_id);
+	out_data->devtype = GUINT32_TO_LE(data->devtype);
+	out_data->data_type = data->type;
+
+	list_item = data->prints;
+	while (list_item) {
+		item = list_item->data;
+		out_item = (struct fpi_print_data_item_fp2 *)buf;
+		out_item->length = GUINT32_TO_LE(item->length);
+		/* FIXME: fp_print_data_item->data content is not endianess agnostic */
+		memcpy(out_item->data, item->data, item->length);
+		buf += sizeof(*out_item);
+		buf += item->length;
+		list_item = g_slist_next(list_item);
+	}
+
 	return buflen;
+}
+
+static struct fp_print_data *fpi_print_data_from_fp1_data(unsigned char *buf,
+	size_t buflen)
+{
+	size_t print_data_len;
+	struct fp_print_data *data;
+	struct fp_print_data_item *item;
+	struct fpi_print_data_fp2 *raw = (struct fpi_print_data_fp2 *) buf;
+
+	print_data_len = buflen - sizeof(*raw);
+	data = print_data_new(GUINT16_FROM_LE(raw->driver_id),
+		GUINT32_FROM_LE(raw->devtype), raw->data_type);
+	item = fpi_print_data_item_new(print_data_len);
+	/* FIXME: fp_print_data->data content is not endianess agnostic */
+	memcpy(item->data, raw->data, print_data_len);
+	data->prints = g_slist_prepend(data->prints, item);
+
+	return data;
+}
+
+static struct fp_print_data *fpi_print_data_from_fp2_data(unsigned char *buf,
+	size_t buflen)
+{
+	size_t total_data_len, item_len;
+	struct fp_print_data *data;
+	struct fp_print_data_item *item;
+	struct fpi_print_data_fp2 *raw = (struct fpi_print_data_fp2 *) buf;
+	unsigned char *raw_buf;
+	struct fpi_print_data_item_fp2 *raw_item;
+
+	total_data_len = buflen - sizeof(*raw);
+	data = print_data_new(GUINT16_FROM_LE(raw->driver_id),
+		GUINT32_FROM_LE(raw->devtype), raw->data_type);
+	raw_buf = raw->data;
+	while (total_data_len) {
+		if (total_data_len < sizeof(*raw_item))
+			break;
+		total_data_len -= sizeof(*raw_item);
+
+		raw_item = (struct fpi_print_data_item_fp2 *)raw_buf;
+		item_len = GUINT32_FROM_LE(raw_item->length);
+		fp_dbg("item len %d, total_data_len %d", item_len, total_data_len);
+		if (total_data_len < item_len) {
+			fp_err("corrupted fingerprint data");
+			break;
+		}
+		total_data_len -= item_len;
+
+		item = fpi_print_data_item_new(item_len);
+		/* FIXME: fp_print_data->data content is not endianess agnostic */
+		memcpy(item->data, raw_item->data, item_len);
+		data->prints = g_slist_prepend(data->prints, item);
+
+		raw_buf += sizeof(*raw_item);
+		raw_buf += item_len;
+	}
+
+	if (g_slist_length(data->prints) == 0) {
+		fp_print_data_free(data);
+		data = NULL;
+	}
+
+	return data;
+
 }
 
 /** \ingroup print_data
@@ -157,24 +257,21 @@ API_EXPORTED size_t fp_print_data_get_data(struct fp_print_data *data,
 API_EXPORTED struct fp_print_data *fp_print_data_from_data(unsigned char *buf,
 	size_t buflen)
 {
-	struct fpi_print_data_fp1 *raw = (struct fpi_print_data_fp1 *) buf;
-	size_t print_data_len;
-	struct fp_print_data *data;
+	struct fpi_print_data_fp2 *raw = (struct fpi_print_data_fp2 *) buf;
 
 	fp_dbg("buffer size %zd", buflen);
 	if (buflen < sizeof(*raw))
 		return NULL;
 
-	if (strncmp(raw->prefix, "FP1", 3) != 0) {
+	if (strncmp(raw->prefix, "FP1", 3) == 0) {
+		return fpi_print_data_from_fp1_data(buf, buflen);
+	} else if (strncmp(raw->prefix, "FP2", 3) == 0) {
+		return fpi_print_data_from_fp2_data(buf, buflen);
+	} else {
 		fp_dbg("bad header prefix");
-		return NULL;
 	}
 
-	print_data_len = buflen - sizeof(*raw);
-	data = print_data_new(GUINT16_FROM_LE(raw->driver_id),
-		GUINT32_FROM_LE(raw->devtype), raw->data_type, print_data_len);
-	memcpy(data->data, raw->data, print_data_len);
-	return data;
+	return NULL;
 }
 
 static char *get_path_to_storedir(uint16_t driver_id, uint32_t devtype)
@@ -405,6 +502,8 @@ API_EXPORTED int fp_print_data_from_dscv_print(struct fp_dscv_print *print,
  */
 API_EXPORTED void fp_print_data_free(struct fp_print_data *data)
 {
+	if (data)
+		g_slist_free_full(data->prints, (GDestroyNotify)fpi_print_data_item_free);
 	g_free(data);
 }
 

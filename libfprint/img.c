@@ -313,6 +313,7 @@ int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 	struct fp_print_data **ret)
 {
 	struct fp_print_data *print;
+	struct fp_print_data_item *item;
 	int r;
 
 	if (!img->minutiae) {
@@ -327,9 +328,11 @@ int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 
 	/* FIXME: space is wasted if we dont hit the max minutiae count. would
 	 * be good to make this dynamic. */
-	print = fpi_print_data_new(imgdev->dev, sizeof(struct xyt_struct));
+	print = fpi_print_data_new(imgdev->dev);
+	item = fpi_print_data_item_new(sizeof(struct xyt_struct));
 	print->type = PRINT_DATA_NBIS_MINUTIAE;
-	minutiae_to_xyt(img->minutiae, img->width, img->height, print->data);
+	minutiae_to_xyt(img->minutiae, img->width, img->height, item->data);
+	print->prints = g_slist_prepend(print->prints, item);
 
 	/* FIXME: the print buffer at this point is endian-specific, and will
 	 * only work when loaded onto machines with identical endianness. not good!
@@ -342,42 +345,73 @@ int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	struct fp_print_data *new_print)
 {
-	struct xyt_struct *gstruct = (struct xyt_struct *) enrolled_print->data;
-	struct xyt_struct *pstruct = (struct xyt_struct *) new_print->data;
-	GTimer *timer;
-	int r;
+	int score, max_score = 0, probe_len;
+	struct xyt_struct *pstruct = NULL;
+	struct xyt_struct *gstruct = NULL;
+	struct fp_print_data_item *data_item;
+	GSList *list_item;
 
 	if (enrolled_print->type != PRINT_DATA_NBIS_MINUTIAE ||
-			new_print->type != PRINT_DATA_NBIS_MINUTIAE) {
+	     new_print->type != PRINT_DATA_NBIS_MINUTIAE) {
 		fp_err("invalid print format");
 		return -EINVAL;
 	}
 
-	timer = g_timer_new();
-	r = bozorth_main(pstruct, gstruct);
-	g_timer_stop(timer);
-	fp_dbg("bozorth processing took %f seconds, score=%d",
-		g_timer_elapsed(timer, NULL), r);
-	g_timer_destroy(timer);
+	if (g_slist_length(new_print->prints) != 1) {
+		fp_err("new_print contains more than one sample, is it enrolled print?");
+		return -EINVAL;
+	}
 
-	return r;
+	data_item = new_print->prints->data;
+	pstruct = (struct xyt_struct *)data_item->data;
+
+	probe_len = bozorth_probe_init(pstruct);
+	list_item = enrolled_print->prints;
+	do {
+		data_item = list_item->data;
+		gstruct = (struct xyt_struct *)data_item->data;
+		score = bozorth_to_gallery(probe_len, pstruct, gstruct);
+		fp_dbg("score %d", score);
+		max_score = max(score, max_score);
+		list_item = g_slist_next(list_item);
+	} while (list_item);
+
+	return max_score;
 }
 
 int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 	struct fp_print_data **gallery, int match_threshold, size_t *match_offset)
 {
-	struct xyt_struct *pstruct = (struct xyt_struct *) print->data;
+	struct xyt_struct *pstruct;
+	struct xyt_struct *gstruct;
 	struct fp_print_data *gallery_print;
-	int probe_len = bozorth_probe_init(pstruct);
+	struct fp_print_data_item *data_item;
+	int probe_len;
 	size_t i = 0;
+	int r;
+	GSList *list_item;
 
+	if (g_slist_length(print->prints) != 1) {
+		fp_err("new_print contains more than one sample, is it enrolled print?");
+		return -EINVAL;
+	}
+
+	data_item = print->prints->data;
+	pstruct = (struct xyt_struct *)data_item->data;
+
+	probe_len = bozorth_probe_init(pstruct);
 	while ((gallery_print = gallery[i++])) {
-		struct xyt_struct *gstruct = (struct xyt_struct *) gallery_print->data;
-		int r = bozorth_to_gallery(probe_len, pstruct, gstruct);
-		if (r >= match_threshold) {
-			*match_offset = i - 1;
-			return FP_VERIFY_MATCH;
-		}
+		list_item = gallery_print->prints;
+		do {
+			data_item = list_item->data;
+			gstruct = (struct xyt_struct *)data_item->data;
+			r = bozorth_to_gallery(probe_len, pstruct, gstruct);
+			if (r >= match_threshold) {
+				*match_offset = i - 1;
+				return FP_VERIFY_MATCH;
+			}
+			list_item = g_slist_next(list_item);
+		} while (list_item);
 	}
 	return FP_VERIFY_NO_MATCH;
 }
