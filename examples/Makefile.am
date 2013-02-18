@@ -1,4 +1,4 @@
-INCLUDES = -I$(top_srcdir)
+AM_CFLAGS = -I$(top_srcdir)
 noinst_PROGRAMS = verify_live enroll verify img_capture cpp-test
 
 verify_live_SOURCES = verify_live.c

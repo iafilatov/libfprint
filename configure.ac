@@ -264,7 +264,7 @@ fi
 # Restore gnu89 inline semantics on gcc 4.3 and newer
 saved_cflags="$CFLAGS"
 CFLAGS="$CFLAGS -fgnu89-inline"
-AC_COMPILE_IFELSE(AC_LANG_PROGRAM([]), inline_cflags="-fgnu89-inline", inline_cflags="")
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[]])], inline_cflags="-fgnu89-inline", inline_cflags="")
 CFLAGS="$saved_cflags"
 
 AC_DEFINE([API_EXPORTED], [__attribute__((visibility("default")))], [Default visibility])
