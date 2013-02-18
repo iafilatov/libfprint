@@ -244,9 +244,6 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 		return r;
 	}
 
-	/* Set enroll stage number */
-	dev->dev->nr_enroll_stages = 1;
-
 	/* Initialize private structure */
 	vdev = g_malloc0(sizeof(vfs301_dev_t));
 	dev->priv = vdev;
