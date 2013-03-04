@@ -64,9 +64,6 @@
 /* Best image contrast */
 #define VFS_IMG_BEST_CONRAST	128
 
-/* Number of enroll stages */
-#define VFS_NR_ENROLL		3
-
 /* Device parameters address */
 #define VFS_PAR_000E			0x000e
 #define VFS_PAR_0011			0x0011
@@ -656,7 +653,7 @@ static int action_completed(struct fp_img_dev *dev)
 	struct vfs101_dev *vdev = dev->priv;
 
 	if ((dev->action == IMG_ACTION_ENROLL) &&
-		(vdev->enroll_stage < VFS_NR_ENROLL))
+		(vdev->enroll_stage < 1))
 		/* Enroll not completed, return false */
 		return FALSE;
 
@@ -1510,9 +1507,6 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 		fp_err("could not claim interface 0");
 		return r;
 	}
-
-	/* Set enroll stage number */
-	dev->dev->nr_enroll_stages = VFS_NR_ENROLL;
 
 	/* Initialize private structure */
 	vdev = g_malloc0(sizeof(struct vfs101_dev));
