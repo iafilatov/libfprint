@@ -23,7 +23,7 @@ AC_SUBST(lt_major)
 AC_SUBST(lt_revision)
 AC_SUBST(lt_age)
 
-all_drivers="upeke2 upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes1660 aes2501 aes2550 aes2660 aes3500 aes4000 vfs101 vfs301 upektc_img"
+all_drivers="upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes1660 aes2501 aes2550 aes2660 aes3500 aes4000 vfs101 vfs301 upektc_img"
 
 require_imaging='no'
 require_aeslib='no'
