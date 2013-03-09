@@ -48,9 +48,11 @@ static void start_deactivation(struct fp_img_dev *dev);
 
 struct upekts_img_dev {
 	unsigned char cmd[MAX_CMD_SIZE];
+	unsigned char response[MAX_RESPONSE_SIZE];
 	unsigned char image_bits[IMAGE_SIZE * 2];
 	unsigned char seq;
 	size_t image_size;
+	size_t response_rest;
 	gboolean deactivating;
 };
 
@@ -151,28 +153,27 @@ static void upektc_img_submit_req(struct fpi_ssm *ssm,
 	}
 }
 
-static void upektc_img_read_data(struct fpi_ssm *ssm, size_t buf_size, libusb_transfer_cb_fn cb)
+static void upektc_img_read_data(struct fpi_ssm *ssm, size_t buf_size, size_t buf_offset, libusb_transfer_cb_fn cb)
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	struct fp_img_dev *dev = ssm->priv;
+	struct upekts_img_dev *upekdev = dev->priv;
 	int r;
-	unsigned char *data;
 
 	if (!transfer) {
 		fpi_ssm_mark_aborted(ssm, -ENOMEM);
 		return;
 	}
 
-	transfer->flags |= LIBUSB_TRANSFER_FREE_BUFFER |
-		LIBUSB_TRANSFER_FREE_TRANSFER;
+	BUG_ON(buf_size > MAX_RESPONSE_SIZE);
 
-	data = g_malloc(buf_size);
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, buf_size,
+	transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
+
+	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, upekdev->response + buf_offset, buf_size,
 		cb, ssm, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
-		g_free(data);
 		libusb_free_transfer(transfer);
 		fpi_ssm_mark_aborted(ssm, r);
 	}
@@ -224,12 +225,19 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = ssm->priv;
 	struct upekts_img_dev *upekdev = dev->priv;
-	unsigned char *data = transfer->buffer;
+	unsigned char *data = upekdev->response;
 	struct fp_img *img;
+	size_t response_size;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fp_dbg("request is not completed, %d", transfer->status);
 		fpi_ssm_mark_aborted(ssm, -EIO);
+		return;
+	}
+
+	if (upekdev->deactivating) {
+		fp_dbg("Deactivate requested\n");
+		fpi_ssm_mark_completed(ssm);
 		return;
 	}
 
@@ -239,11 +247,20 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 		return;
 	}
 
-	if (upekdev->deactivating) {
-		fp_dbg("Deactivate requested\n");
-		fpi_ssm_mark_completed(ssm);
-		return;
+	if (!upekdev->response_rest) {
+		response_size = ((data[5] & 0x0f) << 8) + data[6];
+		response_size += 9; /* 7 bytes for header, 2 for CRC */
+		if (response_size > transfer->actual_length) {
+			fp_dbg("response_size is %d, actual_length is %d\n",
+				response_size, transfer->actual_length);
+			fp_dbg("Waiting for rest of transfer");
+			BUG_ON(upekdev->response_rest);
+			upekdev->response_rest = response_size - transfer->actual_length;
+			fpi_ssm_jump_to_state(ssm, CAPTURE_READ_DATA);
+			return;
+		}
 	}
+	upekdev->response_rest = 0;
 
 	switch (data[4]) {
 	case 0x00:
@@ -277,13 +294,16 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 				break;
 			default:
 				fp_err("Uknown response!\n");
-				fpi_ssm_mark_aborted(ssm, -EINVAL);
+				fpi_ssm_mark_aborted(ssm, -EIO);
 				break;
 		}
 		break;
 	case 0x08:
 		fpi_ssm_jump_to_state(ssm, CAPTURE_ACK_08);
 		break;
+	default:
+		fp_err("Not handled response!\n");
+		fpi_ssm_mark_aborted(ssm, -EIO);
 	}
 }
 
@@ -299,7 +319,11 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			upekdev->seq++;
 		break;
 	case CAPTURE_READ_DATA:
-		upektc_img_read_data(ssm, MAX_RESPONSE_SIZE, capture_read_data_cb);
+		if (!upekdev->response_rest)
+			upektc_img_read_data(ssm, SHORT_RESPONSE_SIZE, 0, capture_read_data_cb);
+		else
+			upektc_img_read_data(ssm, MAX_RESPONSE_SIZE - SHORT_RESPONSE_SIZE,
+			SHORT_RESPONSE_SIZE, capture_read_data_cb);
 		break;
 	case CAPTURE_ACK_00_28:
 		upektc_img_submit_req(ssm, upek2020_ack_00_28, sizeof(upek2020_ack_00_28),
@@ -391,7 +415,7 @@ static void deactivate_run_state(struct fpi_ssm *ssm)
 		upekdev->seq++;
 		break;
 	case DEACTIVATE_READ_DEINIT_DATA:
-		upektc_img_read_data(ssm, MAX_RESPONSE_SIZE, deactivate_read_data_cb);
+		upektc_img_read_data(ssm, SHORT_RESPONSE_SIZE, 0, deactivate_read_data_cb);
 		break;
 	};
 }
@@ -535,7 +559,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	case ACTIVATE_READ_INIT_2_RESP:
 	case ACTIVATE_READ_INIT_3_RESP:
 	case ACTIVATE_READ_INIT_4_RESP:
-		upektc_img_read_data(ssm, SHORT_RESPONSE_SIZE, init_read_data_cb);
+		upektc_img_read_data(ssm, SHORT_RESPONSE_SIZE, 0, init_read_data_cb);
 	break;
 	}
 }
@@ -598,11 +622,18 @@ static int discover(struct libusb_device_descriptor *dsc, uint32_t *devtype)
 {
 	if (dsc->idProduct == 0x2020 && dsc->bcdDevice == 1)
 		return 1;
+#ifndef ENABLE_UPEKE2
+	if (dsc->idProduct == 0x2016 && dsc->bcdDevice == 2)
+		return 1;
+#endif
 
 	return 0;
 }
 
 static const struct usb_id id_table[] = {
+#ifndef ENABLE_UPEKE2
+	{ .vendor = 0x147e, .product = 0x2016 },
+#endif
 	{ .vendor = 0x147e, .product = 0x2020 },
 	{ 0, 0, 0, },
 };
