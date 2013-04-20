@@ -88,7 +88,7 @@ libfprint_la_LIBADD = -lm $(LIBUSB_LIBS) $(GLIB_LIBS) $(CRYPTO_LIBS)
 
 fprint_list_udev_rules_SOURCES = fprint-list-udev-rules.c
 fprint_list_udev_rules_CFLAGS = -fvisibility=hidden -I$(srcdir)/nbis/include $(LIBUSB_CFLAGS) $(GLIB_CFLAGS) $(IMAGEMAGICK_CFLAGS) $(CRYPTO_CFLAGS) $(AM_CFLAGS)
-fprint_list_udev_rules_LDADD = $(builddir)/libfprint.la
+fprint_list_udev_rules_LDADD = $(builddir)/libfprint.la $(GLIB_LIBS)
 
 udev_rules_DATA = 60-fprint-autosuspend.rules
 
