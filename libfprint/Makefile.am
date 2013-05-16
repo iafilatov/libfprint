@@ -36,6 +36,8 @@ EXTRA_DIST = \
 	$(VFS301_SRC)		\
 	drivers/aesx660.c	\
 	drivers/aesx660.h	\
+	drivers/aes3k.c 	\
+	drivers/aes3k.h 	\
 	drivers/driver_ids.h	\
 	aeslib.c aeslib.h	\
 	imagemagick.c		\
@@ -175,6 +177,10 @@ endif
 
 if REQUIRE_AESX660
 OTHER_SRC += drivers/aesx660.c drivers/aesx660.h
+endif
+
+if REQUIRE_AES3K
+OTHER_SRC += drivers/aes3k.c drivers/aes3k.h
 endif
 
 libfprint_la_SOURCES =	\

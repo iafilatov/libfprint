@@ -28,6 +28,7 @@ all_drivers="upeke2 upekts upektc upeksonly vcom5s uru4000 fdu2000 aes1610 aes16
 require_imaging='no'
 require_aeslib='no'
 require_aesX660='no'
+require_aes3k='no'
 enable_upeke2='no'
 enable_upekts='no'
 enable_upektc='no'
@@ -115,6 +116,7 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 			AC_DEFINE([ENABLE_AES4000], [], [Build AuthenTec AES4000 driver])
 			require_aeslib="yes"
 			require_imaging="yes"
+			require_aes3k="yes"
 			enable_aes4000="yes"
 		;;
 		vfs101)
@@ -143,6 +145,7 @@ AM_CONDITIONAL([ENABLE_AES2660], [test "$enable_aes2660" = "yes"])
 AM_CONDITIONAL([ENABLE_AES4000], [test "$enable_aes4000" = "yes"])
 AM_CONDITIONAL([REQUIRE_AESLIB], [test "$require_aeslib" = "yes"])
 AM_CONDITIONAL([REQUIRE_AESX660], [test "$require_aesX660" = "yes"])
+AM_CONDITIONAL([REQUIRE_AES3K], [test "$require_aes3k" = "yes"])
 AM_CONDITIONAL([ENABLE_VFS101], [test "$enable_vfs101" = "yes"])
 AM_CONDITIONAL([ENABLE_VFS301], [test "$enable_vfs301" = "yes"])
 
@@ -365,6 +368,11 @@ if test x$require_aesX660 != xno ; then
 	AC_MSG_NOTICE([** aesX660 common routines enabled])
 else
 	AC_MSG_NOTICE([   aesX660 common routines disabled])
+fi
+if test x$require_aes3k != xno ; then
+	AC_MSG_NOTICE([** aes3k common routines enabled])
+else
+	AC_MSG_NOTICE([   aes3k common routines disabled])
 fi
 
 AC_CONFIG_FILES([libfprint.pc] [Makefile] [libfprint/Makefile] [examples/Makefile] [doc/Makefile])

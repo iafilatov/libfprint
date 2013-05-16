@@ -1,5 +1,12 @@
 /*
  * AuthenTec AES4000 driver for libfprint
+ *
+ * AES4000 is a press-typed sensor, which captures image in 96x96
+ * pixels.
+ *
+ * This work is derived from Daniel Drake's AES4000 driver.
+ *
+ * Copyright (C) 2013 Juvenn Woo <machese@gmail.com>
  * Copyright (C) 2007-2008 Daniel Drake <dsd@gentoo.org>
  *
  * This library is free software; you can redistribute it and/or
@@ -27,24 +34,19 @@
 #include <aeslib.h>
 #include <fp_internal.h>
 
+#include "aes3k.h"
 #include "driver_ids.h"
 
-#define CTRL_TIMEOUT	1000
-#define EP_IN			(1 | LIBUSB_ENDPOINT_IN)
-#define EP_OUT			(2 | LIBUSB_ENDPOINT_OUT)
-#define DATA_BUFLEN		0x1259
-#define NR_SUBARRAYS	6
-#define SUBARRAY_LEN	768
+#define DATA_BUFLEN	0x1259
 
-#define IMG_HEIGHT 96
-#define IMG_WIDTH 96
-#define ENLARGE_FACTOR 3
+/* image size = FRAME_WIDTH x FRAME_WIDTH */
+#define FRAME_WIDTH 	96
+#define FRAME_SIZE	(FRAME_WIDTH * AES3K_FRAME_HEIGHT / 2)
+#define FRAME_NUMBER	(FRAME_WIDTH / AES3K_FRAME_HEIGHT)
+#define ENLARGE_FACTOR 	3
 
-struct aes4k_dev {
-	struct libusb_transfer *img_trf;
-};
 
-static const struct aes_regwrite init_reqs[] = {
+static struct aes_regwrite init_reqs[] = {
 	/* master reset */
 	{ 0x80, 0x01 },
 	{ 0, 0 },
@@ -119,119 +121,28 @@ static const struct aes_regwrite init_reqs[] = {
 	{ 0x81, 0x00 },
 };
 
-static void do_capture(struct fp_img_dev *dev);
-
-static void img_cb(struct libusb_transfer *transfer)
-{
-	struct fp_img_dev *dev = transfer->user_data;
-	struct aes4k_dev *aesdev = dev->priv;
-	unsigned char *ptr = transfer->buffer;
-	struct fp_img *tmp;
-	struct fp_img *img;
-	int i;
-
-	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
-		goto err;
-	} else if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		fpi_imgdev_session_error(dev, -EIO);
-		goto err;
-	} else if (transfer->length != transfer->actual_length) {
-		fpi_imgdev_session_error(dev, -EPROTO);
-		goto err;
-	}
-
-	fpi_imgdev_report_finger_status(dev, TRUE);
-
-	tmp = fpi_img_new(IMG_WIDTH * IMG_HEIGHT);
-	tmp->width = IMG_WIDTH;
-	tmp->height = IMG_HEIGHT;
-	tmp->flags = FP_IMG_COLORS_INVERTED | FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
-	for (i = 0; i < NR_SUBARRAYS; i++) {
-		fp_dbg("subarray header byte %02x", *ptr);
-		ptr++;
-		aes_assemble_image(ptr, 96, 16, tmp->data + (i * 96 * 16));
-		ptr += SUBARRAY_LEN;
-	}
-
-	/* FIXME: this is an ugly hack to make the image big enough for NBIS
-	 * to process reliably */
-	img = fpi_im_resize(tmp, ENLARGE_FACTOR, ENLARGE_FACTOR);
-	fp_img_free(tmp);
-	fpi_imgdev_image_captured(dev, img);
-
-	/* FIXME: rather than assuming finger has gone, we should poll regs until
-	 * it really has, then restart the capture */
-	fpi_imgdev_report_finger_status(dev, FALSE);
-
-	do_capture(dev);
-
-err:
-	g_free(transfer->buffer);
-	aesdev->img_trf = NULL;
-	libusb_free_transfer(transfer);
-}
-
-static void do_capture(struct fp_img_dev *dev)
-{
-	struct aes4k_dev *aesdev = dev->priv;
-	unsigned char *data;
-	int r;
-
-	aesdev->img_trf = libusb_alloc_transfer(0);
-	if (!aesdev->img_trf) {
-		fpi_imgdev_session_error(dev, -EIO);
-		return;
-	}
-
-	data = g_malloc(DATA_BUFLEN);
-	libusb_fill_bulk_transfer(aesdev->img_trf, dev->udev, EP_IN, data,
-		DATA_BUFLEN, img_cb, dev, 0);
-
-	r = libusb_submit_transfer(aesdev->img_trf);
-	if (r < 0) {
-		g_free(data);
-		libusb_free_transfer(aesdev->img_trf);
-		aesdev->img_trf = NULL;
-		fpi_imgdev_session_error(dev, r);
-	}
-}
-
-static void init_reqs_cb(struct fp_img_dev *dev, int result, void *user_data)
-{
-	fpi_imgdev_activate_complete(dev, result);
-	if (result == 0)
-		do_capture(dev);
-}
-
-static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
-{
-	aes_write_regv(dev, init_reqs, G_N_ELEMENTS(init_reqs), init_reqs_cb, NULL);
-	return 0;
-}
-
-static void dev_deactivate(struct fp_img_dev *dev)
-{
-	struct aes4k_dev *aesdev = dev->priv;
-
-	/* FIXME: should wait for cancellation to complete before returning
-	 * from deactivation, otherwise app may legally exit before we've
-	 * cleaned up */
-	if (aesdev->img_trf)
-		libusb_cancel_transfer(aesdev->img_trf);
-	fpi_imgdev_deactivate_complete(dev);
-}
-
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
 	int r;
+	struct aes3k_dev *aesdev;
 
 	r = libusb_claim_interface(dev->udev, 0);
 	if (r < 0)
 		fp_err("could not claim interface 0");
 
-	dev->priv = g_malloc0(sizeof(struct aes4k_dev));
+	aesdev = dev->priv = g_malloc0(sizeof(struct aes3k_dev));
+
+	if (!aesdev)
+		return -ENOMEM;
 
 	if (r == 0)
+		aesdev->data_buflen = DATA_BUFLEN;
+		aesdev->frame_width = FRAME_WIDTH;
+		aesdev->frame_size = FRAME_SIZE;
+		aesdev->frame_number = FRAME_NUMBER;
+		aesdev->enlarge_factor = ENLARGE_FACTOR;
+		aesdev->init_reqs = init_reqs;
+		aesdev->init_reqs_len = G_N_ELEMENTS(init_reqs);
 		fpi_imgdev_open_complete(dev, 0);
 
 	return r;
@@ -239,10 +150,12 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	g_free(dev->priv);
+	struct aes3k_dev *aesdev = dev->priv;
+	g_free(aesdev);
 	libusb_release_interface(dev->udev, 0);
 	fpi_imgdev_close_complete(dev);
 }
+
 
 static const struct usb_id id_table[] = {
 	{ .vendor = 0x08ff, .product = 0x5501 },
@@ -258,15 +171,15 @@ struct fp_img_driver aes4000_driver = {
 		.scan_type = FP_SCAN_TYPE_PRESS,
 	},
 	.flags = 0,
-	.img_height = IMG_HEIGHT * ENLARGE_FACTOR,
-	.img_width = IMG_WIDTH * ENLARGE_FACTOR,
+	.img_height = FRAME_WIDTH * ENLARGE_FACTOR,
+	.img_width = FRAME_WIDTH * ENLARGE_FACTOR,
 
 	/* temporarily lowered until image quality improves */
 	.bz3_threshold = 9,
 
 	.open = dev_init,
 	.close = dev_deinit,
-	.activate = dev_activate,
-	.deactivate = dev_deactivate,
+	.activate = aes3k_dev_activate,
+	.deactivate = aes3k_dev_deactivate,
 };
 
