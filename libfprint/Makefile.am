@@ -12,6 +12,7 @@ AES1660_SRC = drivers/aes1660.c drivers/aes1660.h
 AES2501_SRC = drivers/aes2501.c drivers/aes2501.h
 AES2550_SRC = drivers/aes2550.c drivers/aes2550.h
 AES2660_SRC = drivers/aes2660.c drivers/aes2660.h
+AES3500_SRC = drivers/aes3500.c
 AES4000_SRC = drivers/aes4000.c
 FDU2000_SRC = drivers/fdu2000.c
 VCOM5S_SRC = drivers/vcom5s.c
@@ -29,6 +30,7 @@ EXTRA_DIST = \
 	$(AES2501_SRC)		\
 	$(AES2550_SRC)		\
 	$(AES2660_SRC)		\
+	$(AES3500_SRC)		\
 	$(AES4000_SRC)		\
 	$(FDU2000_SRC)		\
 	$(VCOM5S_SRC)		\
@@ -145,6 +147,10 @@ endif
 
 if ENABLE_AES2660
 DRIVER_SRC += $(AES2660_SRC)
+endif
+
+if ENABLE_AES3500
+DRIVER_SRC += $(AES3500_SRC)
 endif
 
 if ENABLE_AES4000

@@ -349,6 +349,9 @@ static struct fp_driver * const primitive_drivers[] = {
 };
 
 static struct fp_img_driver * const img_drivers[] = {
+#ifdef ENABLE_AES3500
+	&aes3500_driver,
+#endif
 #ifdef ENABLE_AES4000
 	&aes4000_driver,
 #endif
