@@ -184,8 +184,7 @@ PKG_CHECK_MODULES(GLIB, [glib-2.0 >= 2.28])
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
-imagemagick_found=no
-gdkpixbuf_found=no
+pixman_found=no
 
 AC_ARG_ENABLE(udev-rules,
 	AC_HELP_STRING([--enable-udev-rules],[Update the udev rules]),
@@ -213,20 +212,13 @@ AC_MSG_NOTICE([installing udev rules in ${ac_with_udev_rules_dir}])
 AC_SUBST([udev_rulesdir],[${ac_with_udev_rules_dir}])
 
 if test "$require_imaging" = "yes"; then
-	PKG_CHECK_MODULES(IMAGING, gthread-2.0 gdk-pixbuf-2.0, [gdkpixbuf_found=yes], [gdkpixbuf_found=no])
-	if test "$gdkpixbuf_found" != "yes"; then
-		PKG_CHECK_MODULES(IMAGING, ImageMagick, [imagemagick_found=yes], [imagemagick_found=no])
+	PKG_CHECK_MODULES(IMAGING, pixman-1, [pixman_found=yes], [pixman_found=no])
+	if test "$pixman_found" != "yes"; then
+		AC_MSG_ERROR([pixman is required for imaging support])
 	fi
 fi
 
-if test "$require_imaging" = "yes"; then
-	if test "$gdkpixbuf_found" != "yes" && test "$imagemagick_found" != "yes"; then
-		AC_MSG_ERROR([gdk-pixbuf or ImageMagick is required for imaging support])
-	fi
-fi
-
-AM_CONDITIONAL([REQUIRE_GDKPIXBUF], [test "$gdkpixbuf_found" = "yes"])
-AM_CONDITIONAL([REQUIRE_IMAGEMAGICK], [test "$imagemagick_found" = "yes"])
+AM_CONDITIONAL([REQUIRE_PIXMAN], [test "$pixman_found" = "yes"])
 AC_SUBST(IMAGING_CFLAGS)
 AC_SUBST(IMAGING_LIBS)
 
@@ -296,10 +288,8 @@ AM_CFLAGS="-std=gnu99 $inline_cflags -Wall -Wundef -Wunused -Wstrict-prototypes 
 AC_SUBST(AM_CFLAGS)
 
 if test "$require_imaging" = "yes"; then
-	if test x$gdkpixbuf_found != no; then
-		AC_MSG_NOTICE([** Using gdk-pixbuf for imaging])
-	else
-		AC_MSG_NOTICE([** Using ImageMagick for imaging])
+	if test x$pixman_found != no; then
+		AC_MSG_NOTICE([** Using pixman for imaging])
 	fi
 else
 	AC_MSG_NOTICE([   Imaging support disabled])
