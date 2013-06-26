@@ -47,8 +47,7 @@
 
 struct fp_img *fpi_img_new(size_t length)
 {
-	struct fp_img *img = g_malloc(sizeof(*img) + length);
-	memset(img, 0, sizeof(*img));
+	struct fp_img *img = g_malloc0(sizeof(*img) + length);
 	fp_dbg("length=%zd", length);
 	img->length = length;
 	return img;

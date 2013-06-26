@@ -97,9 +97,8 @@ static const char *finger_num_to_str(enum fp_finger finger)
 static struct fp_print_data *print_data_new(uint16_t driver_id,
 	uint32_t devtype, enum fp_print_data_type type, size_t length)
 {
-	struct fp_print_data *data = g_malloc(sizeof(*data) + length);
+	struct fp_print_data *data = g_malloc0(sizeof(*data) + length);
 	fp_dbg("length=%zd driver=%02x devtype=%04x", length, driver_id, devtype);
-	memset(data, 0, sizeof(*data));
 	data->driver_id = driver_id;
 	data->devtype = devtype;
 	data->type = type;
