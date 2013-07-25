@@ -30,6 +30,8 @@ static const struct usb_id whitelist_id_table[] = {
 
 static const struct usb_id blacklist_id_table[] = {
     { .vendor = 0x0483, .product = 0x2016 },
+    /* https://bugs.freedesktop.org/show_bug.cgi?id=66659 */
+    { .vendor = 0x045e, .product = 0x00bb },
     { 0, 0, 0 },
 };
 
