@@ -52,7 +52,7 @@ static void print_driver (struct fp_driver *driver)
 	blacklist = 0;
 	for (j = 0; blacklist_id_table[j].vendor != 0; j++) {
 	    if (driver->id_table[i].vendor == blacklist_id_table[j].vendor &&
-		driver->id_table[j].product == blacklist_id_table[j].product) {
+		driver->id_table[i].product == blacklist_id_table[j].product) {
 		blacklist = 1;
 		break;
 	    }
