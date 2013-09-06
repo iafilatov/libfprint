@@ -267,7 +267,22 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 		switch (data[7]) {
 			/* No finger */
 			case 0x28:
-				fpi_ssm_jump_to_state(ssm, CAPTURE_ACK_00_28);
+				fp_dbg("18th byte is %.2x\n", data[18]);
+				switch (data[18]) {
+				case 0x0c:
+					/* no finger */
+					fpi_ssm_jump_to_state(ssm, CAPTURE_ACK_00_28);
+					break;
+				case 0x00:
+					/* finger is present! */
+					fpi_ssm_jump_to_state(ssm, CAPTURE_ACK_00_28);
+					break;
+				default:
+					/* some error happened, cancel scan */
+					fp_err("something bad happened, aborting scan :(\n");
+					fpi_ssm_mark_aborted(ssm, FP_VERIFY_RETRY_REMOVE_FINGER);
+					break;
+				}
 				break;
 			/* Image frame with additional info */
 			case 0x2c:
