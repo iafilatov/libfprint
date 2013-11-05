@@ -386,6 +386,9 @@ static struct fp_img_driver * const img_drivers[] = {
 #ifdef ENABLE_VFS301
 	&vfs301_driver,
 #endif
+#ifdef ENABLE_VFS5011
+	&vfs5011_driver,
+#endif
 #ifdef ENABLE_UPEKTC
 	&upektc_driver,
 #endif
