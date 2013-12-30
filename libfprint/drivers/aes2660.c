@@ -49,7 +49,6 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	dev->priv = aesdev = g_malloc0(sizeof(struct aesX660_dev));
 	aesdev->buffer = g_malloc0(AES2660_FRAME_SIZE + AESX660_HEADER_SIZE);
 	/* No scaling for AES2660 */
-	aesdev->h_scale_factor = 1;
 	aesdev->init_seqs[0] = aes2660_init_1;
 	aesdev->init_seqs_len[0] = array_n_elements(aes2660_init_1);
 	aesdev->init_seqs[1] = aes2660_init_2;
@@ -103,7 +102,7 @@ struct fp_img_driver aes2660_driver = {
 	},
 	.flags = 0,
 	.img_height = -1,
-	.img_width = FRAME_WIDTH,
+	.img_width = FRAME_WIDTH + FRAME_WIDTH / 2,
 
 	.open = dev_init,
 	.close = dev_deinit,

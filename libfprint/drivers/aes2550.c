@@ -204,6 +204,7 @@ static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
 	unsigned char *stripdata;
 	struct fp_img_dev *dev = ssm->priv;
 	struct aes2550_dev *aesdev = dev->priv;
+	struct aes_stripe *stripe;
 	int len;
 
 	if (data[0] != AES2550_EDATA_MAGIC) {
@@ -214,10 +215,15 @@ static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
 	if (len != (AES2550_STRIP_SIZE - 3)) {
 		fp_dbg("Bogus frame len: %.4x\n", len);
 	}
-	stripdata = g_malloc(FRAME_WIDTH * FRAME_HEIGHT / 2); /* 4 bits per pixel */
+	stripe = g_malloc(FRAME_WIDTH * FRAME_HEIGHT / 2 + sizeof(struct aes_stripe)); /* 4 bits per pixel */
+	stripe->delta_x = (int8_t)data[6];
+	stripe->delta_y = -(int8_t)data[7];
+	stripdata = stripe->data;
 	memcpy(stripdata, data + 33, FRAME_WIDTH * FRAME_HEIGHT / 2);
-	aesdev->strips = g_slist_prepend(aesdev->strips, stripdata);
+	aesdev->strips = g_slist_prepend(aesdev->strips, stripe);
 	aesdev->strips_len++;
+
+	fp_dbg("deltas: %dx%d", stripe->delta_x, stripe->delta_y);
 
 	return 0;
 }
@@ -242,12 +248,13 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 	struct aes2550_dev *aesdev = dev->priv;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
-		(transfer->length == transfer->actual_length)) {
+		(transfer->length == transfer->actual_length) &&
+		aesdev->strips_len) {
 		struct fp_img *img;
 
 		aesdev->strips = g_slist_reverse(aesdev->strips);
 		img = aes_assemble(aesdev->strips, aesdev->strips_len,
-			FRAME_WIDTH, FRAME_HEIGHT);
+			FRAME_WIDTH, FRAME_HEIGHT, FRAME_WIDTH + FRAME_WIDTH / 2);
 		g_slist_free_full(aesdev->strips, g_free);
 		aesdev->strips = NULL;
 		aesdev->strips_len = 0;
@@ -637,7 +644,7 @@ struct fp_img_driver aes2550_driver = {
 	},
 	.flags = 0,
 	.img_height = -1,
-	.img_width = 192,
+	.img_width = FRAME_WIDTH + FRAME_WIDTH / 2,
 
 	.open = dev_init,
 	.close = dev_deinit,

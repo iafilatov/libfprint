@@ -609,13 +609,24 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	/* stop capturing if MAX_FRAMES is reached */
 	if (aesdev->blanks_count > 10 || g_slist_length(aesdev->strips) >= MAX_FRAMES) {
 		struct fp_img *img;
+		unsigned int height, rev_height;
 
 		fp_dbg("sending stop capture.... blanks=%d  frames=%d", aesdev->blanks_count, g_slist_length(aesdev->strips));
 		/* send stop capture bits */
 		aes_write_regv(dev, capture_stop, G_N_ELEMENTS(capture_stop), stub_capture_stop_cb, NULL);
 		aesdev->strips = g_slist_reverse(aesdev->strips);
+		height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
+			FRAME_WIDTH, FRAME_HEIGHT, FALSE);
+		rev_height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
+			FRAME_WIDTH, FRAME_HEIGHT, TRUE);
+		fp_dbg("heights: %d rev: %d", height, rev_height);
+		if (rev_height < height) {
+			fp_dbg("Reversed direction");
+			height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
+				FRAME_WIDTH, FRAME_HEIGHT, FALSE);
+		}
 		img = aes_assemble(aesdev->strips, aesdev->strips_len,
-			FRAME_WIDTH, FRAME_HEIGHT);
+			FRAME_WIDTH, FRAME_HEIGHT, FRAME_WIDTH + FRAME_WIDTH / 2);
 		g_slist_free_full(aesdev->strips, g_free);
 		aesdev->strips = NULL;
 		aesdev->strips_len = 0;
@@ -829,13 +840,9 @@ struct fp_img_driver aes1610_driver = {
 	},
 	.flags = 0,
 	.img_height = -1,
-	.img_width = 128,
+	.img_width = FRAME_WIDTH + FRAME_WIDTH / 2,
 
-	/* temporarily lowered until we sort out image processing code
-	 * binarized scan quality is good, minutiae detection is accurate,
-	 * it's just that we get fewer minutiae than other scanners (less scanning
-	 * area) */
-	.bz3_threshold = 10,
+	.bz3_threshold = 50,
 
 	.open = dev_init,
 	.close = dev_deinit,

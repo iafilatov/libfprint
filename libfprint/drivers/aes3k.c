@@ -52,6 +52,20 @@
 
 static void do_capture(struct fp_img_dev *dev);
 
+static void aes3k_assemble_image(unsigned char *input, size_t width, size_t height,
+	unsigned char *output)
+{
+	size_t row, column;
+
+	for (column = 0; column < width; column++) {
+		for (row = 0; row < height; row += 2) {
+			output[width * row + column] = (*input & 0x0f) * 17;
+			output[width * (row + 1) + column] = ((*input & 0xf0) >> 4) * 17;
+			input++;
+		}
+	}
+}
+
 static void img_cb(struct libusb_transfer *transfer)
 {
 	struct fp_img_dev *dev = transfer->user_data;
@@ -80,7 +94,7 @@ static void img_cb(struct libusb_transfer *transfer)
 	for (i = 0; i < aesdev->frame_number; i++) {
 		fp_dbg("frame header byte %02x", *ptr);
 		ptr++;
-		aes_assemble_image(ptr, aesdev->frame_width, AES3K_FRAME_HEIGHT, tmp->data + (i * aesdev->frame_width * AES3K_FRAME_HEIGHT));
+		aes3k_assemble_image(ptr, aesdev->frame_width, AES3K_FRAME_HEIGHT, tmp->data + (i * aesdev->frame_width * AES3K_FRAME_HEIGHT));
 		ptr += aesdev->frame_size;
 	}
 

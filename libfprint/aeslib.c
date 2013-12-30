@@ -158,127 +158,268 @@ void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
 	continue_write_regv(wdata);
 }
 
-void aes_assemble_image(unsigned char *input, size_t width, size_t height,
-	unsigned char *output)
+static inline unsigned char aes_get_pixel(struct aes_stripe *frame,
+					  unsigned int x,
+					  unsigned int y,
+					  unsigned int frame_width,
+					  unsigned int frame_height)
 {
-	size_t row, column;
+	unsigned char ret;
 
-	for (column = 0; column < width; column++) {
-		for (row = 0; row < height; row += 2) {
-			output[width * row + column] = (*input & 0x0f) * 17;
-			output[width * (row + 1) + column] = ((*input & 0xf0) >> 4) * 17;
-			input++;
+	ret = frame->data[x * (frame_height >> 1) + (y >> 1)];
+	ret = y % 2 ? ret >> 4 : ret & 0xf;
+	ret *= 17;
+
+	return ret;
+}
+
+static unsigned int calc_error(struct aes_stripe *first_frame,
+			       struct aes_stripe *second_frame,
+			       int dx,
+			       int dy,
+			       unsigned int frame_width,
+			       unsigned int frame_height)
+{
+	unsigned int width, height;
+	unsigned int x1, y1, x2, y2, err, i, j;
+
+	width = frame_width - (dx > 0 ? dx : -dx);
+	height = frame_height - dy;
+
+	y1 = 0;
+	y2 = dy;
+	i = 0;
+	err = 0;
+	do {
+		x1 = dx < 0 ? 0 : dx;
+		x2 = dx < 0 ? -dx : 0;
+		j = 0;
+
+		do {
+			unsigned char v1, v2;
+
+
+			v1 = aes_get_pixel(first_frame, x1, y1, frame_width, frame_height);
+			v2 = aes_get_pixel(second_frame, x2, y2, frame_width, frame_height);
+			err += v1 > v2 ? v1 - v2 : v2 - v1;
+			j++;
+			x1++;
+			x2++;
+
+		} while (j < width);
+		i++;
+		y1++;
+		y2++;
+	} while (i < height);
+
+	/* Normalize error */
+	err *= (frame_height * frame_width);
+	err /= (height * width);
+
+	if (err == 0)
+		return INT_MAX;
+
+	return err;
+}
+
+/* This function is rather CPU-intensive. It's better to use hardware
+ * to detect movement direction when possible.
+ */
+static void find_overlap(struct aes_stripe *first_frame,
+			 struct aes_stripe *second_frame,
+			 unsigned int *min_error,
+			 unsigned int frame_width,
+			 unsigned int frame_height)
+{
+	int dx, dy;
+	unsigned int err;
+	*min_error = INT_MAX;
+
+	/* Seeking in horizontal and vertical dimensions,
+	 * for horizontal dimension we'll check only 8 pixels
+	 * in both directions. For vertical direction diff is
+	 * rarely less than 2, so start with it.
+	 */
+	for (dy = 2; dy < frame_height; dy++) {
+		for (dx = -8; dx < 8; dx++) {
+			err = calc_error(first_frame, second_frame,
+				dx, dy, frame_width, frame_height);
+			if (err < *min_error) {
+				*min_error = err;
+				second_frame->delta_x = -dx;
+				second_frame->delta_y = dy;
+			}
 		}
 	}
 }
 
-/* find overlapping parts of  frames */
-static unsigned int find_overlap(unsigned char *first_frame,
-	unsigned char *second_frame, unsigned int *min_error,
-	unsigned int frame_width, unsigned int frame_height)
-{
-	unsigned int dy;
-	unsigned int not_overlapped_height = 0;
-	/* 255 is highest brightness value for an 8bpp image */
-	*min_error = 255 * frame_width * frame_height;
-	for (dy = 0; dy < frame_height; dy++) {
-		/* Calculating difference (error) between parts of frames */
-		unsigned int i;
-		unsigned int error = 0;
-		for (i = 0; i < frame_width * (frame_height - dy); i++) {
-			/* Using ? operator to avoid abs function */
-			error += first_frame[i] > second_frame[i] ?
-					(first_frame[i] - second_frame[i]) :
-					(second_frame[i] - first_frame[i]);
-		}
-
-		/* Normalize error */
-		error *= 15;
-		error /= i;
-		if (error < *min_error) {
-			*min_error = error;
-			not_overlapped_height = dy;
-		}
-		first_frame += frame_width;
-	}
-
-	return not_overlapped_height;
-}
-
-/* assemble a series of frames into a single image */
-static unsigned int assemble(GSList *list_entry, size_t num_stripes,
+unsigned int aes_calc_delta(GSList *stripes, size_t num_stripes,
 	unsigned int frame_width, unsigned int frame_height,
-	unsigned char *output, gboolean reverse, unsigned int *errors_sum)
+	gboolean reverse)
 {
-	uint8_t *assembled = output;
-	int frame;
-	uint32_t image_height = frame_height;
-	unsigned int min_error, frame_size = frame_width * frame_height;
-	*errors_sum = 0;
+	GSList *list_entry = stripes;
+	GTimer *timer;
+	int frame = 1;
+	int height = 0;
+	struct aes_stripe *prev_stripe = list_entry->data;
+	unsigned int min_error;
 
-	if (reverse)
-		output += (num_stripes - 1) * frame_size;
-	for (frame = 0; frame < num_stripes; frame++) {
-		aes_assemble_image(list_entry->data, frame_width, frame_height, output);
+	list_entry = g_slist_next(list_entry);
 
-		if (reverse)
-		    output -= frame_size;
+	timer = g_timer_new();
+	do {
+		struct aes_stripe *cur_stripe = list_entry->data;
+
+		if (reverse) {
+			find_overlap(prev_stripe, cur_stripe, &min_error,
+				frame_width, frame_height);
+			prev_stripe->delta_y = -prev_stripe->delta_y;
+			prev_stripe->delta_x = -prev_stripe->delta_x;
+		}
 		else
-		    output += frame_size;
+			find_overlap(cur_stripe, prev_stripe, &min_error,
+				frame_width, frame_height);
+
+		frame++;
+		height += prev_stripe->delta_y;
+		prev_stripe = cur_stripe;
 		list_entry = g_slist_next(list_entry);
+
+	} while (frame < num_stripes);
+
+	if (height < 0)
+		height = -height;
+	height += frame_height;
+	g_timer_stop(timer);
+	fp_dbg("calc delta completed in %f secs", g_timer_elapsed(timer, NULL));
+	g_timer_destroy(timer);
+
+	return height;
+}
+
+static inline void aes_blit_stripe(struct fp_img *img,
+				   struct aes_stripe *stripe,
+				   int x, int y, unsigned int frame_width,
+				   unsigned int frame_height)
+{
+	unsigned int ix, iy;
+	unsigned int fx, fy;
+	unsigned int width, height;
+
+	/* Find intersection */
+	if (x < 0) {
+		width = frame_width + x;
+		ix = 0;
+		fx = -x;
+	} else {
+		ix = x;
+		fx = 0;
+		width = frame_width;
+	}
+	if ((ix + width) > img->width)
+		width = img->width - ix;
+
+	if (y < 0) {
+		iy = 0;
+		fy = -y;
+		height = frame_height + y;
+	} else {
+		iy = y;
+		fy = 0;
+		height = frame_height;
 	}
 
-	/* Detecting where frames overlaped */
-	output = assembled;
-	for (frame = 1; frame < num_stripes; frame++) {
-		int not_overlapped;
+	if (fx > frame_width)
+		return;
 
-		output += frame_size;
-		not_overlapped = find_overlap(assembled, output, &min_error,
-			frame_width, frame_height);
-		*errors_sum += min_error;
-		image_height += not_overlapped;
-		assembled += frame_width * not_overlapped;
-		memcpy(assembled, output, frame_size);
+	if (fy > frame_height)
+		return;
+
+	if (ix > img->width)
+		return;
+
+	if (iy > img->height)
+		return;
+
+	if ((iy + height) > img->height)
+		height = img->height - iy;
+
+	for (; fy < height; fy++, iy++) {
+		if (x < 0) {
+			ix = 0;
+			fx = -x;
+		} else {
+			ix = x;
+			fx = 0;
+		}
+		for (; fx < width; fx++, ix++) {
+			img->data[ix + (iy * img->width)] = aes_get_pixel(stripe, fx, fy, frame_width, frame_height);
+		}
 	}
-	return image_height;
 }
 
 struct fp_img *aes_assemble(GSList *stripes, size_t stripes_len,
-	unsigned int frame_width, unsigned int frame_height)
+			    unsigned int frame_width, unsigned int frame_height, unsigned int img_width)
 {
-	size_t final_size;
+	GSList *stripe;
 	struct fp_img *img;
-	unsigned int frame_size = frame_width * frame_height;
-	unsigned int errors_sum, r_errors_sum;
+	int height = 0;
+	int i, y, x;
+	gboolean reverse = FALSE;
+	struct aes_stripe *aes_stripe;
 
 	BUG_ON(stripes_len == 0);
+	BUG_ON(img_width < frame_width);
 
-	/* create buffer big enough for max image */
-	img = fpi_img_new(stripes_len * frame_size);
+	/* Calculate height */
+	i = 0;
+	stripe = stripes;
 
-	img->flags = FP_IMG_COLORS_INVERTED;
-	img->height = assemble(stripes, stripes_len,
-		frame_width, frame_height,
-		img->data, FALSE, &errors_sum);
-	img->height = assemble(stripes, stripes_len,
-		frame_width, frame_height,
-		img->data, TRUE, &r_errors_sum);
+	/* No offset for 1st image */
+	aes_stripe = stripe->data;
+	aes_stripe->delta_x = 0;
+	aes_stripe->delta_y = 0;
+	do {
+		aes_stripe = stripe->data;
 
-	if (r_errors_sum > errors_sum) {
-		img->height = assemble(stripes, stripes_len,
-			frame_width, frame_height,
-			img->data, FALSE, &errors_sum);
-		img->flags |= FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED;
-		fp_dbg("normal scan direction");
-	} else {
-		fp_dbg("reversed scan direction");
+		height += aes_stripe->delta_y;
+		i++;
+		stripe = g_slist_next(stripe);
+	} while (i < stripes_len);
+
+	fp_dbg("height is %d", height);
+
+	if (height < 0) {
+		reverse = TRUE;
+		height = -height;
 	}
 
-	/* now that overlap has been removed, resize output image buffer */
-	final_size = img->height * frame_width;
-	img = fpi_img_resize(img, final_size);
-	img->width = frame_width;
+	/* For last frame */
+	height += frame_height;
+
+	/* Create buffer big enough for max image */
+	img = fpi_img_new(img_width * height);
+	img->flags = FP_IMG_COLORS_INVERTED;
+	img->width = img_width;
+	img->height = height;
+
+	/* Assemble stripes */
+	i = 0;
+	stripe = stripes;
+	y = reverse ? (height - frame_height) : 0;
+	x = (img_width - frame_width) / 2;
+
+	do {
+		aes_stripe = stripe->data;
+
+		y += aes_stripe->delta_y;
+		x += aes_stripe->delta_x;
+
+		aes_blit_stripe(img, aes_stripe, x, y, frame_width, frame_height);
+
+		stripe = g_slist_next(stripe);
+		i++;
+	} while (i < stripes_len);
 
 	return img;
 }

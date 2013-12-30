@@ -481,10 +481,21 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 		aesdev->no_finger_cnt++;
 		if (aesdev->no_finger_cnt == 3) {
 			struct fp_img *img;
+			unsigned int height, rev_height;
 
 			aesdev->strips = g_slist_reverse(aesdev->strips);
+			height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
+				FRAME_WIDTH, FRAME_HEIGHT, FALSE);
+			rev_height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
+				FRAME_WIDTH, FRAME_HEIGHT, TRUE);
+			fp_dbg("heights: %d rev: %d", height, rev_height);
+			if (rev_height < height) {
+				fp_dbg("Reversed direction");
+				height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
+					FRAME_WIDTH, FRAME_HEIGHT, FALSE);
+			}
 			img = aes_assemble(aesdev->strips, aesdev->strips_len,
-				FRAME_WIDTH, FRAME_HEIGHT);
+				FRAME_WIDTH, FRAME_HEIGHT, FRAME_WIDTH + FRAME_WIDTH / 2);
 			g_slist_free_full(aesdev->strips, g_free);
 			aesdev->strips = NULL;
 			aesdev->strips_len = 0;
@@ -498,10 +509,13 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	} else {
 		/* obtain next strip */
 		/* FIXME: would preallocating strip buffers be a decent optimization? */
-		stripdata = g_malloc(192 * 8);
+		struct aes_stripe *stripe = g_malloc(FRAME_WIDTH * FRAME_HEIGHT / 2 + sizeof(struct aes_stripe));
+		stripe->delta_x = 0;
+		stripe->delta_y = 0;
+		stripdata = stripe->data;
 		memcpy(stripdata, data + 1, 192*8);
 		aesdev->no_finger_cnt = 0;
-		aesdev->strips = g_slist_prepend(aesdev->strips, stripdata);
+		aesdev->strips = g_slist_prepend(aesdev->strips, stripe);
 		aesdev->strips_len++;
 
 		fpi_ssm_jump_to_state(ssm, CAPTURE_REQUEST_STRIP);
@@ -867,7 +881,7 @@ struct fp_img_driver aes2501_driver = {
 	},
 	.flags = 0,
 	.img_height = -1,
-	.img_width = 192,
+	.img_width = FRAME_WIDTH + FRAME_WIDTH / 2,
 
 	.open = dev_init,
 	.close = dev_deinit,

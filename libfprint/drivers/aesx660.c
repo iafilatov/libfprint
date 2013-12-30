@@ -273,19 +273,25 @@ enum capture_states {
 /* Returns number of processed bytes */
 static int process_stripe_data(struct fpi_ssm *ssm, unsigned char *data)
 {
+	struct aes_stripe *stripe;
 	unsigned char *stripdata;
 	struct fp_img_dev *dev = ssm->priv;
 	struct aesX660_dev *aesdev = dev->priv;
 
-	stripdata = g_malloc(aesdev->frame_width * FRAME_HEIGHT / 2); /* 4 bits per pixel */
+	stripe = g_malloc(aesdev->frame_width * FRAME_HEIGHT / 2 + sizeof(struct aes_stripe)); /* 4 bpp */
+	stripdata = stripe->data;
 
 	fp_dbg("Processing frame %.2x %.2x", data[AESX660_IMAGE_OK_OFFSET],
 		data[AESX660_LAST_FRAME_OFFSET]);
 
+	stripe->delta_x = (int8_t)data[AESX660_FRAME_DELTA_X_OFFSET];
+	stripe->delta_y = -(int8_t)data[AESX660_FRAME_DELTA_Y_OFFSET];
+	fp_dbg("Offset to previous frame: %d %d", stripe->delta_x, stripe->delta_y);
+
 	if (data[AESX660_IMAGE_OK_OFFSET] == AESX660_IMAGE_OK) {
 		memcpy(stripdata, data + AESX660_IMAGE_OFFSET, aesdev->frame_width * FRAME_HEIGHT / 2);
 
-		aesdev->strips = g_slist_prepend(aesdev->strips, stripdata);
+		aesdev->strips = g_slist_prepend(aesdev->strips, stripe);
 		aesdev->strips_len++;
 		return (data[AESX660_LAST_FRAME_OFFSET] & AESX660_LAST_FRAME_BIT);
 	} else {
@@ -302,22 +308,15 @@ static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length)) {
-		struct fp_img *img, *tmp;
+		struct fp_img *img;
 
 		aesdev->strips = g_slist_reverse(aesdev->strips);
-		tmp = aes_assemble(aesdev->strips, aesdev->strips_len,
-			aesdev->frame_width, FRAME_HEIGHT);
+		img = aes_assemble(aesdev->strips, aesdev->strips_len,
+			aesdev->frame_width, FRAME_HEIGHT, aesdev->frame_width + aesdev->frame_width / 2);
 		g_slist_foreach(aesdev->strips, (GFunc) g_free, NULL);
 		g_slist_free(aesdev->strips);
 		aesdev->strips = NULL;
 		aesdev->strips_len = 0;
-		if (aesdev->h_scale_factor > 1) {
-			img = fpi_im_resize(tmp, aesdev->h_scale_factor, 1);
-			fp_img_free(tmp);
-		} else {
-			img = tmp;
-			tmp = NULL;
-		}
 		fpi_imgdev_image_captured(dev, img);
 		fpi_imgdev_report_finger_status(dev, FALSE);
 		fpi_ssm_mark_completed(ssm);
