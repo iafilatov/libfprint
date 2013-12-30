@@ -355,7 +355,7 @@ static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 		if (aesdev->buffer_size == aesdev->buffer_max) {
 			if (aesdev->buffer_max == AESX660_HEADER_SIZE) {
 				aesdev->buffer_max = aesdev->buffer[AESX660_RESPONSE_SIZE_LSB_OFFSET] +
-					(aesdev->buffer[AESX660_RESPONSE_SIZE_MSB_OFFSEt] << 8) + AESX660_HEADER_SIZE;
+					(aesdev->buffer[AESX660_RESPONSE_SIZE_MSB_OFFSET] << 8) + AESX660_HEADER_SIZE;
 				fp_dbg("Got frame, type %.2x size %.4x",
 					aesdev->buffer[AESX660_RESPONSE_TYPE_OFFSET],
 					aesdev->buffer_max);
