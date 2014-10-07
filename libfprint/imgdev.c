@@ -159,7 +159,7 @@ void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
 		    r > 0 && r != FP_ENROLL_COMPLETE && r != FP_ENROLL_FAIL) {
 			imgdev->action_result = 0;
 			imgdev->action_state = IMG_ACQUIRE_STATE_AWAIT_FINGER_ON;
-			dev_change_state(imgdev, IMG_ACQUIRE_STATE_AWAIT_FINGER_ON);
+			dev_change_state(imgdev, IMGDEV_STATE_AWAIT_FINGER_ON);
 		}
 		break;
 	case IMG_ACTION_VERIFY:
