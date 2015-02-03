@@ -1,6 +1,25 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2015-02-03: v0.6.0 release
+
+* Drivers:
+  - Reduce duplication between AES3500 and AES4000 drivers and
+    add support for AES3500 device
+  - Add support for UPEK 147e:2020 and Upek Eikon 2 devices
+  - Add EgisTec ES603 driver
+  - Add VFS5011 driver
+  - Always perform 5 scans for image enrollment
+  - Better verification with AES1660 driver
+  - Better verification for a number of AES drivers
+
+* Library:
+  - Always use Pixman for image manipulation, gdk-pixbuf and ImageMagick
+    are not supported any more.
+
+* Udev rules:
+  - Fix warning when USB hub or system does not support power management
+
 2013-08-11: v0.5.1 release
 
 * Drivers
