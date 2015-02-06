@@ -186,7 +186,7 @@ static int result_codes[2][RESULT_COUNT] =
 static int result_code(struct fp_img_dev *dev, int result)
 {
 	/* Check result value */
-	if (result < 0 && result >= RESULT_COUNT)
+	if (result < 0 || result >= RESULT_COUNT)
 		return result;
 
 	/* Return result code */
