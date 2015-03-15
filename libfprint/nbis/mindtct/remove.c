@@ -1350,6 +1350,159 @@ static int remove_overlaps(MINUTIAE *minutiae,
    return(0);
 }
 
+static void mark_minutiae_in_range(MINUTIAE *minutiae, int *to_remove, int x, int y,
+                                   const LFSPARMS *lfsparms)
+{
+    int i, dist;
+    for (i = 0; i < minutiae->num; i++) {
+        if (to_remove[i])
+            continue;
+        dist = (int)sqrt((x - minutiae->list[i]->x) * (x - minutiae->list[i]->x) +
+                         (y - minutiae->list[i]->y) * (y - minutiae->list[i]->y));
+        if (dist < lfsparms->min_pp_distance) {
+            to_remove[i] = 1;
+        }
+    }
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: remove_perimeter_pts - Takes a list of true and false minutiae and
+#cat:                attempts to detect and remove those false minutiae that
+#cat:                belong to image edge
+
+   Input:
+      minutiae  - list of true and false minutiae
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      minutiae  - list of pruned minutiae
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
+static int remove_perimeter_pts(MINUTIAE *minutiae,
+                       unsigned char *bdata, const int iw, const int ih,
+                       const LFSPARMS *lfsparms)
+{
+    int i, j, ret, *to_remove;
+    int *left, *left_up, *left_down;
+    int *right, *right_up, *right_down;
+    int removed = 0;
+    int left_min, right_max;
+
+    if (!lfsparms->remove_perimeter_pts)
+        return(0);
+
+    to_remove = calloc(minutiae->num, sizeof(int));
+    left = calloc(ih, sizeof(int));
+    left_up = calloc(ih, sizeof(int));
+    left_down = calloc(ih, sizeof(int));
+    right = calloc(ih, sizeof(int));
+    right_up = calloc(ih, sizeof(int));
+    right_down = calloc(ih, sizeof(int));
+
+    /* Pass downwards */
+    left_min = iw - 1;
+    right_max = 0;
+    for (i = 0; i < ih; i++) {
+        for (j = 0; j < left_min; j++) {
+            if ((bdata[i * iw + j] != 0)) {
+                left_min = j;
+                break;
+            }
+        }
+        if (left_min == (iw - 1))
+            left_down[i] = -1;
+        else
+            left_down[i] = left_min;
+        for (j = iw - 1; j >= right_max; j--) {
+            if ((bdata[i * iw + j] != 0)) {
+                right_max = j;
+                break;
+            }
+        }
+        if (right_max == 0)
+            right_down[i] = -1;
+        else
+            right_down[i] = right_max;
+    }
+
+    /* Pass upwards */
+    left_min = iw - 1;
+    right_max = 0;
+    for (i = ih - 1; i >= 0; i--) {
+        for (j = 0; j < left_min; j++) {
+            if ((bdata[i * iw + j] != 0)) {
+                left_min = j;
+                break;
+            }
+        }
+        if (left_min == (iw - 1))
+            left_up[i] = -1;
+        else
+            left_up[i] = left_min;
+        for (j = iw - 1; j >= right_max; j--) {
+            if ((bdata[i * iw + j] != 0)) {
+                right_max = j;
+                break;
+            }
+        }
+        if (right_max == 0)
+            right_up[i] = -1;
+        else
+            right_up[i] = right_max;
+    }
+
+    /* Merge */
+    left_min = left_down[ih - 1];
+    right_max = right_down[ih - 1];
+    for (i = 0; i < ih; i++) {
+        if (left_down[i] != left_min)
+            left[i] = left_down[i];
+        else
+            left[i] = left_up[i];
+
+        if (right_down[i] != right_max)
+            right[i] = right_down[i];
+        else
+            right[i] = right_up[i];
+    }
+    free(left_up);
+    free(left_down);
+    free(right_up);
+    free(right_down);
+
+    /* Mark minitiae close to the edge */
+    for (i = 0; i < ih; i++) {
+        if (left[i] != -1)
+            mark_minutiae_in_range(minutiae, to_remove, left[i], i, lfsparms);
+        if (right[i] != -1)
+            mark_minutiae_in_range(minutiae, to_remove, right[i], i, lfsparms);
+    }
+
+    free(left);
+    free(right);
+
+    for (i = minutiae->num - 1; i >= 0; i--) {
+        /* If the current minutia index is flagged for removal ... */
+        if (to_remove[i]){
+            removed ++;
+            /* Remove the minutia from the minutiae list. */
+            if((ret = remove_minutia(i, minutiae))){
+                free(to_remove);
+                return(ret);
+            }
+        }
+    }
+
+    free(to_remove);
+
+    return (0);
+}
+
 /*************************************************************************
 **************************************************************************
 #cat: remove_pores_V2 - Attempts to detect and remove minutia points located on
@@ -2102,6 +2255,11 @@ int remove_false_minutia_V2(MINUTIAE *minutiae,
                             direction_map, low_flow_map, high_curve_map,
                             mw, mh, lfsparms))){
       return(ret);
+   }
+
+   /* 11. Remove minutiae on image edge */
+   if((ret = remove_perimeter_pts(minutiae, bdata, iw, ih, lfsparms))) {
+      return (ret);
    }
 
    return(0);
