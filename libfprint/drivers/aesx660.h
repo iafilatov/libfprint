@@ -61,6 +61,7 @@ struct aesX660_dev {
 	unsigned char *start_imaging_cmd;
 	size_t start_imaging_cmd_len;
 	unsigned int frame_width;
+	uint16_t extra_img_flags;
 };
 
 struct aesX660_cmd {

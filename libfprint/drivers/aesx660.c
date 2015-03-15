@@ -313,6 +313,7 @@ static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
 		aesdev->strips = g_slist_reverse(aesdev->strips);
 		img = aes_assemble(aesdev->strips, aesdev->strips_len,
 			aesdev->frame_width, FRAME_HEIGHT, aesdev->frame_width + aesdev->frame_width / 2);
+		img->flags |= aesdev->extra_img_flags;
 		g_slist_foreach(aesdev->strips, (GFunc) g_free, NULL);
 		g_slist_free(aesdev->strips);
 		aesdev->strips = NULL;

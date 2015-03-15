@@ -56,6 +56,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	aesdev->start_imaging_cmd = (unsigned char *)aes1660_start_imaging_cmd;
 	aesdev->start_imaging_cmd_len = sizeof(aes1660_start_imaging_cmd);
 	aesdev->frame_width = FRAME_WIDTH;
+	aesdev->extra_img_flags = FP_IMG_PARTIAL;
 
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
@@ -102,7 +103,7 @@ struct fp_img_driver aes1660_driver = {
 	.flags = 0,
 	.img_height = -1,
 	.img_width = FRAME_WIDTH + FRAME_WIDTH / 2,
-	.bz3_threshold = 70,
+	.bz3_threshold = 20,
 
 	.open = dev_init,
 	.close = dev_deinit,
