@@ -309,7 +309,7 @@ fi
 if test x$enable_upeke2 != xno ; then
 	AC_MSG_NOTICE([** upeke2 driver enabled])
 else
-	AC_MSG_NOTICE([   upeke2 driver disabled])
+	AC_MSG_NOTICE([   upeke2 driver disabled (handled by upektc_img driver)])
 fi
 if test x$enable_upektc != xno ; then
 	AC_MSG_NOTICE([** upektc driver enabled])
@@ -334,7 +334,7 @@ fi
 if test x$enable_fdu2000 != xno ; then
 	AC_MSG_NOTICE([** fdu2000 driver enabled])
 else
-	AC_MSG_NOTICE([   fdu2000 driver disabled])
+	AC_MSG_NOTICE([   fdu2000 driver disabled (not ported)])
 fi
 if test x$enable_aes1610 != xno ; then
 	AC_MSG_NOTICE([** aes1610 driver enabled])
