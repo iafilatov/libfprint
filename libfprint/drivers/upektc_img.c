@@ -302,6 +302,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 				BUG_ON(upekdev->image_size != IMAGE_SIZE);
 				fp_dbg("Image size is %d\n", upekdev->image_size);
 				img = fpi_img_new(IMAGE_SIZE);
+				img->flags = FP_IMG_PARTIAL;
 				memcpy(img->data, upekdev->image_bits, IMAGE_SIZE);
 				fpi_imgdev_image_captured(dev, img);
 				fpi_imgdev_report_finger_status(dev, FALSE);
@@ -665,7 +666,7 @@ struct fp_img_driver upektc_img_driver = {
 	.flags = 0,
 	.img_height = IMAGE_HEIGHT,
 	.img_width = IMAGE_WIDTH,
-	.bz3_threshold = 70,
+	.bz3_threshold = 20,
 
 	.open = dev_init,
 	.close = dev_deinit,
