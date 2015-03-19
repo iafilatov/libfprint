@@ -184,9 +184,11 @@ static void upektc_img_read_data(struct fpi_ssm *ssm, size_t buf_size, size_t bu
 enum capture_states {
 	CAPTURE_INIT_CAPTURE,
 	CAPTURE_READ_DATA,
+	CAPTURE_READ_DATA_TERM,
 	CAPTURE_ACK_00_28,
 	CAPTURE_ACK_08,
 	CAPTURE_ACK_FRAME,
+	CAPTURE_ACK_00_28_TERM,
 	CAPTURE_NUM_STATES,
 };
 
@@ -194,11 +196,18 @@ static void capture_reqs_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
 
-	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
-		(transfer->length == transfer->actual_length)) {
-		fpi_ssm_jump_to_state(ssm, CAPTURE_READ_DATA);
-	} else {
+	if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) ||
+		(transfer->length != transfer->actual_length)) {
 		fpi_ssm_mark_aborted(ssm, -EIO);
+		return;
+	}
+	switch (ssm->cur_state) {
+	case CAPTURE_ACK_00_28_TERM:
+		fpi_ssm_jump_to_state(ssm, CAPTURE_READ_DATA_TERM);
+		break;
+	default:
+		fpi_ssm_jump_to_state(ssm, CAPTURE_READ_DATA);
+		break;
 	}
 }
 
@@ -243,7 +252,13 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 
 	fp_dbg("request completed, len: %.4x", transfer->actual_length);
 	if (transfer->actual_length == 0) {
-		fpi_ssm_jump_to_state(ssm, CAPTURE_READ_DATA);
+		fpi_ssm_jump_to_state(ssm, ssm->cur_state);
+		return;
+	}
+
+	if (ssm->cur_state == CAPTURE_READ_DATA_TERM) {
+		fp_dbg("Terminating SSM\n");
+		fpi_ssm_mark_completed(ssm);
 		return;
 	}
 
@@ -277,10 +292,26 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 					/* finger is present! */
 					fpi_ssm_jump_to_state(ssm, CAPTURE_ACK_00_28);
 					break;
+				case 0x1e:
+					/* short scan */
+					fp_err("short scan, aborting\n");
+					fpi_imgdev_abort_scan(dev, FP_VERIFY_RETRY_TOO_SHORT);
+					fpi_imgdev_report_finger_status(dev, FALSE);
+					fpi_ssm_jump_to_state(ssm, CAPTURE_ACK_00_28_TERM);
+					break;
+				case 0x1d:
+					/* too much horisontal movement */
+					fp_err("too much horisontal movement, aborting\n");
+					fpi_imgdev_abort_scan(dev, FP_VERIFY_RETRY_CENTER_FINGER);
+					fpi_imgdev_report_finger_status(dev, FALSE);
+					fpi_ssm_jump_to_state(ssm, CAPTURE_ACK_00_28_TERM);
+					break;
 				default:
 					/* some error happened, cancel scan */
-					fp_err("something bad happened, aborting scan :(\n");
-					fpi_ssm_mark_aborted(ssm, FP_VERIFY_RETRY_REMOVE_FINGER);
+					fp_err("something bad happened, stop scan\n");
+					fpi_imgdev_abort_scan(dev, FP_VERIFY_RETRY);
+					fpi_imgdev_report_finger_status(dev, FALSE);
+					fpi_ssm_jump_to_state(ssm, CAPTURE_ACK_00_28_TERM);
 					break;
 				}
 				break;
@@ -335,6 +366,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			upekdev->seq++;
 		break;
 	case CAPTURE_READ_DATA:
+	case CAPTURE_READ_DATA_TERM:
 		if (!upekdev->response_rest)
 			upektc_img_read_data(ssm, SHORT_RESPONSE_SIZE, 0, capture_read_data_cb);
 		else
@@ -342,6 +374,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			SHORT_RESPONSE_SIZE, capture_read_data_cb);
 		break;
 	case CAPTURE_ACK_00_28:
+	case CAPTURE_ACK_00_28_TERM:
 		upektc_img_submit_req(ssm, upek2020_ack_00_28, sizeof(upek2020_ack_00_28),
 			upekdev->seq, capture_reqs_cb);
 			upekdev->seq++;
