@@ -217,6 +217,13 @@ static void identify_process_img(struct fp_img_dev *imgdev)
 	imgdev->identify_match_offset = match_offset;
 }
 
+void fpi_imgdev_abort_scan(struct fp_img_dev *imgdev, int result)
+{
+	imgdev->action_result = result;
+	imgdev->action_state = IMG_ACQUIRE_STATE_AWAIT_FINGER_OFF;
+	dev_change_state(imgdev, IMGDEV_STATE_AWAIT_FINGER_OFF);
+}
+
 void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 {
 	struct fp_print_data *print;
