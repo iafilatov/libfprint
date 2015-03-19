@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#define FP_COMPONENT "upekts_img"
+#define FP_COMPONENT "upektc_img"
 
 #include <errno.h>
 #include <string.h>
@@ -46,7 +46,7 @@ static void start_deactivation(struct fp_img_dev *dev);
 #define MAX_RESPONSE_SIZE	2052
 #define SHORT_RESPONSE_SIZE	64
 
-struct upekts_img_dev {
+struct upektc_img_dev {
 	unsigned char cmd[MAX_CMD_SIZE];
 	unsigned char response[MAX_RESPONSE_SIZE];
 	unsigned char image_bits[IMAGE_SIZE * 2];
@@ -126,7 +126,7 @@ static void upektc_img_submit_req(struct fpi_ssm *ssm,
 	libusb_transfer_cb_fn cb)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
 
@@ -157,7 +157,7 @@ static void upektc_img_read_data(struct fpi_ssm *ssm, size_t buf_size, size_t bu
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	struct fp_img_dev *dev = ssm->priv;
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	int r;
 
 	if (!transfer) {
@@ -224,7 +224,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = ssm->priv;
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	unsigned char *data = upekdev->response;
 	struct fp_img *img;
 	size_t response_size;
@@ -326,7 +326,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 static void capture_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 
 	switch (ssm->cur_state) {
 	case CAPTURE_INIT_CAPTURE:
@@ -361,7 +361,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 static void capture_sm_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	int err = ssm->error;
 
 	fp_dbg("Capture completed, %d", err);
@@ -377,7 +377,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 
 static void start_capture(struct fp_img_dev *dev)
 {
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	struct fpi_ssm *ssm;
 
 	upekdev->image_size = 0;
@@ -422,7 +422,7 @@ static void deactivate_read_data_cb(struct libusb_transfer *transfer)
 static void deactivate_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 
 	switch (ssm->cur_state) {
 	case DEACTIVATE_DEINIT:
@@ -439,7 +439,7 @@ static void deactivate_run_state(struct fpi_ssm *ssm)
 static void deactivate_sm_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	int err = ssm->error;
 
 	fp_dbg("Deactivate completed");
@@ -456,7 +456,7 @@ static void deactivate_sm_complete(struct fpi_ssm *ssm)
 
 static void start_deactivation(struct fp_img_dev *dev)
 {
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	struct fpi_ssm *ssm;
 
 	upekdev->image_size = 0;
@@ -521,7 +521,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 {
 	struct libusb_transfer *transfer;
 	struct fp_img_dev *dev = ssm->priv;
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	int r;
 
 	switch (ssm->cur_state) {
@@ -595,7 +595,7 @@ static void activate_sm_complete(struct fpi_ssm *ssm)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, activate_run_state,
 		ACTIVATE_NUM_STATES);
 	ssm->priv = dev;
@@ -606,7 +606,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 static void dev_deactivate(struct fp_img_dev *dev)
 {
-	struct upekts_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = dev->priv;
 
 	upekdev->deactivating = TRUE;
 }
@@ -622,7 +622,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 		return r;
 	}
 
-	dev->priv = g_malloc0(sizeof(struct upekts_img_dev));
+	dev->priv = g_malloc0(sizeof(struct upektc_img_dev));
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
