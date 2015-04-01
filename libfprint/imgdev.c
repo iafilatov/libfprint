@@ -164,15 +164,18 @@ void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
 		break;
 	case IMG_ACTION_VERIFY:
 		fpi_drvcb_report_verify_result(imgdev->dev, r, img);
+		imgdev->action_result = 0;
 		fp_print_data_free(data);
 		break;
 	case IMG_ACTION_IDENTIFY:
 		fpi_drvcb_report_identify_result(imgdev->dev, r,
 			imgdev->identify_match_offset, img);
+		imgdev->action_result = 0;
 		fp_print_data_free(data);
 		break;
 	case IMG_ACTION_CAPTURE:
 		fpi_drvcb_report_capture_result(imgdev->dev, r, img);
+		imgdev->action_result = 0;
 		break;
 	default:
 		fp_err("unhandled action %d", imgdev->action);
