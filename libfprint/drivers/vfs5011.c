@@ -77,6 +77,8 @@ struct usbexchange_data {
 	int timeout;
 };
 
+static void start_scan(struct fp_img_dev *dev);
+
 static void async_send_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
@@ -869,18 +871,21 @@ static void activate_loop_complete(struct fpi_ssm *ssm)
 	if (data->init_sequence.receive_buf != NULL)
 		g_free(data->init_sequence.receive_buf);
 	data->init_sequence.receive_buf = NULL;
-	data->loop_running = FALSE;
 	submit_image(ssm, data);
 	fpi_imgdev_report_finger_status(dev, FALSE);
-
 	fpi_ssm_free(ssm);
 
-	if (r)
-		fpi_imgdev_session_error(dev, r);
+	data->loop_running = FALSE;
 
-	if (data->deactivating)
+	if (data->deactivating) {
 		fpi_imgdev_deactivate_complete(dev);
+	} else if (r) {
+		fpi_imgdev_session_error(dev, r);
+	} else {
+		start_scan(dev);
+	}
 }
+
 
 static void open_loop(struct fpi_ssm *ssm)
 {
@@ -928,8 +933,6 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 		(unsigned char *)g_malloc0(MAXLINES * VFS5011_IMAGE_WIDTH);
 	dev->priv = data;
 
-	dev->dev->nr_enroll_stages = 1;
-
 	r = libusb_reset_device(dev->udev);
 	if (r != 0) {
 		fp_err("Failed to reset the device");
@@ -963,21 +966,28 @@ static void dev_close(struct fp_img_dev *dev)
 	fpi_imgdev_close_complete(dev);
 }
 
-static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
+static void start_scan(struct fp_img_dev *dev)
 {
 	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
 	struct fpi_ssm *ssm;
 
-	fp_dbg("device initialized");
-	data->deactivating = FALSE;
 	data->loop_running = TRUE;
-
 	fp_dbg("creating ssm");
 	ssm = fpi_ssm_new(dev->dev, activate_loop, DEV_ACTIVATE_NUM_STATES);
 	ssm->priv = dev;
 	fp_dbg("starting ssm");
 	fpi_ssm_start(ssm, activate_loop_complete);
 	fp_dbg("ssm done, getting out");
+}
+
+static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
+{
+	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+
+	fp_dbg("device initialized");
+	data->deactivating = FALSE;
+
+	start_scan(dev);
 
 	return 0;
 }
