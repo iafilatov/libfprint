@@ -353,7 +353,7 @@ int vfs5011_rescale_image(unsigned char *image, int input_lines,
 	enum {
 		RESOLUTION = 10,
 		MEDIAN_FILTER_SIZE = 13,
-		MAX_OFFSET = 10,
+		MAX_OFFSET = 30,
 		GOOD_OFFSETS_CRITERION = 20,
 		GOOD_OFFSETS_THRESHOLD = 3
 	};
