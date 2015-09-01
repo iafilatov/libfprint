@@ -30,6 +30,7 @@
 
 #include <libusb.h>
 
+#include <assembling.h>
 #include <aeslib.h>
 #include <fp_internal.h>
 
@@ -41,7 +42,7 @@ static void complete_deactivation(struct fp_img_dev *dev);
 #define EP_IN			(1 | LIBUSB_ENDPOINT_IN)
 #define EP_OUT			(2 | LIBUSB_ENDPOINT_OUT)
 #define BULK_TIMEOUT		4000
-#define FRAME_HEIGHT		8
+#define FRAME_HEIGHT		AESX660_FRAME_HEIGHT
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
@@ -273,12 +274,12 @@ enum capture_states {
 /* Returns number of processed bytes */
 static int process_stripe_data(struct fpi_ssm *ssm, unsigned char *data)
 {
-	struct aes_stripe *stripe;
+	struct fpi_frame *stripe;
 	unsigned char *stripdata;
 	struct fp_img_dev *dev = ssm->priv;
 	struct aesX660_dev *aesdev = dev->priv;
 
-	stripe = g_malloc(aesdev->frame_width * FRAME_HEIGHT / 2 + sizeof(struct aes_stripe)); /* 4 bpp */
+	stripe = g_malloc(aesdev->assembling_ctx->frame_width * FRAME_HEIGHT / 2 + sizeof(struct fpi_frame)); /* 4 bpp */
 	stripdata = stripe->data;
 
 	fp_dbg("Processing frame %.2x %.2x", data[AESX660_IMAGE_OK_OFFSET],
@@ -289,7 +290,7 @@ static int process_stripe_data(struct fpi_ssm *ssm, unsigned char *data)
 	fp_dbg("Offset to previous frame: %d %d", stripe->delta_x, stripe->delta_y);
 
 	if (data[AESX660_IMAGE_OK_OFFSET] == AESX660_IMAGE_OK) {
-		memcpy(stripdata, data + AESX660_IMAGE_OFFSET, aesdev->frame_width * FRAME_HEIGHT / 2);
+		memcpy(stripdata, data + AESX660_IMAGE_OFFSET, aesdev->assembling_ctx->frame_width * FRAME_HEIGHT / 2);
 
 		aesdev->strips = g_slist_prepend(aesdev->strips, stripe);
 		aesdev->strips_len++;
@@ -311,8 +312,7 @@ static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
 		struct fp_img *img;
 
 		aesdev->strips = g_slist_reverse(aesdev->strips);
-		img = aes_assemble(aesdev->strips, aesdev->strips_len,
-			aesdev->frame_width, FRAME_HEIGHT, aesdev->frame_width + aesdev->frame_width / 2);
+		img = fpi_assemble_frames(aesdev->assembling_ctx, aesdev->strips, aesdev->strips_len);
 		img->flags |= aesdev->extra_img_flags;
 		g_slist_foreach(aesdev->strips, (GFunc) g_free, NULL);
 		g_slist_free(aesdev->strips);

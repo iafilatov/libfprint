@@ -41,6 +41,8 @@
 #define AESX660_IMAGE_OFFSET 43
 #define AESX660_BULK_TRANSFER_SIZE 4096
 
+#define AESX660_FRAME_HEIGHT 8
+
 struct aesX660_dev {
 	GSList *strips;
 	size_t strips_len;
@@ -55,12 +57,11 @@ struct aesX660_dev {
 	size_t buffer_max;
 
 	/* Device-specific stuff */
-	int h_scale_factor;
 	struct aesX660_cmd *init_seqs[2];
 	size_t init_seqs_len[2];
 	unsigned char *start_imaging_cmd;
 	size_t start_imaging_cmd_len;
-	unsigned int frame_width;
+	struct fpi_frame_asmbl_ctx *assembling_ctx;
 	uint16_t extra_img_flags;
 };
 

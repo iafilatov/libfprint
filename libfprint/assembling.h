@@ -1,6 +1,8 @@
 /*
+ * Image assembling routines
  * Shared functions between libfprint Authentec drivers
  * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
+ * Copyright (C) 2015 Vasily Khoruzhick <anarsoul@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,29 +19,32 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef __AESLIB_H__
-#define __AESLIB_H__
+#ifndef __ASSEMBLING_H__
+#define __ASSEMBLING_H__
 
 #include <fp_internal.h>
 
-struct aes_regwrite {
-	unsigned char reg;
-	unsigned char value;
+struct fpi_frame {
+	int delta_x;
+	int delta_y;
+	unsigned char data[0];
 };
 
-struct fpi_frame;
-struct fpi_frame_asmbl_ctx;
+struct fpi_frame_asmbl_ctx {
+	unsigned frame_width;
+	unsigned frame_height;
+	unsigned image_width;
+	unsigned char (*get_pixel)(struct fpi_frame_asmbl_ctx *ctx,
+				   struct fpi_frame *frame,
+				   unsigned x,
+				   unsigned y);
+};
 
-typedef void (*aes_write_regv_cb)(struct fp_img_dev *dev, int result,
-	void *user_data);
+unsigned int fpi_do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
+			    GSList *stripes, size_t stripes_len,
+			    gboolean reverse);
 
-void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
-	unsigned int num_regs, aes_write_regv_cb callback, void *user_data);
-
-unsigned char aes_get_pixel(struct fpi_frame_asmbl_ctx *ctx,
-			    struct fpi_frame *frame,
-			    unsigned int x,
-			    unsigned int y);
+struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
+			    GSList *stripes, size_t stripes_len);
 
 #endif
-

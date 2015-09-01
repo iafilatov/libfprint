@@ -30,6 +30,7 @@
 
 #include <libusb.h>
 
+#include <assembling.h>
 #include <aeslib.h>
 #include <fp_internal.h>
 
@@ -66,6 +67,7 @@ static int adjust_gain(unsigned char *buffer, int status);
 #define FRAME_WIDTH	128
 #define FRAME_HEIGHT	8
 #define FRAME_SIZE	(FRAME_WIDTH * FRAME_HEIGHT)
+#define IMAGE_WIDTH	(FRAME_WIDTH + (FRAME_WIDTH / 2))
 /* maximum number of frames to read during a scan */
 /* FIXME reduce substantially */
 #define MAX_FRAMES		350
@@ -78,6 +80,13 @@ struct aes1610_dev {
 	size_t strips_len;
 	gboolean deactivating;
 	uint8_t blanks_count;
+};
+
+static struct fpi_frame_asmbl_ctx assembling_ctx = {
+	.frame_width = FRAME_WIDTH,
+	.frame_height = FRAME_HEIGHT,
+	.image_width = IMAGE_WIDTH,
+	.get_pixel = aes_get_pixel,
 };
 
 typedef void (*aes1610_read_regs_cb)(struct fp_img_dev *dev, int status,
@@ -580,7 +589,7 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 
 	if (sum > 0) {
 		/* FIXME: would preallocating strip buffers be a decent optimization? */
-		struct aes_stripe *stripe = g_malloc(FRAME_WIDTH * (FRAME_HEIGHT / 2) + sizeof(struct aes_stripe));
+		struct fpi_frame *stripe = g_malloc(FRAME_WIDTH * (FRAME_HEIGHT / 2) + sizeof(struct fpi_frame));
 		stripe->delta_x = 0;
 		stripe->delta_y = 0;
 		stripdata = stripe->data;
@@ -618,18 +627,14 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 		/* send stop capture bits */
 		aes_write_regv(dev, capture_stop, G_N_ELEMENTS(capture_stop), stub_capture_stop_cb, NULL);
 		aesdev->strips = g_slist_reverse(aesdev->strips);
-		height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
-			FRAME_WIDTH, FRAME_HEIGHT, FALSE);
-		rev_height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
-			FRAME_WIDTH, FRAME_HEIGHT, TRUE);
+		height = fpi_do_movement_estimation(&assembling_ctx, aesdev->strips, aesdev->strips_len, FALSE);
+		rev_height = fpi_do_movement_estimation(&assembling_ctx, aesdev->strips, aesdev->strips_len, TRUE);
 		fp_dbg("heights: %d rev: %d", height, rev_height);
 		if (rev_height < height) {
 			fp_dbg("Reversed direction");
-			height = aes_calc_delta(aesdev->strips, aesdev->strips_len,
-				FRAME_WIDTH, FRAME_HEIGHT, FALSE);
+			height = fpi_do_movement_estimation(&assembling_ctx, aesdev->strips, aesdev->strips_len, FALSE);
 		}
-		img = aes_assemble(aesdev->strips, aesdev->strips_len,
-			FRAME_WIDTH, FRAME_HEIGHT, FRAME_WIDTH + FRAME_WIDTH / 2);
+		img = fpi_assemble_frames(&assembling_ctx, aesdev->strips, aesdev->strips_len);
 		g_slist_free_full(aesdev->strips, g_free);
 		aesdev->strips = NULL;
 		aesdev->strips_len = 0;
@@ -843,7 +848,7 @@ struct fp_img_driver aes1610_driver = {
 	},
 	.flags = 0,
 	.img_height = -1,
-	.img_width = FRAME_WIDTH + FRAME_WIDTH / 2,
+	.img_width = IMAGE_WIDTH,
 
 	.bz3_threshold = 50,
 

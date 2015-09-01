@@ -48,6 +48,8 @@ EXTRA_DIST = \
 	drivers/aes3k.h 	\
 	drivers/driver_ids.h	\
 	aeslib.c aeslib.h	\
+	assembling.c		\
+	assembling.h		\
 	pixman.c		\
 	60-fprint-autosuspend.rules
 
@@ -210,6 +212,8 @@ libfprint_la_SOURCES =	\
 	imgdev.c	\
 	poll.c		\
 	sync.c		\
+	assembling.c	\
+	assembling.h	\
 	$(DRIVER_SRC)	\
 	$(OTHER_SRC)	\
 	$(NBIS_SRC)

@@ -28,6 +28,7 @@
 
 #include <libusb.h>
 
+#include <assembling.h>
 #include <aeslib.h>
 #include <fp_internal.h>
 
@@ -56,12 +57,20 @@ static void complete_deactivation(struct fp_img_dev *dev);
 #define FRAME_WIDTH		192
 #define FRAME_HEIGHT		8
 #define FRAME_SIZE		(FRAME_WIDTH * FRAME_HEIGHT)
+#define IMAGE_WIDTH		(FRAME_WIDTH + (FRAME_WIDTH / 2))
 
 struct aes2550_dev {
 	GSList *strips;
 	size_t strips_len;
 	gboolean deactivating;
 	int heartbeat_cnt;
+};
+
+static struct fpi_frame_asmbl_ctx assembling_ctx = {
+	.frame_width = FRAME_WIDTH,
+	.frame_height = FRAME_HEIGHT,
+	.image_width = IMAGE_WIDTH,
+	.get_pixel = aes_get_pixel,
 };
 
 /****** FINGER PRESENCE DETECTION ******/
@@ -204,7 +213,7 @@ static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
 	unsigned char *stripdata;
 	struct fp_img_dev *dev = ssm->priv;
 	struct aes2550_dev *aesdev = dev->priv;
-	struct aes_stripe *stripe;
+	struct fpi_frame *stripe;
 	int len;
 
 	if (data[0] != AES2550_EDATA_MAGIC) {
@@ -215,7 +224,7 @@ static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
 	if (len != (AES2550_STRIP_SIZE - 3)) {
 		fp_dbg("Bogus frame len: %.4x\n", len);
 	}
-	stripe = g_malloc(FRAME_WIDTH * FRAME_HEIGHT / 2 + sizeof(struct aes_stripe)); /* 4 bits per pixel */
+	stripe = g_malloc(FRAME_WIDTH * FRAME_HEIGHT / 2 + sizeof(struct fpi_frame)); /* 4 bits per pixel */
 	stripe->delta_x = (int8_t)data[6];
 	stripe->delta_y = -(int8_t)data[7];
 	stripdata = stripe->data;
@@ -253,8 +262,8 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 		struct fp_img *img;
 
 		aesdev->strips = g_slist_reverse(aesdev->strips);
-		img = aes_assemble(aesdev->strips, aesdev->strips_len,
-			FRAME_WIDTH, FRAME_HEIGHT, FRAME_WIDTH + FRAME_WIDTH / 2);
+		img = fpi_assemble_frames(&assembling_ctx,
+					  aesdev->strips, aesdev->strips_len);
 		g_slist_free_full(aesdev->strips, g_free);
 		aesdev->strips = NULL;
 		aesdev->strips_len = 0;
