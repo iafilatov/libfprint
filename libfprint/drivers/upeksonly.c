@@ -33,12 +33,14 @@
 
 #include <fp_internal.h>
 
+#include <assembling.h>
+
 #include "upeksonly.h"
 #include "driver_ids.h"
 
 #define CTRL_TIMEOUT	1000
 #define NUM_BULK_TRANSFERS 24
-#define MAX_ROWS 1024
+#define MAX_ROWS 2048
 #define MIN_ROWS 64
 
 enum {
@@ -110,6 +112,59 @@ struct sonly_dev {
 	};
 };
 
+
+/* Calculade squared standand deviation of sum of two lines */
+static int upeksonly_get_deviation2(struct fpi_line_asmbl_ctx *ctx,
+			  GSList *line1, GSList *line2)
+{
+	unsigned char *buf1 = line1->data, *buf2 = line2->data;
+	int res = 0, mean = 0, i;
+	for (i = 0; i < ctx->line_width; i+= 2)
+		mean += (int)buf1[i + 1] + (int)buf2[i];
+
+	mean /= (ctx->line_width / 2);
+
+	for (i = 0; i < ctx->line_width; i+= 2) {
+		int dev = (int)buf1[i + 1] + (int)buf2[i] - mean;
+		res += dev*dev;
+	}
+
+	return res / (ctx->line_width / 2);
+}
+
+
+static unsigned char upeksonly_get_pixel(struct fpi_line_asmbl_ctx *ctx,
+				   GSList *row,
+				   unsigned x)
+{
+	unsigned char *buf;
+	unsigned offset;
+
+	/* The scans from this device are rolled right by two colums */
+	if (x < ctx->line_width - 2)
+		offset = x + 2;
+	else if ((x > ctx->line_width - 2) && (x < ctx->line_width))
+		offset = x - (ctx->line_width - 2);
+	else
+		return 0;
+	/* Each 2nd pixel is shifted 2 pixels down */
+	if ((!(x & 1)) && g_slist_next(row) && g_slist_next(g_slist_next(row)))
+		buf = g_slist_next(g_slist_next(row))->data;
+	else
+		buf = row->data;
+
+	return buf[offset];
+}
+
+static struct fpi_line_asmbl_ctx assembling_ctx = {
+	.max_height = 1024,
+	.resolution = 8,
+	.median_filter_size = 25,
+	.max_search_offset = 30,
+	.get_deviation = upeksonly_get_deviation2,
+	.get_pixel = upeksonly_get_pixel,
+};
+
 /***** IMAGE PROCESSING *****/
 
 static void free_img_transfers(struct sonly_dev *sdev)
@@ -177,30 +232,21 @@ static gboolean is_capturing(struct sonly_dev *sdev)
 static void handoff_img(struct fp_img_dev *dev)
 {
 	struct sonly_dev *sdev = dev->priv;
-	size_t size = sdev->img_width * sdev->num_rows;
-	struct fp_img *img = fpi_img_new(size);
+	struct fp_img *img;
+
 	GSList *elem = sdev->rows;
-	size_t offset = 0;
 
 	if (!elem) {
 		fp_err("no rows?");
 		return;
 	}
 
+	sdev->rows = g_slist_reverse(sdev->rows);
+
 	fp_dbg("%d rows", sdev->num_rows);
-	img->height = sdev->num_rows;
+	img = fpi_assemble_lines(&assembling_ctx, sdev->rows, sdev->num_rows);
 
-	/* The scans from this device are rolled right by two colums
-	 * It feels a lot smarter to correct here than mess with it at
-	 * read time*/
-	do {
-		memcpy(img->data + offset, elem->data + 2, sdev->img_width - 2);
-		memcpy(img->data + offset + sdev->img_width - 2, elem->data,  2);
-		g_free(elem->data);
-		offset += sdev->img_width;
-	} while ((elem = g_slist_next(elem)) != NULL);
-
-	g_slist_free(sdev->rows);
+	g_slist_free_full(sdev->rows, g_free);
 	sdev->rows = NULL;
 
 	fpi_imgdev_image_captured(dev, img);
@@ -258,6 +304,8 @@ static void row_complete(struct fp_img_dev *dev)
 			if (sdev->num_nonblank > 32) {
 				sdev->finger_state = FINGER_DETECTED;
 				fpi_imgdev_report_finger_status(dev, TRUE);
+			} else {
+				return;
 			}
 			break;
 		case FINGER_DETECTED:
@@ -1321,19 +1369,22 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	case UPEKSONLY_1000:
 		sdev->img_width = IMG_WIDTH_1000;
 		upeksonly_driver.img_width = IMG_WIDTH_1000;
-		sdev->diff_thresh = 3000;
+		assembling_ctx.line_width = IMG_WIDTH_1000;
+		sdev->diff_thresh = 1200;
 		sdev->total_thresh = 52000;
 		break;
 	case UPEKSONLY_1001:
 		sdev->img_width = IMG_WIDTH_1001;
 		upeksonly_driver.img_width = IMG_WIDTH_1001;
-		sdev->diff_thresh = 1300;
+		assembling_ctx.line_width = IMG_WIDTH_1001;
+		sdev->diff_thresh = 400;
 		sdev->total_thresh = 40000;
 		break;
 	case UPEKSONLY_2016:
 		sdev->img_width = IMG_WIDTH_2016;
 		upeksonly_driver.img_width = IMG_WIDTH_2016;
-		sdev->diff_thresh = 3000;
+		assembling_ctx.line_width = IMG_WIDTH_2016;
+		sdev->diff_thresh = 1200;
 		sdev->total_thresh = 52000;
 		break;
 	}
