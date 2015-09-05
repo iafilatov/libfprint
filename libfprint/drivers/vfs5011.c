@@ -23,6 +23,7 @@
 #include <string.h>
 #include <libusb.h>
 #include <fp_internal.h>
+#include <assembling.h>
 #include "driver_ids.h"
 
 #include "vfs5011_proto.h"
@@ -285,9 +286,15 @@ static int get_diff_norm(unsigned char *buf1, unsigned char *buf2, int size)
 }
 
 /* Calculade squared standand deviation of sum of two lines */
-static int get_deviation2(unsigned char *buf1, unsigned char *buf2, int size)
+static int vfs5011_get_deviation2(struct fpi_line_asmbl_ctx *ctx, GSList *row1, GSList *row2)
 {
+	unsigned char *buf1, *buf2;
 	int res = 0, mean = 0, i;
+	const int size = 64;
+
+	buf1 = row1->data + 56;
+	buf2 = row2->data + 168;
+
 	for (i = 0; i < size; i++)
 		mean += (int)buf1[i] + (int)buf2[i];
 
@@ -301,121 +308,13 @@ static int get_deviation2(unsigned char *buf1, unsigned char *buf2, int size)
 	return res / size;
 }
 
-static int cmpint(const void *p1, const void *p2, gpointer data)
+static unsigned char vfs5011_get_pixel(struct fpi_line_asmbl_ctx *ctx,
+				   GSList *row,
+				   unsigned x)
 {
-	int a = *((int *)p1);
-	int b = *((int *)p2);
-	if (a < b)
-		return -1;
-	else if (a == b)
-		return 0;
-	else
-		return 1;
-}
+	unsigned char *data = row->data + 8;
 
-static void median_filter(int *data, int size, int filtersize)
-{
-	int i;
-	int *result = (int *)g_malloc0(size*sizeof(int));
-	int *sortbuf = (int *)g_malloc0(filtersize*sizeof(int));
-	for (i = 0; i < size; i++) {
-		int i1 = i - (filtersize-1)/2;
-		int i2 = i + (filtersize-1)/2;
-		if (i1 < 0)
-			i1 = 0;
-		if (i2 >= size)
-			i2 = size-1;
-		g_memmove(sortbuf, data+i1, (i2-i1+1)*sizeof(int));
-		g_qsort_with_data(sortbuf, i2-i1+1, sizeof(int), cmpint, NULL);
-		result[i] = sortbuf[(i2-i1+1)/2];
-	}
-	memmove(data, result, size*sizeof(int));
-	g_free(result);
-	g_free(sortbuf);
-}
-
-void interpolate_lines(unsigned char *line1, float y1, unsigned char *line2,
-		       float y2, unsigned char *output, float yi, int size)
-{
-	int i;
-	for (i = 0; i < size; i++)
-		output[i] = (float)line1[i]
-			    + (yi-y1)/(y2-y1)*(line2[i]-line1[i]);
-}
-
-int min(int a, int b) {return (a < b) ? a : b; }
-
-/* Rescale image to account for variable swiping speed */
-int vfs5011_rescale_image(unsigned char *image, int input_lines,
-			  unsigned char *output, int max_output_lines)
-{
-	/* Number of output lines per distance between two scanners */
-	enum {
-		RESOLUTION = 10,
-		MEDIAN_FILTER_SIZE = 13,
-		MAX_OFFSET = 30,
-		GOOD_OFFSETS_CRITERION = 20,
-		GOOD_OFFSETS_THRESHOLD = 3
-	};
-	int i;
-	float y = 0.0;
-	int line_ind = 0;
-	int *offsets = (int *)g_malloc0(input_lines * sizeof(int));
-#ifdef ENABLE_DEBUG_LOGGING
-	gint64 start_time = g_get_real_time();
-#endif
-
-	for (i = 0; i < input_lines-1; i += 2) {
-		int bestmatch = i;
-		int bestdiff = 0;
-		int j;
-
-		int firstrow, lastrow;
-		firstrow = i+1;
-		lastrow = min(i + MAX_OFFSET, input_lines-1);
-
-		for (j = firstrow; j <= lastrow; j++) {
-			int diff = get_deviation2(
-					image + i*VFS5011_LINE_SIZE + 56,
-					image + j*VFS5011_LINE_SIZE + 168,
-					64);
-			if ((j == firstrow) || (diff < bestdiff)) {
-				bestdiff = diff;
-				bestmatch = j;
-			}
-		}
-		offsets[i/2] = bestmatch - i;
-		fp_dbg("offsets: %llu - %d", start_time, offsets[i/2]);
-	}
-
-	median_filter(offsets, input_lines-1, MEDIAN_FILTER_SIZE);
-
-	fp_dbg("offsets_filtered: %llu", g_get_real_time());
-	for (i = 0; i <= input_lines/2-1; i++)
-		fp_dbg("%d", offsets[i]);
-	for (i = 0; i < input_lines-1; i++) {
-		int offset = offsets[i/2];
-		if (offset > 0) {
-			float ynext = y + (float)RESOLUTION / offset;
-			while (line_ind < ynext) {
-				if (line_ind > max_output_lines-1) {
-					g_free(offsets);
-					return line_ind;
-				}
-				interpolate_lines(
-					image + i*VFS5011_LINE_SIZE + 8, y,
-					image + (i+1)*VFS5011_LINE_SIZE + 8,
-					ynext,
-					output + line_ind*VFS5011_IMAGE_WIDTH,
-					line_ind,
-					VFS5011_IMAGE_WIDTH);
-				line_ind++;
-			}
-			y = ynext;
-		}
-	}
-	g_free(offsets);
-	return line_ind;
+	return data[x];
 }
 
 /* ====================== main stuff ======================= */
@@ -426,12 +325,22 @@ enum {
 	MAX_CAPTURE_LINES = 100000,
 };
 
+static struct fpi_line_asmbl_ctx assembling_ctx = {
+	.line_width = VFS5011_IMAGE_WIDTH,
+	.max_height = MAXLINES,
+	.resolution = 10,
+	.median_filter_size = 25,
+	.max_search_offset = 30,
+	.get_deviation = vfs5011_get_deviation2,
+	.get_pixel = vfs5011_get_pixel,
+};
+
 struct vfs5011_data {
 	unsigned char *total_buffer;
 	unsigned char *capture_buffer;
-	unsigned char *image_buffer;
+	unsigned char *row_buffer;
 	unsigned char *lastline;
-	unsigned char *rescale_buffer;
+	GSList *rows;
 	int lines_captured, lines_recorded, empty_lines;
 	int max_lines_captured, max_lines_recorded;
 	int lines_total, lines_total_allocated;
@@ -511,10 +420,9 @@ static int process_chunk(struct vfs5011_data *data, int transferred)
 				data->lastline + 8,
 				linebuf + 8,
 				VFS5011_IMAGE_WIDTH) >= DIFFERENCE_THRESHOLD)) {
-			data->lastline = data->image_buffer
-					 + data->lines_recorded
-					 * VFS5011_LINE_SIZE;
-			memmove(data->lastline, linebuf, VFS5011_LINE_SIZE);
+			data->lastline = g_malloc(VFS5011_LINE_SIZE);
+			data->rows = g_slist_prepend(data->rows, data->lastline);
+			g_memmove(data->lastline, linebuf, VFS5011_LINE_SIZE);
 			data->lines_recorded++;
 			if (data->lines_recorded >= data->max_lines_recorded) {
 				fp_dbg("process_chunk: recorded %d lines, finishing",
@@ -529,20 +437,14 @@ static int process_chunk(struct vfs5011_data *data, int transferred)
 void submit_image(struct fpi_ssm *ssm, struct vfs5011_data *data)
 {
 	struct fp_img_dev *dev = (struct fp_img_dev *)ssm->priv;
-	int height = vfs5011_rescale_image(data->image_buffer,
-					   data->lines_recorded,
-					   data->rescale_buffer, MAXLINES);
-	struct fp_img *img = fpi_img_new(VFS5011_IMAGE_WIDTH * height);
+	struct fp_img *img;
 
-	if (img == NULL) {
-		fp_err("Failed to create image");
-		fpi_ssm_mark_aborted(ssm, -1);
-	}
+	data->rows = g_slist_reverse(data->rows);
 
-	img->flags = FP_IMG_V_FLIPPED;
-	img->width = VFS5011_IMAGE_WIDTH;
-	img->height = height;
-	memmove(img->data, data->rescale_buffer, VFS5011_IMAGE_WIDTH * height);
+	img = fpi_assemble_lines(&assembling_ctx, data->rows, data->lines_recorded);
+
+	g_slist_free_full(data->rows, g_free);
+	data->rows = NULL;
 
 	fp_dbg("Image captured, commiting");
 
@@ -927,10 +829,6 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	data = (struct vfs5011_data *)g_malloc0(sizeof(*data));
 	data->capture_buffer =
 		(unsigned char *)g_malloc0(CAPTURE_LINES * VFS5011_LINE_SIZE);
-	data->image_buffer =
-		(unsigned char *)g_malloc0(MAXLINES * VFS5011_LINE_SIZE);
-	data->rescale_buffer =
-		(unsigned char *)g_malloc0(MAXLINES * VFS5011_IMAGE_WIDTH);
 	dev->priv = data;
 
 	r = libusb_reset_device(dev->udev);
@@ -959,8 +857,7 @@ static void dev_close(struct fp_img_dev *dev)
 	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
 	if (data != NULL) {
 		g_free(data->capture_buffer);
-		g_free(data->image_buffer);
-		g_free(data->rescale_buffer);
+		g_slist_free_full(data->rows, g_free);
 		g_free(data);
 	}
 	fpi_imgdev_close_complete(dev);

@@ -1,6 +1,7 @@
 /*
  * Image assembling routines
  * Copyright (C) 2007-2008 Daniel Drake <dsd@gentoo.org>
+ * Copyright (C) 2013 Arseniy Lartsev <arseniy@chalmers.se>
  * Copyright (C) 2015 Vasily Khoruzhick <anarsoul@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
@@ -273,5 +274,136 @@ struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 		i++;
 	} while (i < stripes_len);
 
+	return img;
+}
+
+static int cmpint(const void *p1, const void *p2, gpointer data)
+{
+	int a = *((int *)p1);
+	int b = *((int *)p2);
+	if (a < b)
+		return -1;
+	else if (a == b)
+		return 0;
+	else
+		return 1;
+}
+
+static void median_filter(int *data, int size, int filtersize)
+{
+	int i;
+	int *result = (int *)g_malloc0(size*sizeof(int));
+	int *sortbuf = (int *)g_malloc0(filtersize*sizeof(int));
+	for (i = 0; i < size; i++) {
+		int i1 = i - (filtersize-1)/2;
+		int i2 = i + (filtersize-1)/2;
+		if (i1 < 0)
+			i1 = 0;
+		if (i2 >= size)
+			i2 = size-1;
+		g_memmove(sortbuf, data+i1, (i2-i1+1)*sizeof(int));
+		g_qsort_with_data(sortbuf, i2-i1+1, sizeof(int), cmpint, NULL);
+		result[i] = sortbuf[(i2-i1+1)/2];
+	}
+	memmove(data, result, size*sizeof(int));
+	g_free(result);
+	g_free(sortbuf);
+}
+
+static void interpolate_lines(struct fpi_line_asmbl_ctx *ctx,
+			      GSList *line1, float y1, GSList *line2,
+			      float y2, unsigned char *output, float yi, int size)
+{
+	int i;
+	unsigned char p1, p2;
+
+	if (!line1 || !line2)
+		return;
+
+	for (i = 0; i < size; i++) {
+		p1 = ctx->get_pixel(ctx, line1, i);
+		p2 = ctx->get_pixel(ctx, line2, i);
+		output[i] = (float)p1
+			    + (yi - y1)/(y2 - y1)*(p2 - p1);
+	}
+}
+
+static int min(int a, int b) {return (a < b) ? a : b; }
+
+/* Rescale image to account for variable swiping speed */
+struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
+				  GSList *lines, size_t lines_len)
+{
+	/* Number of output lines per distance between two scanners */
+	int i;
+	GSList *row1, *row2;
+	float y = 0.0;
+	int line_ind = 0;
+	int *offsets = (int *)g_malloc0((lines_len / 2) * sizeof(int));
+	unsigned char *output = g_malloc0(ctx->line_width * ctx->max_height);
+	struct fp_img *img;
+
+	fp_dbg("%llu", g_get_real_time());
+
+	row1 = lines;
+	for (i = 0; (i < lines_len - 1) && row1; i += 2) {
+		int bestmatch = i;
+		int bestdiff = 0;
+		int j, firstrow, lastrow;
+
+		firstrow = i + 1;
+		lastrow = min(i + ctx->max_search_offset, lines_len - 1);
+
+		row2 = g_slist_next(row1);
+		for (j = firstrow; j <= lastrow; j++) {
+			int diff = ctx->get_deviation(ctx,
+					row1,
+					row2);
+			if ((j == firstrow) || (diff < bestdiff)) {
+				bestdiff = diff;
+				bestmatch = j;
+			}
+			row2 = g_slist_next(row2);
+		}
+		offsets[i / 2] = bestmatch - i;
+		fp_dbg("%d", offsets[i / 2]);
+		row1 = g_slist_next(row1);
+		if (row1)
+			row1 = g_slist_next(row1);
+	}
+
+	median_filter(offsets, (lines_len / 2) - 1, ctx->median_filter_size);
+
+	fp_dbg("offsets_filtered: %llu", g_get_real_time());
+	for (i = 0; i <= (lines_len / 2) - 1; i++)
+		fp_dbg("%d", offsets[i]);
+	row1 = lines;
+	for (i = 0; i < lines_len - 1; i++, row1 = g_slist_next(row1)) {
+		int offset = offsets[i/2];
+		if (offset > 0) {
+			float ynext = y + (float)ctx->resolution / offset;
+			while (line_ind < ynext) {
+				if (line_ind > ctx->max_height - 1)
+					goto out;
+				interpolate_lines(ctx,
+					row1, y,
+					g_slist_next(row1),
+					ynext,
+					output + line_ind * ctx->line_width,
+					line_ind,
+					ctx->line_width);
+				line_ind++;
+			}
+			y = ynext;
+		}
+	}
+out:
+	img = fpi_img_new(ctx->line_width * line_ind);
+	img->height = line_ind;
+	img->width = ctx->line_width;
+	img->flags = FP_IMG_V_FLIPPED;
+	g_memmove(img->data, output, ctx->line_width * line_ind);
+	g_free(offsets);
+	g_free(output);
 	return img;
 }
