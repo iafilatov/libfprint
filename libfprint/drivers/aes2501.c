@@ -490,19 +490,10 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 		aesdev->no_finger_cnt++;
 		if (aesdev->no_finger_cnt == 3) {
 			struct fp_img *img;
-			unsigned int height, rev_height;
 
 			aesdev->strips = g_slist_reverse(aesdev->strips);
-			height = fpi_do_movement_estimation(&assembling_ctx,
-					aesdev->strips, aesdev->strips_len, FALSE);
-			rev_height = fpi_do_movement_estimation(&assembling_ctx,
-					aesdev->strips, aesdev->strips_len, TRUE);
-			fp_dbg("heights: %d rev: %d", height, rev_height);
-			if (rev_height < height) {
-				fp_dbg("Reversed direction");
-				height = fpi_do_movement_estimation(&assembling_ctx,
-						aesdev->strips, aesdev->strips_len, FALSE);
-			}
+			fpi_do_movement_estimation(&assembling_ctx,
+					aesdev->strips, aesdev->strips_len);
 			img = fpi_assemble_frames(&assembling_ctx,
 						  aesdev->strips, aesdev->strips_len);
 			img->flags |= FP_IMG_PARTIAL;

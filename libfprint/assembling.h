@@ -40,9 +40,8 @@ struct fpi_frame_asmbl_ctx {
 				   unsigned y);
 };
 
-unsigned int fpi_do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
-			    GSList *stripes, size_t stripes_len,
-			    gboolean reverse);
+void fpi_do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
+			    GSList *stripes, size_t stripes_len);
 
 struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 			    GSList *stripes, size_t stripes_len);

@@ -621,19 +621,12 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	/* stop capturing if MAX_FRAMES is reached */
 	if (aesdev->blanks_count > 10 || g_slist_length(aesdev->strips) >= MAX_FRAMES) {
 		struct fp_img *img;
-		unsigned int height, rev_height;
 
 		fp_dbg("sending stop capture.... blanks=%d  frames=%d", aesdev->blanks_count, g_slist_length(aesdev->strips));
 		/* send stop capture bits */
 		aes_write_regv(dev, capture_stop, G_N_ELEMENTS(capture_stop), stub_capture_stop_cb, NULL);
 		aesdev->strips = g_slist_reverse(aesdev->strips);
-		height = fpi_do_movement_estimation(&assembling_ctx, aesdev->strips, aesdev->strips_len, FALSE);
-		rev_height = fpi_do_movement_estimation(&assembling_ctx, aesdev->strips, aesdev->strips_len, TRUE);
-		fp_dbg("heights: %d rev: %d", height, rev_height);
-		if (rev_height < height) {
-			fp_dbg("Reversed direction");
-			height = fpi_do_movement_estimation(&assembling_ctx, aesdev->strips, aesdev->strips_len, FALSE);
-		}
+		fpi_do_movement_estimation(&assembling_ctx, aesdev->strips, aesdev->strips_len);
 		img = fpi_assemble_frames(&assembling_ctx, aesdev->strips, aesdev->strips_len);
 		img->flags |= FP_IMG_PARTIAL;
 		g_slist_free_full(aesdev->strips, g_free);

@@ -88,7 +88,7 @@ static void find_overlap(struct fpi_frame_asmbl_ctx *ctx,
 {
 	int dx, dy;
 	unsigned int err;
-	*min_error = INT_MAX;
+	*min_error = 255 * ctx->frame_height * ctx->frame_width;
 
 	/* Seeking in horizontal and vertical dimensions,
 	 * for horizontal dimension we'll check only 8 pixels
@@ -108,16 +108,20 @@ static void find_overlap(struct fpi_frame_asmbl_ctx *ctx,
 	}
 }
 
-unsigned int fpi_do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
+static unsigned int do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
 			    GSList *stripes, size_t num_stripes,
 			    gboolean reverse)
 {
 	GSList *list_entry = stripes;
 	GTimer *timer;
 	int frame = 1;
-	int height = 0;
 	struct fpi_frame *prev_stripe = list_entry->data;
 	unsigned int min_error;
+	/* Max error is width * height * 255, for AES2501 which has the largest
+	 * sensor its 192*16*255 = 783360. So for 32bit value it's ~5482 frame before
+	 * we might get int overflow. Use 64bit value here to prevent integer overflow
+	 */
+	unsigned long long total_error = 0;
 
 	list_entry = g_slist_next(list_entry);
 
@@ -132,22 +136,31 @@ unsigned int fpi_do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
 		}
 		else
 			find_overlap(ctx, cur_stripe, prev_stripe, &min_error);
+		total_error += min_error;
 
 		frame++;
-		height += prev_stripe->delta_y;
 		prev_stripe = cur_stripe;
 		list_entry = g_slist_next(list_entry);
 
 	} while (frame < num_stripes);
 
-	if (height < 0)
-		height = -height;
-	height += ctx->frame_height;
 	g_timer_stop(timer);
 	fp_dbg("calc delta completed in %f secs", g_timer_elapsed(timer, NULL));
 	g_timer_destroy(timer);
 
-	return height;
+	return total_error / num_stripes;
+}
+
+void fpi_do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
+			    GSList *stripes, size_t num_stripes)
+{
+	int err, rev_err;
+	err = do_movement_estimation(ctx, stripes, num_stripes, FALSE);
+	rev_err = do_movement_estimation(ctx, stripes, num_stripes, TRUE);
+	fp_dbg("errors: %d rev: %d", err, rev_err);
+	if (err < rev_err) {
+		do_movement_estimation(ctx, stripes, num_stripes, FALSE);
+	}
 }
 
 static inline void aes_blit_stripe(struct fpi_frame_asmbl_ctx *ctx,
