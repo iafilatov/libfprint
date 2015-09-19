@@ -67,6 +67,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	aesdev->start_imaging_cmd = (unsigned char *)aes2660_start_imaging_cmd;
 	aesdev->start_imaging_cmd_len = sizeof(aes2660_start_imaging_cmd);
 	aesdev->assembling_ctx = &assembling_ctx;
+	aesdev->extra_img_flags = FP_IMG_PARTIAL;
 
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
