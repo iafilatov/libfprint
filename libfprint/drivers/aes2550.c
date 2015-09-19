@@ -264,6 +264,7 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 		aesdev->strips = g_slist_reverse(aesdev->strips);
 		img = fpi_assemble_frames(&assembling_ctx,
 					  aesdev->strips, aesdev->strips_len);
+		img->flags |= FP_IMG_PARTIAL;
 		g_slist_free_full(aesdev->strips, g_free);
 		aesdev->strips = NULL;
 		aesdev->strips_len = 0;
