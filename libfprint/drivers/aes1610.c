@@ -579,11 +579,14 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	}
 
 	if (sum > 0) {
-	        /* FIXME: would preallocating strip buffers be a decent optimization? */
-	        stripdata = g_malloc(128 * 4);
-	        memcpy(stripdata, data + 1, 128 * 4);
-	        aesdev->strips = g_slist_prepend(aesdev->strips, stripdata);
-	        aesdev->strips_len++;
+		/* FIXME: would preallocating strip buffers be a decent optimization? */
+		struct aes_stripe *stripe = g_malloc(FRAME_WIDTH * (FRAME_HEIGHT / 2) + sizeof(struct aes_stripe));
+		stripe->delta_x = 0;
+		stripe->delta_y = 0;
+		stripdata = stripe->data;
+		memcpy(stripdata, data + 1, FRAME_WIDTH * (FRAME_HEIGHT / 2));
+		aesdev->strips = g_slist_prepend(aesdev->strips, stripe);
+		aesdev->strips_len++;
 		aesdev->blanks_count = 0;
 	}
 
