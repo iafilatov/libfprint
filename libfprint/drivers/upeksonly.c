@@ -30,6 +30,7 @@
 
 #include <fp_internal.h>
 
+#include "upeksonly.h"
 #include "driver_ids.h"
 
 #define CTRL_TIMEOUT	1000
@@ -94,11 +95,6 @@ struct sonly_dev {
 		struct fpi_ssm *kill_ssm;
 		void (*kill_cb)(struct fp_img_dev *dev);
 	};
-};
-
-struct sonly_regwrite {
-	uint8_t reg;
-	uint8_t value;
 };
 
 /***** IMAGE PROCESSING *****/
@@ -663,51 +659,6 @@ static void sm_await_intr(struct fpi_ssm *ssm)
 
 /***** AWAIT FINGER *****/
 
-static const struct sonly_regwrite awfsm_2016_writev_1[] = {
-	{ 0x0a, 0x00 }, { 0x0a, 0x00 }, { 0x09, 0x20 }, { 0x03, 0x3b },
-	{ 0x00, 0x67 }, { 0x00, 0x67 },
-};
-
-static const struct sonly_regwrite awfsm_1000_writev_1[] = {
-	/* Initialize sensor settings */
-	{ 0x0a, 0x00 }, { 0x09, 0x20 }, { 0x03, 0x37 }, { 0x00, 0x5f },
-	{ 0x01, 0x6e }, { 0x01, 0xee }, { 0x0c, 0x13 }, { 0x0d, 0x0d },
-	{ 0x0e, 0x0e }, { 0x0f, 0x0d },
-
-	{ 0x13, 0x05 }, { 0x13, 0x45 },
-
-	/* Initialize finger detection registers (not enabling yet) */
-	{ 0x30, 0xe0 }, { 0x15, 0x26 },
-
-	{ 0x12, 0x01 }, { 0x20, 0x01 }, { 0x07, 0x10 },
-	{ 0x10, 0x00 }, { 0x11, 0xbf },
-};
-
-static const struct sonly_regwrite awfsm_2016_writev_2[] = {
-	{ 0x01, 0xc6 }, { 0x0c, 0x13 }, { 0x0d, 0x0d }, { 0x0e, 0x0e },
-	{ 0x0f, 0x0d }, { 0x0b, 0x00 },
-};
-
-static const struct sonly_regwrite awfsm_1000_writev_2[] = {
-	/* Enable finger detection */
-	{ 0x30, 0xe1 }, { 0x15, 0x06 }, { 0x15, 0x86 },
-};
-
-static const struct sonly_regwrite awfsm_2016_writev_3[] = {
-	{ 0x13, 0x45 }, { 0x30, 0xe0 }, { 0x12, 0x01 }, { 0x20, 0x01 },
-	{ 0x09, 0x20 }, { 0x0a, 0x00 }, { 0x30, 0xe0 }, { 0x20, 0x01 },
-};
-
-static const struct sonly_regwrite awfsm_2016_writev_4[] = {
-	{ 0x08, 0x00 }, { 0x10, 0x00 }, { 0x12, 0x01 }, { 0x11, 0xbf },
-	{ 0x12, 0x01 }, { 0x07, 0x10 }, { 0x07, 0x10 }, { 0x04, 0x00 },\
-	{ 0x05, 0x00 }, { 0x0b, 0x00 },
-	
-	/* enter finger detection mode */
-	{ 0x15, 0x20 }, { 0x30, 0xe1 }, { 0x15, 0x24 }, { 0x15, 0x04 },
-	{ 0x15, 0x84 },
-};
-
 enum awfsm_2016_states {
 	AWFSM_2016_WRITEV_1,
 	AWFSM_2016_READ_01,
@@ -788,16 +739,6 @@ static void awfsm_1000_run_state(struct fpi_ssm *ssm)
 }
 
 /***** CAPTURE MODE *****/
-
-static const struct sonly_regwrite capsm_2016_writev[] = {
-	/* enter capture mode */
-	{ 0x09, 0x28 }, { 0x13, 0x55 }, { 0x0b, 0x80 }, { 0x04, 0x00 },
-	{ 0x05, 0x00 },
-};
-
-static const struct sonly_regwrite capsm_1000_writev[] = {
-	{ 0x08, 0x80 }, { 0x13, 0x55 }, { 0x0b, 0x80 }, /* Enter capture mode */
-};
 
 enum capsm_2016_states {
 	CAPSM_2016_INIT,
@@ -903,18 +844,6 @@ static void capsm_1000_run_state(struct fpi_ssm *ssm)
 
 /***** DEINITIALIZATION *****/
 
-static const struct sonly_regwrite deinitsm_2016_writev[] = {
-	/* reset + enter low power mode */
-	{ 0x0b, 0x00 }, { 0x09, 0x20 }, { 0x13, 0x45 }, { 0x13, 0x45 },
-};
-
-static const struct sonly_regwrite deinitsm_1000_writev[] = {
-	{ 0x15, 0x26 }, { 0x30, 0xe0 }, /* Disable finger detection */
-
-	{ 0x0b, 0x00 }, { 0x13, 0x45 }, { 0x08, 0x00 }, /* Disable capture mode */
-};
-
-
 enum deinitsm_2016_states {
 	DEINITSM_2016_WRITEV,
 	DEINITSM_2016_NUM_STATES,
@@ -944,32 +873,6 @@ static void deinitsm_1000_run_state(struct fpi_ssm *ssm)
 }
 
 /***** INITIALIZATION *****/
-
-static const struct sonly_regwrite initsm_2016_writev_1[] = {
-	{ 0x49, 0x00 },
-	
-	/* BSAPI writes different values to register 0x3e each time. I initially
-	 * thought this was some kind of clever authentication, but just blasting
-	 * these sniffed values each time seems to work. */
-	{ 0x3e, 0x83 }, { 0x3e, 0x4f }, { 0x3e, 0x0f }, { 0x3e, 0xbf },
-	{ 0x3e, 0x45 }, { 0x3e, 0x35 }, { 0x3e, 0x1c }, { 0x3e, 0xae },
-
-	{ 0x44, 0x01 }, { 0x43, 0x06 }, { 0x43, 0x05 }, { 0x43, 0x04 },
-	{ 0x44, 0x00 }, { 0x0b, 0x00 },
-};
-
-static const struct sonly_regwrite initsm_1000_writev_1[] = {
-	{ 0x49, 0x00 }, /* Encryption disabled */
-
-	/* Setting encryption key. Doesn't need to be random since we don't use any
-	 * encryption. */
-	{ 0x3e, 0x7f }, { 0x3e, 0x7f }, { 0x3e, 0x7f }, { 0x3e, 0x7f },
-	{ 0x3e, 0x7f }, { 0x3e, 0x7f }, { 0x3e, 0x7f }, { 0x3e, 0x7f },
-
-	{ 0x04, 0x00 }, { 0x05, 0x00 },
-
-	{ 0x0b, 0x00 }, { 0x08, 0x00 }, /* Initialize capture control registers */
-};
 
 enum initsm_2016_states {
 	INITSM_2016_WRITEV_1,
