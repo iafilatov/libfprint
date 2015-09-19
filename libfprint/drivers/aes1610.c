@@ -635,6 +635,7 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 			height = fpi_do_movement_estimation(&assembling_ctx, aesdev->strips, aesdev->strips_len, FALSE);
 		}
 		img = fpi_assemble_frames(&assembling_ctx, aesdev->strips, aesdev->strips_len);
+		img->flags |= FP_IMG_PARTIAL;
 		g_slist_free_full(aesdev->strips, g_free);
 		aesdev->strips = NULL;
 		aesdev->strips_len = 0;
