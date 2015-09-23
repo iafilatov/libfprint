@@ -266,6 +266,7 @@ struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 	/* Create buffer big enough for max image */
 	img = fpi_img_new(ctx->image_width * height);
 	img->flags = FP_IMG_COLORS_INVERTED;
+	img->flags |= reverse ? 0 :  FP_IMG_H_FLIPPED | FP_IMG_V_FLIPPED;
 	img->width = ctx->image_width;
 	img->height = height;
 
