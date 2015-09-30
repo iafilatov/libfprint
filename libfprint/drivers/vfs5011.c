@@ -347,6 +347,7 @@ struct vfs5011_data {
 	gboolean loop_running;
 	gboolean deactivating;
 	struct usbexchange_data init_sequence;
+	struct libusb_transfer *flying_transfer;
 };
 
 enum {
@@ -468,10 +469,15 @@ static void chunk_capture_callback(struct libusb_transfer *transfer)
 		else
 			fpi_ssm_jump_to_state(ssm, DEV_ACTIVATE_READ_DATA);
 	} else {
-		fp_err("Failed to capture data");
-		fpi_ssm_mark_aborted(ssm, -1);
+		if (!data->deactivating) {
+			fp_err("Failed to capture data");
+			fpi_ssm_mark_aborted(ssm, -1);
+		} else {
+			fpi_ssm_mark_completed(ssm);
+		}
 	}
 	libusb_free_transfer(transfer);
+	data->flying_transfer = NULL;
 }
 
 static int capture_chunk_async(struct vfs5011_data *data,
@@ -486,12 +492,12 @@ static int capture_chunk_async(struct vfs5011_data *data,
 		STOP_CHECK_LINES = 50
 	};
 
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-	libusb_fill_bulk_transfer(transfer, handle, VFS5011_IN_ENDPOINT_DATA,
+	data->flying_transfer = libusb_alloc_transfer(0);
+	libusb_fill_bulk_transfer(data->flying_transfer, handle, VFS5011_IN_ENDPOINT_DATA,
 				  data->capture_buffer,
 				  nline * VFS5011_LINE_SIZE,
 				  chunk_capture_callback, ssm, timeout);
-	return libusb_submit_transfer(transfer);
+	return libusb_submit_transfer(data->flying_transfer);
 }
 
 static void async_sleep_cb(void *data)
@@ -700,6 +706,12 @@ static void activate_loop(struct fpi_ssm *ssm)
 
 	fp_dbg("main_loop: state %d", ssm->cur_state);
 
+	if (data->deactivating) {
+		fp_dbg("deactivating, marking completed");
+		fpi_ssm_mark_completed(ssm);
+		return;
+	}
+
 	switch (ssm->cur_state) {
 	case DEV_ACTIVATE_REQUEST_FPRINT:
 		data->init_sequence.stepcount =
@@ -723,17 +735,12 @@ static void activate_loop(struct fpi_ssm *ssm)
 		break;
 
 	case DEV_ACTIVATE_READ_DATA:
-		if (data->deactivating) {
-			fp_dbg("deactivating, marking completed");
-			fpi_ssm_mark_completed(ssm);
-		} else {
-			r = capture_chunk_async(data, dev->udev, CAPTURE_LINES,
-						READ_TIMEOUT, ssm);
-			if (r != 0) {
-				fp_err("Failed to capture data");
-				fpi_imgdev_session_error(dev, r);
-				fpi_ssm_mark_aborted(ssm, r);
-			}
+		r = capture_chunk_async(data, dev->udev, CAPTURE_LINES,
+					READ_TIMEOUT, ssm);
+		if (r != 0) {
+			fp_err("Failed to capture data");
+			fpi_imgdev_session_error(dev, r);
+			fpi_ssm_mark_aborted(ssm, r);
 		}
 		break;
 
@@ -773,8 +780,11 @@ static void activate_loop_complete(struct fpi_ssm *ssm)
 	if (data->init_sequence.receive_buf != NULL)
 		g_free(data->init_sequence.receive_buf);
 	data->init_sequence.receive_buf = NULL;
-	submit_image(ssm, data);
-	fpi_imgdev_report_finger_status(dev, FALSE);
+	/* We don't want to submit image if we're in deactivating process */
+	if (!data->deactivating) {
+		submit_image(ssm, data);
+		fpi_imgdev_report_finger_status(dev, FALSE);
+	}
 	fpi_ssm_free(ssm);
 
 	data->loop_running = FALSE;
@@ -891,10 +901,16 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 static void dev_deactivate(struct fp_img_dev *dev)
 {
+	int r;
 	struct vfs5011_data *data = dev->priv;
-	if (data->loop_running)
+	if (data->loop_running) {
 		data->deactivating = TRUE;
-	else
+		if (data->flying_transfer) {
+			r = libusb_cancel_transfer(data->flying_transfer);
+			if (r < 0)
+				fp_dbg("cancel failed error %d", r);
+		}
+	} else
 		fpi_imgdev_deactivate_complete(dev);
 }
 
