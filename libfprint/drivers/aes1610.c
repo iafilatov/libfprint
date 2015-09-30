@@ -413,7 +413,7 @@ static unsigned char list_BE_values[10] = {
 /*
  * The different possible values for 0xBD register */
 static unsigned char list_BD_values[10] = {
-	0x48, 0x4B, 0x4F, 0x52, 0x57, 0x59, 0x5B
+	0x28, 0x2b, 0x30, 0x3b, 0x45, 0x49, 0x4B
 };
 
 /*
@@ -434,25 +434,25 @@ static int adjust_gain(unsigned char *buffer, int status)
 			strip_scan_reqs[0].value = 0x6B;
 			strip_scan_reqs[1].value = 0x06;
 			strip_scan_reqs[2].value = 0x35;
-			strip_scan_reqs[3].value = 0x5B;
+			strip_scan_reqs[3].value = 0x4B;
 		}
 		else if (buffer[1] > 0x55) {
 			strip_scan_reqs[0].value = 0x63;
 			strip_scan_reqs[1].value = 0x15;
 			strip_scan_reqs[2].value = 0x35;
-			strip_scan_reqs[3].value = 0x4F;
+			strip_scan_reqs[3].value = 0x3b;
 		}
 		else if (buffer[1] > 0x40 || buffer[16] > 0x19) {
 			strip_scan_reqs[0].value = 0x43;
 			strip_scan_reqs[1].value = 0x13;
 			strip_scan_reqs[2].value = 0x35;
-			strip_scan_reqs[3].value = 0x4B;
+			strip_scan_reqs[3].value = 0x30;
 		}
 		else { // minimum gain needed
 			strip_scan_reqs[0].value = 0x23;
 			strip_scan_reqs[1].value = 0x07;
 			strip_scan_reqs[2].value = 0x35;
-			strip_scan_reqs[3].value = 0x48;
+			strip_scan_reqs[3].value = 0x28;
 		}
 
 		// Now copy this values in capture_reqs
