@@ -844,7 +844,7 @@ struct fp_img_driver aes1610_driver = {
 	.img_height = -1,
 	.img_width = IMAGE_WIDTH,
 
-	.bz3_threshold = 50,
+	.bz3_threshold = 20,
 
 	.open = dev_init,
 	.close = dev_deinit,
