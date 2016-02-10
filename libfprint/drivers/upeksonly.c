@@ -43,6 +43,11 @@
 #define MAX_ROWS 2048
 #define MIN_ROWS 64
 
+#define BLANK_THRESHOLD 250
+#define FINGER_PRESENT_THRESHOLD 32
+#define FINGER_REMOVED_THRESHOLD 100
+#define DIFF_THRESHOLD 13
+
 enum {
 	UPEKSONLY_2016,
 	UPEKSONLY_1000,
@@ -101,8 +106,6 @@ struct sonly_dev {
 	int num_nonblank;
 	enum sonly_fs finger_state;
 	int last_seqnum;
-	int diff_thresh;
-	int total_thresh;
 
 	enum sonly_kill_transfers_action killing_transfers;
 	int kill_status_code;
@@ -257,24 +260,6 @@ static void handoff_img(struct fp_img_dev *dev)
 	cancel_img_transfers(dev);
 }
 
-static void compute_rows(struct sonly_dev *sdev, unsigned char *a, unsigned char *b, int *diff,
-	int *total)
-{
-	int i;
-	int _total = 0;
-	int _diff = 0;
-
-	for (i = 0; i < sdev->img_width; i++) {
-		if (a[i] > b[i])
-			_diff += a[i] - b[i];
-		else
-			_diff += b[i] - a[i];
-		_total += b[i];
-	}
-	*diff = _diff;
-	*total = _total;
-}
-
 static void row_complete(struct fp_img_dev *dev)
 {
 	struct sonly_dev *sdev = dev->priv;
@@ -282,10 +267,10 @@ static void row_complete(struct fp_img_dev *dev)
 
 	if (sdev->num_rows > 0) {
 		unsigned char *lastrow = sdev->rows->data;
-		int diff;
-		int total;
+		int std_sq_dev, mean_sq_diff;
 
-		compute_rows(sdev, lastrow, sdev->rowbuf, &diff, &total);
+		std_sq_dev = fpi_std_sq_dev(sdev->rowbuf, sdev->img_width);
+		mean_sq_diff = fpi_mean_sq_diff_norm(lastrow, sdev->rowbuf, sdev->img_width);
 
 		switch (sdev->finger_state) {
 		case AWAIT_FINGER:
@@ -294,14 +279,14 @@ static void row_complete(struct fp_img_dev *dev)
 				sdev->kill_ssm = sdev->loopsm;
 				cancel_img_transfers(dev);
 			}
-			fp_dbg("total: %d", total);
-			if (total < sdev->total_thresh) {
+			fp_dbg("std_sq_dev: %d", std_sq_dev);
+			if (std_sq_dev > BLANK_THRESHOLD) {
 				sdev->num_nonblank++;
 			} else {
 				sdev->num_nonblank = 0;
 			}
 
-			if (sdev->num_nonblank > 32) {
+			if (sdev->num_nonblank > FINGER_PRESENT_THRESHOLD) {
 				sdev->finger_state = FINGER_DETECTED;
 				fpi_imgdev_report_finger_status(dev, TRUE);
 			} else {
@@ -314,7 +299,7 @@ static void row_complete(struct fp_img_dev *dev)
 			break;
 		}
 
-		if (total < sdev->total_thresh) {
+		if (std_sq_dev > BLANK_THRESHOLD) {
 			sdev->num_blank = 0;
 		} else {
 			sdev->num_blank++;
@@ -325,16 +310,16 @@ static void row_complete(struct fp_img_dev *dev)
 			 * actual scan. Happens most commonly if scan is started
 			 * from before the first joint resulting in a gap after the inital touch.
 			 */
-			if ((sdev->num_blank > 32)
-			    && ((sdev->num_rows > MIN_ROWS) || (sdev->num_blank > 5000))) {
+			if (sdev->num_blank > FINGER_REMOVED_THRESHOLD) {
 				sdev->finger_state = FINGER_REMOVED;
 				fp_dbg("detected finger removal. Blank rows: %d, Full rows: %d", sdev->num_blank, sdev->num_rows);
 				handoff_img(dev);
 				return;
 			}
 		}
-		fp_dbg("diff is %d", diff);
-		if (diff < sdev->diff_thresh) {
+		fp_dbg("mean_sq_diff: %d, std_sq_dev: %d", mean_sq_diff, std_sq_dev);
+		fp_dbg("num_blank: %d", sdev->num_blank);
+		if (mean_sq_diff < DIFF_THRESHOLD) {
 			return;
 		}
 	}
@@ -1370,22 +1355,16 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 		sdev->img_width = IMG_WIDTH_1000;
 		upeksonly_driver.img_width = IMG_WIDTH_1000;
 		assembling_ctx.line_width = IMG_WIDTH_1000;
-		sdev->diff_thresh = 1200;
-		sdev->total_thresh = 52000;
 		break;
 	case UPEKSONLY_1001:
 		sdev->img_width = IMG_WIDTH_1001;
 		upeksonly_driver.img_width = IMG_WIDTH_1001;
 		assembling_ctx.line_width = IMG_WIDTH_1001;
-		sdev->diff_thresh = 400;
-		sdev->total_thresh = 40000;
 		break;
 	case UPEKSONLY_2016:
 		sdev->img_width = IMG_WIDTH_2016;
 		upeksonly_driver.img_width = IMG_WIDTH_2016;
 		assembling_ctx.line_width = IMG_WIDTH_2016;
-		sdev->diff_thresh = 1200;
-		sdev->total_thresh = 52000;
 		break;
 	}
 	fpi_imgdev_open_complete(dev, 0);
