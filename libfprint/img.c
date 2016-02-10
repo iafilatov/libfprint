@@ -511,3 +511,37 @@ API_EXPORTED struct fp_minutia **fp_img_get_minutiae(struct fp_img *img,
 	return img->minutiae->list;
 }
 
+/* Calculate squared standand deviation */
+int fpi_std_sq_dev(const unsigned char *buf, int size)
+{
+	int res = 0, mean = 0, i;
+
+	if (size > (INT_MAX / 65536)) {
+		fp_err("%s: we might get an overflow!", __func__);
+		return -EOVERFLOW;
+	}
+
+	for (i = 0; i < size; i++)
+		mean += buf[i];
+
+	mean /= size;
+
+	for (i = 0; i < size; i++) {
+		int dev = (int)buf[i] - mean;
+		res += dev*dev;
+	}
+
+	return res / size;
+}
+
+/* Calculate normalized mean square difference of two lines */
+int fpi_mean_sq_diff_norm(unsigned char *buf1, unsigned char *buf2, int size)
+{
+	int res = 0, i;
+	for (i = 0; i < size; i++) {
+		int dev = (int)buf1[i] - (int)buf2[i];
+		res += dev * dev;
+	}
+
+	return res / size;
+}

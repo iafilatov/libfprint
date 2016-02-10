@@ -252,39 +252,6 @@ static void usb_exchange_async(struct fpi_ssm *ssm,
 
 /* ====================== utils ======================= */
 
-#if VFS5011_LINE_SIZE > INT_MAX/(256*256)
-#error We might get integer overflow while computing standard deviation!
-#endif
-
-/* Calculade squared standand deviation */
-static int get_deviation(unsigned char *buf, int size)
-{
-	int res = 0, mean = 0, i;
-	for (i = 0; i < size; i++)
-		mean += buf[i];
-
-	mean /= size;
-
-	for (i = 0; i < size; i++) {
-		int dev = (int)buf[i] - mean;
-		res += dev*dev;
-	}
-
-	return res / size;
-}
-
-/* Calculate mean square difference of two lines */
-static int get_diff_norm(unsigned char *buf1, unsigned char *buf2, int size)
-{
-	int res = 0, i;
-	for (i = 0; i < size; i++) {
-		int dev = (int)buf1[i] - (int)buf2[i];
-		res += dev*dev;
-	}
-
-	return res / size;
-}
-
 /* Calculade squared standand deviation of sum of two lines */
 static int vfs5011_get_deviation2(struct fpi_line_asmbl_ctx *ctx, GSList *row1, GSList *row2)
 {
@@ -395,7 +362,7 @@ static int process_chunk(struct vfs5011_data *data, int transferred)
 		unsigned char *linebuf = data->capture_buffer
 					 + i * VFS5011_LINE_SIZE;
 
-		if (get_deviation(linebuf + 8, VFS5011_IMAGE_WIDTH)
+		if (fpi_std_sq_dev(linebuf + 8, VFS5011_IMAGE_WIDTH)
 				< DEVIATION_THRESHOLD) {
 			if (data->lines_captured == 0)
 				continue;
@@ -417,7 +384,7 @@ static int process_chunk(struct vfs5011_data *data, int transferred)
 		}
 
 		if ((data->lastline == NULL)
-			|| (get_diff_norm(
+			|| (fpi_mean_sq_diff_norm(
 				data->lastline + 8,
 				linebuf + 8,
 				VFS5011_IMAGE_WIDTH) >= DIFFERENCE_THRESHOLD)) {
