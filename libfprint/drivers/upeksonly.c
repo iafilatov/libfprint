@@ -1359,6 +1359,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	case UPEKSONLY_1001:
 		sdev->img_width = IMG_WIDTH_1001;
 		upeksonly_driver.img_width = IMG_WIDTH_1001;
+		upeksonly_driver.bz3_threshold = 25;
 		assembling_ctx.line_width = IMG_WIDTH_1001;
 		break;
 	case UPEKSONLY_2016:
