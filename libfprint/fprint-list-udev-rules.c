@@ -25,6 +25,8 @@
 
 static const struct usb_id whitelist_id_table[] = {
     { .vendor = 0x08ff, .product = 0x2810 },
+    /* https://bugzilla.redhat.com/show_bug.cgi?id=1173367 */
+    { .vendor = 0x138a, .product = 0x0017 },
     { 0, 0, 0, },
 };
 
