@@ -45,6 +45,8 @@
 #define IMAGE_HEIGHT		290
 #define IMAGE_WIDTH		384
 
+#define ENC_THRESHOLD		1000
+
 enum {
 	IRQDATA_SCANPWR_ON = 0x56aa,
 	IRQDATA_FINGER_ON = 0x0101,
@@ -664,6 +666,34 @@ static uint32_t do_decode(uint8_t *data, int num_bytes, uint32_t key)
 	return update_key(key);
 }
 
+static int calc_dev2(struct uru4k_image *img)
+{
+	uint8_t *b[2] = { NULL, NULL };
+	int res = 0, mean = 0, i, r, j, idx;
+
+	for (i = r = idx = 0; i < array_n_elements(img->block_info) && idx < 2; i++) {
+		if (img->block_info[i].flags & BLOCKF_NOT_PRESENT)
+			continue;
+		for (j = 0; j < img->block_info[i].num_lines && idx < 2; j++)
+			b[idx++] = img->data[r++];
+	}
+	if (!b[0] || !b[1]) {
+		fp_dbg("NULL! %p %p", b[0], b[1]);
+		return 0;
+	}
+	for (i = 0; i < IMAGE_WIDTH; i++)
+		mean += (int)b[0][i] + (int)b[1][i];
+
+	mean /= IMAGE_WIDTH;
+
+	for (i = 0; i < IMAGE_WIDTH; i++) {
+		int dev = (int)b[0][i] + (int)b[1][i] - mean;
+		res += dev * dev;
+	}
+
+	return res / IMAGE_WIDTH;
+}
+
 static void imaging_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
@@ -672,7 +702,7 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 	struct fp_img *fpimg;
 	uint32_t key;
 	uint8_t flags, num_lines;
-	int i, r, to;
+	int i, r, to, dev2;
 	char buf[5];
 
 	switch (ssm->cur_state) {
@@ -698,8 +728,13 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 			return;
 		}
 		if (!urudev->profile->encryption) {
-			fpi_ssm_jump_to_state(ssm, IMAGING_REPORT_IMAGE);
-			return;
+			dev2 = calc_dev2(img);
+			fp_dbg("dev2: %d", dev2);
+			if (dev2 < ENC_THRESHOLD) {
+				fpi_ssm_jump_to_state(ssm, IMAGING_REPORT_IMAGE);
+				return;
+			}
+			fp_info("image seems to be encrypted");
 		}
 		buf[0] = img->key_number;
 		buf[1] = urudev->img_enc_seed;
