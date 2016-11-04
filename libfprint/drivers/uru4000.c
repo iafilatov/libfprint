@@ -1285,7 +1285,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	r = libusb_claim_interface(dev->udev, iface_desc->bInterfaceNumber);
 	if (r < 0) {
-		fp_err("interface claim failed");
+		fp_err("interface claim failed: %s", libusb_error_name(r));
 		goto out;
 	}
 

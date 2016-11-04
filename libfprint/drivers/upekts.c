@@ -875,8 +875,10 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 	int r;
 
 	r = libusb_claim_interface(dev->udev, 0);
-	if (r < 0)
+	if (r < 0) {
+		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
+	}
 
 	upekdev = g_malloc(sizeof(*upekdev));
 	upekdev->seq = 0xf0; /* incremented to 0x00 before first cmd */

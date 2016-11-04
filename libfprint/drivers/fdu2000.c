@@ -264,8 +264,10 @@ gint dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	//if ( (r = usb_set_configuration(dev->udev, 1)) < 0 )
 	//	goto out;
 
-	if ( (r = libusb_claim_interface(dev->udev, 0)) < 0 )
-		goto out;
+	if ( (r = libusb_claim_interface(dev->udev, 0)) < 0 ) {
+		fp_err("could not claim interface 0: %s", libusb_error_name(r));
+		return r;
+	}
 
 	//if ( (r = usb_set_altinterface(dev->udev, 1)) < 0 )
 	//	goto out;

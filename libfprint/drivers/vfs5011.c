@@ -849,7 +849,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 
 	r = libusb_claim_interface(dev->udev, 0);
 	if (r != 0) {
-		fp_err("Failed to claim interface");
+		fp_err("Failed to claim interface: %s", libusb_error_name(r));
 		return r;
 	}
 

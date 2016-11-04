@@ -651,7 +651,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	r = libusb_claim_interface(dev->udev, 0);
 	if (r < 0) {
-		fp_err("could not claim interface 0");
+		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
 	}
 
