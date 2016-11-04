@@ -127,23 +127,24 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	struct aes3k_dev *aesdev;
 
 	r = libusb_claim_interface(dev->udev, 0);
-	if (r < 0)
+	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
+		return r;
+	}
 
 	aesdev = dev->priv = g_malloc0(sizeof(struct aes3k_dev));
 
 	if (!aesdev)
 		return -ENOMEM;
 
-	if (r == 0)
-		aesdev->data_buflen = DATA_BUFLEN;
-		aesdev->frame_width = FRAME_WIDTH;
-		aesdev->frame_size = FRAME_SIZE;
-		aesdev->frame_number = FRAME_NUMBER;
-		aesdev->enlarge_factor = ENLARGE_FACTOR;
-		aesdev->init_reqs = init_reqs;
-		aesdev->init_reqs_len = G_N_ELEMENTS(init_reqs);
-		fpi_imgdev_open_complete(dev, 0);
+	aesdev->data_buflen = DATA_BUFLEN;
+	aesdev->frame_width = FRAME_WIDTH;
+	aesdev->frame_size = FRAME_SIZE;
+	aesdev->frame_number = FRAME_NUMBER;
+	aesdev->enlarge_factor = ENLARGE_FACTOR;
+	aesdev->init_reqs = init_reqs;
+	aesdev->init_reqs_len = G_N_ELEMENTS(init_reqs);
+	fpi_imgdev_open_complete(dev, 0);
 
 	return r;
 }
