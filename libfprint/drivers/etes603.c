@@ -1465,7 +1465,7 @@ static int dev_open(struct fp_img_dev *idev, unsigned long driver_data)
 
 	ret = libusb_claim_interface(idev->udev, 0);
 	if (ret != LIBUSB_SUCCESS) {
-		fp_err("libusb_claim_interface failed on interface 0: %s", libusb_error_name(r));
+		fp_err("libusb_claim_interface failed on interface 0: %s", libusb_error_name(ret));
 		return ret;
 	}
 
