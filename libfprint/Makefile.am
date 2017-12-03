@@ -22,6 +22,7 @@ VFS5011_SRC = drivers/vfs5011.c drivers/vfs5011_proto.h
 UPEKTC_IMG_SRC = drivers/upektc_img.c drivers/upektc_img.h
 ETES603_SRC = drivers/etes603.c
 VFS0050_SRC = drivers/vfs0050.c drivers/vfs0050.h
+ELAN_SRC = drivers/elan.c drivers/elan.h
 
 EXTRA_DIST = \
 	$(UPEKE2_SRC)		\
@@ -44,6 +45,7 @@ EXTRA_DIST = \
 	$(UPEKTC_IMG_SRC)	\
 	$(ETES603_SRC)		\
 	$(VFS0050_SRC)		\
+	$(ELAN_SRC)		\
 	drivers/aesx660.c	\
 	drivers/aesx660.h	\
 	drivers/aes3k.c 	\
@@ -188,6 +190,10 @@ endif
 
 if ENABLE_VFS0050
 DRIVER_SRC += $(VFS0050_SRC)
+endif
+
+if ENABLE_ELAN
+DRIVER_SRC += $(ELAN_SRC)
 endif
 
 if REQUIRE_PIXMAN
