@@ -24,6 +24,10 @@
 #include "fp_internal.h"
 
 static const struct usb_id whitelist_id_table[] = {
+    /* Unsupported (for now) Elantech finger print readers */
+    { .vendor = 0x04f3, .product = 0x0c03 },
+    { .vendor = 0x04f3, .product = 0x0c16 },
+    { .vendor = 0x04f3, .product = 0x0c26 },
     { 0, 0, 0, },
 };
 
