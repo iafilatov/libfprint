@@ -24,9 +24,14 @@
 #include <string.h>
 #include <libusb.h>
 
-/* number of pixels to discard on left and right (along raw image height)
- * because they have different intensity from the rest of the frame */
-#define ELAN_FRAME_MARGIN 12
+#define ELAN_VENDOR_ID 0x04f3
+
+/* supported devices */
+#define ELAN_0903 1
+#define ELAN_0907 (1 << 1)
+#define ELAN_0C03 (1 << 2)
+
+#define ELAN_ALL_DEVICES (ELAN_0903|ELAN_0907|ELAN_0C03)
 
 /* min and max frames in a capture */
 #define ELAN_MIN_FRAMES 7
@@ -50,6 +55,7 @@ struct elan_cmd {
 	unsigned char cmd[ELAN_CMD_LEN];
 	int response_len;
 	int response_in;
+	unsigned short devices;
 };
 
 static const struct elan_cmd get_sensor_dim_cmds[] = {
@@ -57,6 +63,7 @@ static const struct elan_cmd get_sensor_dim_cmds[] = {
 	 .cmd = {0x00, 0x0c},
 	 .response_len = 0x4,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_ALL_DEVICES,
 	 },
 };
 
@@ -68,23 +75,26 @@ static const struct elan_cmd init_start_cmds[] = {
 	 .cmd = {0x40, 0x19},
 	 .response_len = 0x2,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_0907,
 	 },
 	{
 	 .cmd = {0x40, 0x2a},
 	 .response_len = 0x2,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_0907,
 	 },
 };
 
 static const size_t init_start_cmds_len = array_n_elements(init_start_cmds);
 
 static const struct elan_cmd read_cmds[] = {
-	/* raw frame sizes are calculated from image dimesions reported by the
+	/* raw frame sizes are calculated from image dimensions reported by the
 	 * device */
 	{
 	 .cmd = {0x00, 0x09},
 	 .response_len = -1,
 	 .response_in = ELAN_EP_IMG_IN,
+	 .devices = ELAN_ALL_DEVICES,
 	 },
 };
 
@@ -96,6 +106,7 @@ static const struct elan_cmd init_end_cmds[] = {
 	 .cmd = {0x40, 0x24},
 	 .response_len = 0x2,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_0907,
 	 },
 };
 
@@ -109,11 +120,13 @@ static const struct elan_cmd calibrate_start_cmds[] = {
 	 .cmd = {0x40, 0x23},
 	 .response_len = 0x1,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_0907,
 	 },
 	{
 	 .cmd = {0x40, 0x23},
 	 .response_len = 0x1,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_0907,
 	 },
 };
 
@@ -126,6 +139,7 @@ static const struct elan_cmd calibrate_end_cmds[] = {
 	 .cmd = {0x40, 0x24},
 	 .response_len = 0x2,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_0907,
 	 },
 };
 
@@ -138,6 +152,7 @@ static const struct elan_cmd capture_start_cmds[] = {
 	 .cmd = {0x40, 0x31},
 	 .response_len = 0x0,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_0907,
 	 },
 };
 
@@ -150,6 +165,7 @@ static const struct elan_cmd capture_wait_finger_cmds[] = {
 	 .cmd = {0x40, 0x3f},
 	 .response_len = 0x1,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_ALL_DEVICES,
 	 },
 };
 
@@ -162,6 +178,7 @@ static const struct elan_cmd deactivate_cmds[] = {
 	 .cmd = {0x00, 0x0b},
 	 .response_len = 0x0,
 	 .response_in = ELAN_EP_CMD_IN,
+	 .devices = ELAN_ALL_DEVICES,
 	 },
 };
 

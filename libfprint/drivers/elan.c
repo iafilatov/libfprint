@@ -2,6 +2,7 @@
  * Elan driver for libfprint
  *
  * Copyright (C) 2017 Igor Filatov <ia.filatov@gmail.com>
+ * Copyright (C) 2018 Sébastien Béchet <sebastien.bechet@osinix.com >
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -44,20 +45,30 @@ static struct fpi_frame_asmbl_ctx assembling_ctx = {
 };
 
 struct elan_dev {
-	gboolean deactivating;
+	/* device config */
+	unsigned short dev_type;
+	/* number of pixels to discard on left and right (along raw image height)
+	 * because they have different intensity from the rest of the frame */
+	unsigned char frame_margin;
+	/* end device config */
 
+	/* commands */
 	const struct elan_cmd *cmds;
 	size_t cmds_len;
 	int cmd_idx;
 	int cmd_timeout;
 	struct libusb_transfer *cur_transfer;
+	/* end commands */
 
+	/* state */
+	gboolean deactivating;
 	unsigned char *last_read;
 	unsigned char frame_width;
 	unsigned char frame_height;
 	unsigned char raw_frame_width;
 	int num_frames;
 	GSList *frames;
+	/* end state */
 };
 
 static void elan_dev_reset(struct elan_dev *elandev)
@@ -92,13 +103,13 @@ static void elan_save_frame(struct fp_img_dev *dev)
 
 	/* Raw images are vertical and perpendicular to swipe direction of a
 	 * normalized image, which means we need to make them horizontal before
-	 * assembling. We also discard stirpes of ELAN_FRAME_MARGIN along raw
+	 * assembling. We also discard stripes of 'frame_margin' along raw
 	 * height. */
 	for (int y = 0; y < raw_height; y++)
-		for (int x = ELAN_FRAME_MARGIN;
-		     x < raw_width - ELAN_FRAME_MARGIN; x++) {
+		for (int x = elandev->frame_margin;
+		     x < raw_width - elandev->frame_margin; x++) {
 			int frame_idx =
-			    y + (x - ELAN_FRAME_MARGIN) * raw_height;
+			    y + (x - elandev->frame_margin) * raw_height;
 			int raw_idx = x + y * raw_width;
 			frame[frame_idx] =
 			    ((unsigned short *)elandev->last_read)[raw_idx];
@@ -259,8 +270,15 @@ static void elan_run_next_cmd(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
+	struct elan_cmd cmd = elandev->cmds[elandev->cmd_idx];
+	unsigned char *cmd_data = cmd.cmd;
 
-	fp_dbg("");
+	fp_dbg("%02x%02x", cmd_data[0], cmd_data[1]);
+
+	if (!(cmd.devices & elandev->dev_type)) {
+		fp_dbg("skipping for this device");
+		return elan_cmd_done(ssm);
+	}
 
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	if (!transfer) {
@@ -270,15 +288,12 @@ static void elan_run_next_cmd(struct fpi_ssm *ssm)
 	elandev->cur_transfer = transfer;
 
 	libusb_fill_bulk_transfer(transfer, dev->udev, ELAN_EP_CMD_OUT,
-				  (unsigned char *)elandev->cmds[elandev->
-								 cmd_idx].cmd,
-				  ELAN_CMD_LEN, elan_cmd_cb, ssm,
+				  cmd_data, ELAN_CMD_LEN, elan_cmd_cb, ssm,
 				  elandev->cmd_timeout);
 	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
 	int r = libusb_submit_transfer(transfer);
 	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);
-
 }
 
 static void elan_run_cmds(struct fpi_ssm *ssm, const struct elan_cmd *cmds,
@@ -371,6 +386,8 @@ static void elan_capture_run_state(struct fpi_ssm *ssm)
 			/* quickly stop if finger is removed */
 			elandev->cmd_timeout = ELAN_FINGER_TIMEOUT;
 			fpi_ssm_jump_to_state(ssm, CAPTURE_WAIT_FINGER);
+		} else {
+			fpi_ssm_next_state(ssm);
 		}
 		break;
 	}
@@ -515,7 +532,7 @@ static void elan_activate_run_state(struct fpi_ssm *ssm)
 		elandev->frame_width = elandev->last_read[2];
 		elandev->raw_frame_width = elandev->last_read[0];
 		elandev->frame_height =
-		    elandev->raw_frame_width - 2 * ELAN_FRAME_MARGIN;
+		    elandev->raw_frame_width - 2 * elandev->frame_margin;
 		fpi_ssm_next_state(ssm);
 		break;
 	case ACTIVATE_START:
@@ -576,6 +593,18 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	dev->priv = elandev = g_malloc0(sizeof(struct elan_dev));
+	elandev->dev_type = driver_data;
+
+	switch (driver_data) {
+	case ELAN_0903:
+	case ELAN_0C03:
+		elandev->frame_margin = 0;
+		break;
+	case ELAN_0907:
+		elandev->frame_margin = 12;
+		break;
+	}
+
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
@@ -607,7 +636,9 @@ static void dev_deactivate(struct fp_img_dev *dev)
 }
 
 static const struct usb_id id_table[] = {
-	{.vendor = 0x04f3,.product = 0x0907},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0903,.driver_data = ELAN_0903},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0907,.driver_data = ELAN_0907},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c03,.driver_data = ELAN_0C03},
 	{0, 0, 0,},
 };
 
