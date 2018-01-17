@@ -600,6 +600,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	case ELAN_0C03:
 		elandev->frame_margin = 0;
 		break;
+	case ELAN_0C1A:
 	case ELAN_0907:
 		elandev->frame_margin = 12;
 		break;
@@ -639,6 +640,7 @@ static const struct usb_id id_table[] = {
 	{.vendor = ELAN_VENDOR_ID,.product = 0x0903,.driver_data = ELAN_0903},
 	{.vendor = ELAN_VENDOR_ID,.product = 0x0907,.driver_data = ELAN_0907},
 	{.vendor = ELAN_VENDOR_ID,.product = 0x0c03,.driver_data = ELAN_0C03},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c1a,.driver_data = ELAN_0C1A},
 	{0, 0, 0,},
 };
 

@@ -30,8 +30,9 @@
 #define ELAN_0903 1
 #define ELAN_0907 (1 << 1)
 #define ELAN_0C03 (1 << 2)
+#define ELAN_0C1A (1 << 3)
 
-#define ELAN_ALL_DEVICES (ELAN_0903|ELAN_0907|ELAN_0C03)
+#define ELAN_ALL_DEVICES (ELAN_0903|ELAN_0907|ELAN_0C03|ELAN_0C1A)
 
 /* min and max frames in a capture */
 #define ELAN_MIN_FRAMES 7
@@ -75,13 +76,13 @@ static const struct elan_cmd init_start_cmds[] = {
 	 .cmd = {0x40, 0x19},
 	 .response_len = 0x2,
 	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
+	 .devices = ELAN_0907|ELAN_0C1A,
 	 },
 	{
 	 .cmd = {0x40, 0x2a},
 	 .response_len = 0x2,
 	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
+	 .devices = ELAN_0907|ELAN_0C1A,
 	 },
 };
 
@@ -106,7 +107,7 @@ static const struct elan_cmd init_end_cmds[] = {
 	 .cmd = {0x40, 0x24},
 	 .response_len = 0x2,
 	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
+	 .devices = ELAN_0907|ELAN_0C1A,
 	 },
 };
 
