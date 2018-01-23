@@ -53,15 +53,14 @@ struct elan_dev {
 	/* end device config */
 
 	/* commands */
-	const struct elan_cmd *cmds;
-	size_t cmds_len;
-	int cmd_idx;
+	const struct elan_cmd *cmd;
 	int cmd_timeout;
 	struct libusb_transfer *cur_transfer;
 	/* end commands */
 
 	/* state */
 	gboolean deactivating;
+	unsigned char calib_atts_left;
 	unsigned char *last_read;
 	unsigned char frame_width;
 	unsigned char frame_height;
@@ -79,8 +78,7 @@ static void elan_dev_reset(struct elan_dev *elandev)
 
 	elandev->deactivating = FALSE;
 
-	elandev->cmds = NULL;
-	elandev->cmd_idx = 0;
+	elandev->cmd = NULL;
 	elandev->cmd_timeout = ELAN_CMD_TIMEOUT;
 
 	g_free(elandev->last_read);
@@ -178,16 +176,8 @@ static void elan_submit_image(struct fp_img_dev *dev)
 
 static void elan_cmd_done(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct elan_dev *elandev = dev->priv;
-
 	fp_dbg("");
-
-	elandev->cmd_idx += 1;
-	if (elandev->cmd_idx < elandev->cmds_len)
-		elan_run_next_cmd(ssm);
-	else
-		fpi_ssm_next_state(ssm);
+	fpi_ssm_next_state(ssm);
 }
 
 static void elan_cmd_cb(struct libusb_transfer *transfer)
@@ -203,19 +193,16 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 	switch (transfer->status) {
 	case LIBUSB_TRANSFER_COMPLETED:
 		if (transfer->length != transfer->actual_length) {
-			fp_dbg("unexpected transfer length");
+			fp_dbg("transfer length error: expected %d, got %d",
+			       transfer->length, transfer->actual_length);
 			elan_dev_reset(elandev);
 			fpi_ssm_mark_aborted(ssm, -EPROTO);
 		} else if (transfer->endpoint & LIBUSB_ENDPOINT_IN)
 			/* just finished receiving */
 			elan_cmd_done(ssm);
-		else {
+		else
 			/* just finished sending */
-			if (elandev->cmds[elandev->cmd_idx].response_len)
-				elan_cmd_read(ssm);
-			else
-				elan_cmd_done(ssm);
-		}
+			elan_cmd_read(ssm);
 		break;
 	case LIBUSB_TRANSFER_CANCELLED:
 		fp_dbg("transfer cancelled");
@@ -223,7 +210,6 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 		break;
 	case LIBUSB_TRANSFER_TIMED_OUT:
 		fp_dbg("transfer timed out");
-		// elan_dev_reset(elandev);
 		fpi_ssm_mark_aborted(ssm, -ETIMEDOUT);
 		break;
 	default:
@@ -237,11 +223,17 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
-	int response_len = elandev->cmds[elandev->cmd_idx].response_len;
+	int response_len = elandev->cmd->response_len;
 
 	fp_dbg("");
 
-	if (elandev->cmds[elandev->cmd_idx].cmd == read_cmds[0].cmd)
+	if (!(elandev->cmd->response_len)) {
+		fp_dbg("skipping read, not expecting anything");
+		elan_cmd_done(ssm);
+		return;
+	}
+
+	if (elandev->cmd->cmd == get_image_cmd.cmd)
 		/* raw data has 2-byte "pixels" and the frame is vertical */
 		response_len =
 		    elandev->raw_frame_width * elandev->frame_width * 2;
@@ -257,27 +249,31 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 	elandev->last_read = g_malloc(response_len);
 
 	libusb_fill_bulk_transfer(transfer, dev->udev,
-				  elandev->cmds[elandev->cmd_idx].response_in,
-				  elandev->last_read, response_len, elan_cmd_cb,
-				  ssm, elandev->cmd_timeout);
+				  elandev->cmd->response_in, elandev->last_read,
+				  response_len, elan_cmd_cb, ssm,
+				  elandev->cmd_timeout);
 	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
 	int r = libusb_submit_transfer(transfer);
 	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);
 }
 
-static void elan_run_next_cmd(struct fpi_ssm *ssm)
+static void elan_run_cmd(struct fpi_ssm *ssm, const struct elan_cmd *cmd,
+			 int cmd_timeout)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
-	struct elan_cmd cmd = elandev->cmds[elandev->cmd_idx];
-	unsigned char *cmd_data = cmd.cmd;
 
-	fp_dbg("%02x%02x", cmd_data[0], cmd_data[1]);
+	fp_dbg("%02x%02x", cmd->cmd[0], cmd->cmd[1]);
 
-	if (!(cmd.devices & elandev->dev_type)) {
+	elandev->cmd = cmd;
+	if (cmd_timeout != -1)
+		elandev->cmd_timeout = cmd_timeout;
+
+	if (!(cmd->devices & elandev->dev_type)) {
 		fp_dbg("skipping for this device");
-		return elan_cmd_done(ssm);
+		elan_cmd_done(ssm);
+		return;
 	}
 
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
@@ -288,7 +284,7 @@ static void elan_run_next_cmd(struct fpi_ssm *ssm)
 	elandev->cur_transfer = transfer;
 
 	libusb_fill_bulk_transfer(transfer, dev->udev, ELAN_EP_CMD_OUT,
-				  cmd_data, ELAN_CMD_LEN, elan_cmd_cb, ssm,
+				  cmd->cmd, ELAN_CMD_LEN, elan_cmd_cb, ssm,
 				  elandev->cmd_timeout);
 	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
 	int r = libusb_submit_transfer(transfer);
@@ -296,39 +292,26 @@ static void elan_run_next_cmd(struct fpi_ssm *ssm)
 		fpi_ssm_mark_aborted(ssm, r);
 }
 
-static void elan_run_cmds(struct fpi_ssm *ssm, const struct elan_cmd *cmds,
-			  size_t cmds_len, int cmd_timeout)
-{
-	struct fp_img_dev *dev = ssm->priv;
-	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
-
-	elandev->cmds = cmds;
-	elandev->cmds_len = cmds_len;
-	elandev->cmd_idx = 0;
-	if (cmd_timeout != -1)
-		elandev->cmd_timeout = cmd_timeout;
-	elan_run_next_cmd(ssm);
-}
-
 enum deactivate_states {
 	DEACTIVATE,
 	DEACTIVATE_NUM_STATES,
 };
 
-static void elan_deactivate_run_state(struct fpi_ssm *ssm)
+static void deactivate_run_state(struct fpi_ssm *ssm)
 {
+	fp_dbg("");
+
 	switch (ssm->cur_state) {
 	case DEACTIVATE:
-		elan_run_cmds(ssm, deactivate_cmds, deactivate_cmds_len,
-			      ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, &stop_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	}
 }
 
 static void deactivate_complete(struct fpi_ssm *ssm)
 {
+	fp_dbg("");
+
 	struct fp_img_dev *dev = ssm->priv;
 
 	fpi_imgdev_deactivate_complete(dev);
@@ -342,45 +325,42 @@ static void elan_deactivate(struct fp_img_dev *dev)
 
 	elan_dev_reset(elandev);
 
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, elan_deactivate_run_state,
-					  DEACTIVATE_NUM_STATES);
+	struct fpi_ssm *ssm =
+	    fpi_ssm_new(dev->dev, deactivate_run_state, DEACTIVATE_NUM_STATES);
 	ssm->priv = dev;
 	fpi_ssm_start(ssm, deactivate_complete);
 }
 
 enum capture_states {
-	CAPTURE_START,
+	CAPTURE_LED_ON,
 	CAPTURE_WAIT_FINGER,
 	CAPTURE_READ_DATA,
-	CAPTURE_SAVE_FRAME,
+	CAPTURE_CHECK_ENOUGH_FRAMES,
 	CAPTURE_NUM_STATES,
 };
 
-static void elan_capture_run_state(struct fpi_ssm *ssm)
+static void capture_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
 	switch (ssm->cur_state) {
-	case CAPTURE_START:
-		elan_run_cmds(ssm, capture_start_cmds, capture_start_cmds_len,
-			      ELAN_CMD_TIMEOUT);
+	case CAPTURE_LED_ON:
+		elan_run_cmd(ssm, &led_on_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case CAPTURE_WAIT_FINGER:
-		elan_run_cmds(ssm, capture_wait_finger_cmds,
-			      capture_wait_finger_cmds_len, -1);
+		elan_run_cmd(ssm, &pre_scan_cmd, -1);
 		break;
 	case CAPTURE_READ_DATA:
 		/* 0x55 - finger present
-		 * 0xff - device not calibrated */
+		 * 0xff - device not calibrated (probably) */
 		if (elandev->last_read && elandev->last_read[0] == 0x55) {
 			fpi_imgdev_report_finger_status(dev, TRUE);
-			elan_run_cmds(ssm, read_cmds, read_cmds_len,
-				      ELAN_CMD_TIMEOUT);
+			elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		} else
 			fpi_ssm_mark_aborted(ssm, FP_VERIFY_RETRY);
 		break;
-	case CAPTURE_SAVE_FRAME:
+	case CAPTURE_CHECK_ENOUGH_FRAMES:
 		elan_save_frame(dev);
 		if (elandev->num_frames < ELAN_MAX_FRAMES) {
 			/* quickly stop if finger is removed */
@@ -444,37 +424,93 @@ static void elan_capture(struct fp_img_dev *dev)
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm =
-	    fpi_ssm_new(dev->dev, elan_capture_run_state, CAPTURE_NUM_STATES);
+	    fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
 	ssm->priv = dev;
 	fpi_ssm_start(ssm, capture_complete);
 }
 
+static void fpi_ssm_next_state_async(void *data)
+{
+	fpi_ssm_next_state((struct fpi_ssm *)data);
+}
+
+/* this function needs last_read to be the calibration mean and at least
+ * one frame */
+static int elan_need_calibration(struct elan_dev *elandev)
+{
+	fp_dbg("");
+
+	unsigned short calib_mean =
+	    elandev->last_read[0] * 0xff + elandev->last_read[1];
+	unsigned short *bg_data = ((GSList *) elandev->frames)->data;
+	unsigned int bg_mean = 0, delta;
+	unsigned int frame_size = elandev->frame_width * elandev->frame_height;
+
+	for (int i = 0; i < frame_size; i++)
+		bg_mean += bg_data[i];
+	bg_mean /= frame_size;
+
+	delta =
+	    bg_mean > calib_mean ? bg_mean - calib_mean : calib_mean - bg_mean;
+
+	fp_dbg("calibration mean: %d, bg mean: %d, delta: %d", calib_mean,
+	       bg_mean, delta);
+
+	return delta > ELAN_CALIBRATION_MAX_DELTA ? 1 : 0;
+}
+
 enum calibrate_states {
-	CALIBRATE_START_1,
-	CALIBRATE_READ_DATA_1,
-	CALIBRATE_END_1,
-	CALIBRATE_START_2,
-	CALIBRATE_READ_DATA_2,
-	CALIBRATE_END_2,
+	CALIBRATE_START,
+	CALIBRATE_CHECK_RESULT,
+	CALIBRATE_REPEAT,
+	CALIBRATE_GET_BACKGROUND,
+	CALIBRATE_SAVE_BACKGROUND,
+	CALIBRATE_GET_MEAN,
 	CALIBRATE_NUM_STATES,
 };
 
-static void elan_calibrate_run_state(struct fpi_ssm *ssm)
+static void alibrate_run_state(struct fpi_ssm *ssm)
 {
+	struct fp_img_dev *dev = ssm->priv;
+	struct elan_dev *elandev = dev->priv;
+
+	fp_dbg("");
+
 	switch (ssm->cur_state) {
-	case CALIBRATE_START_1:
-	case CALIBRATE_START_2:
-		elan_run_cmds(ssm, calibrate_start_cmds,
-			      calibrate_start_cmds_len, ELAN_CMD_TIMEOUT);
+	case CALIBRATE_START:
+		elandev->calib_atts_left -= 1;
+		if (elandev->calib_atts_left)
+			elan_run_cmd(ssm, &run_calibration_cmd,
+				     ELAN_CMD_TIMEOUT);
+		else {
+			fp_dbg("too many calibration attempts");
+			fpi_ssm_mark_aborted(ssm, -1);
+		}
 		break;
-	case CALIBRATE_READ_DATA_1:
-	case CALIBRATE_READ_DATA_2:
-		elan_run_cmds(ssm, read_cmds, read_cmds_len, ELAN_CMD_TIMEOUT);
+	case CALIBRATE_CHECK_RESULT:
+		/* 0x01 - retry, 0x03 - ok
+		 * but some devices send other responses so in order to avoid needless
+		 * retries we don't check 0x3 but only retry on 0x1 (need to wait 50 ms) */
+		fp_dbg("calibration status: 0x%02x", elandev->last_read[0]);
+		if (elandev->last_read[0] == 0x01) {
+			if (!fpi_timeout_add(50, fpi_ssm_next_state_async, ssm))
+				fpi_ssm_mark_aborted(ssm, -ETIME);
+		} else
+			fpi_ssm_jump_to_state(ssm, CALIBRATE_GET_BACKGROUND);
 		break;
-	case CALIBRATE_END_1:
-	case CALIBRATE_END_2:
-		elan_run_cmds(ssm, calibrate_end_cmds, calibrate_end_cmds_len,
-			      ELAN_CMD_TIMEOUT);
+	case CALIBRATE_REPEAT:
+		fpi_ssm_jump_to_state(ssm, CALIBRATE_START);
+		break;
+	case CALIBRATE_GET_BACKGROUND:
+		elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
+		break;
+	case CALIBRATE_SAVE_BACKGROUND:
+		elan_save_frame(dev);
+		fpi_ssm_next_state(ssm);
+		break;
+	case CALIBRATE_GET_MEAN:
+		elan_run_cmd(ssm, &get_calib_mean_cmd, ELAN_CMD_TIMEOUT);
+		break;
 	}
 }
 
@@ -488,11 +524,14 @@ static void calibrate_complete(struct fpi_ssm *ssm)
 	if (elandev->deactivating)
 		elan_deactivate(dev);
 	else if (ssm->error)
-		fpi_imgdev_session_error(dev, ssm->error);
-	else {
 		fpi_imgdev_activate_complete(dev, ssm->error);
+	else if (elan_need_calibration(elandev))
+		elan_calibrate(dev);
+	else {
+		fpi_imgdev_activate_complete(dev, 0);
 		elan_capture(dev);
 	}
+
 	fpi_ssm_free(ssm);
 }
 
@@ -503,48 +542,67 @@ static void elan_calibrate(struct fp_img_dev *dev)
 	fp_dbg("");
 
 	elan_dev_reset(elandev);
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, elan_calibrate_run_state,
-					  CALIBRATE_NUM_STATES);
+	struct fpi_ssm *ssm =
+	    fpi_ssm_new(dev->dev, alibrate_run_state, CALIBRATE_NUM_STATES);
 	ssm->priv = dev;
 	fpi_ssm_start(ssm, calibrate_complete);
 }
 
 enum activate_states {
+	ACTIVATE_GET_FW_VER,
+	ACTIVATE_PRINT_FW_VER,
 	ACTIVATE_GET_SENSOR_DIM,
 	ACTIVATE_SET_SENSOR_DIM,
-	ACTIVATE_START,
-	ACTIVATE_READ_DATA,
-	ACTIVATE_END,
+	ACTIVATE_CMD_1,
+	ACTIVATE_GET_BACKGROUND,
+	ACTIVATE_SAVE_BACKGROUND,
+	ACTIVATE_GET_MEAN,
 	ACTIVATE_NUM_STATES,
 };
 
-static void elan_activate_run_state(struct fpi_ssm *ssm)
+static void activate_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
+	fp_dbg("");
+
 	switch (ssm->cur_state) {
+	case ACTIVATE_GET_FW_VER:
+		elan_run_cmd(ssm, &get_fw_ver_cmd, ELAN_CMD_TIMEOUT);
+		break;
+	case ACTIVATE_PRINT_FW_VER:
+		fp_dbg("FW ver %d.%d", elandev->last_read[0],
+		       elandev->last_read[1]);
+		fpi_ssm_next_state(ssm);
+		break;
 	case ACTIVATE_GET_SENSOR_DIM:
-		elan_run_cmds(ssm, get_sensor_dim_cmds, get_sensor_dim_cmds_len,
-			      ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, &get_sensor_dim_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case ACTIVATE_SET_SENSOR_DIM:
 		elandev->frame_width = elandev->last_read[2];
 		elandev->raw_frame_width = elandev->last_read[0];
 		elandev->frame_height =
 		    elandev->raw_frame_width - 2 * elandev->frame_margin;
+		/* see elan_save_frame */
+		fp_dbg("sensor dimensions, WxH: %dx%d", elandev->frame_width,
+		       elandev->raw_frame_width);
 		fpi_ssm_next_state(ssm);
 		break;
-	case ACTIVATE_START:
-		elan_run_cmds(ssm, init_start_cmds, init_start_cmds_len,
-			      ELAN_CMD_TIMEOUT);
+	case ACTIVATE_CMD_1:
+		/* TODO: find out what this does, if we need it */
+		elan_run_cmd(ssm, &activate_cmd_1, ELAN_CMD_TIMEOUT);
 		break;
-	case ACTIVATE_READ_DATA:
-		elan_run_cmds(ssm, read_cmds, read_cmds_len, ELAN_CMD_TIMEOUT);
+	case ACTIVATE_GET_BACKGROUND:
+		elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		break;
-	case ACTIVATE_END:
-		elan_run_cmds(ssm, init_end_cmds, init_end_cmds_len,
-			      ELAN_CMD_TIMEOUT);
+	case ACTIVATE_SAVE_BACKGROUND:
+		elan_save_frame(dev);
+		fpi_ssm_next_state(ssm);
+		break;
+	case ACTIVATE_GET_MEAN:
+		elan_run_cmd(ssm, &get_calib_mean_cmd, ELAN_CMD_TIMEOUT);
+		break;
 	}
 }
 
@@ -558,13 +616,17 @@ static void activate_complete(struct fpi_ssm *ssm)
 	if (elandev->deactivating)
 		elan_deactivate(dev);
 	else if (ssm->error)
-		fpi_imgdev_session_error(dev, ssm->error);
-	else
+		fpi_imgdev_activate_complete(dev, ssm->error);
+	else if (elan_need_calibration(elandev))
 		elan_calibrate(dev);
+	else {
+		fpi_imgdev_activate_complete(dev, 0);
+		elan_capture(dev);
+	}
 	fpi_ssm_free(ssm);
 }
 
-static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
+static void elan_activate(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
 
@@ -572,11 +634,9 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm =
-	    fpi_ssm_new(dev->dev, elan_activate_run_state, ACTIVATE_NUM_STATES);
+	    fpi_ssm_new(dev->dev, activate_run_state, ACTIVATE_NUM_STATES);
 	ssm->priv = dev;
 	fpi_ssm_start(ssm, activate_complete);
-
-	return 0;
 }
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
@@ -594,6 +654,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	dev->priv = elandev = g_malloc0(sizeof(struct elan_dev));
 	elandev->dev_type = driver_data;
+	elandev->calib_atts_left = ELAN_CALIBRATION_ATTEMPTS;
 
 	switch (driver_data) {
 	case ELAN_0903:
@@ -609,6 +670,60 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	return 0;
 }
 
+enum reset_sensor_states {
+	RESET_SENSOR_DO_RESET,
+	RESET_SENSOR_WAIT,
+	RESET_SENSOR_FUSE_LOAD,
+	RESET_SENSOR_NUM_STATES,
+};
+
+static void reset_sensor_run_state(struct fpi_ssm *ssm)
+{
+	switch (ssm->cur_state) {
+	case RESET_SENSOR_DO_RESET:
+		elan_run_cmd(ssm, &reset_sensor_cmd, ELAN_CMD_TIMEOUT);
+		break;
+	case RESET_SENSOR_WAIT:
+		/* must wait 5 ms after sensor reset command */
+		if (!fpi_timeout_add(5, fpi_ssm_next_state_async, ssm))
+			fpi_ssm_mark_aborted(ssm, -ETIME);
+		break;
+	case RESET_SENSOR_FUSE_LOAD:
+		elan_run_cmd(ssm, &fuse_load_cmd, ELAN_CMD_TIMEOUT);
+		break;
+	}
+}
+
+static void reset_sensor_complete(struct fpi_ssm *ssm)
+{
+	struct fp_img_dev *dev = ssm->priv;
+	struct elan_dev *elandev = dev->priv;
+
+	fp_dbg("");
+
+	if (elandev->deactivating)
+		elan_deactivate(dev);
+	else if (ssm->error)
+		fpi_imgdev_activate_complete(dev, ssm->error);
+	else
+		elan_activate(dev);
+
+	fpi_ssm_free(ssm);
+}
+
+static void elan_reset_sensor(struct fp_img_dev *dev)
+{
+	struct elan_dev *elandev = dev->priv;
+
+	fp_dbg("");
+
+	elan_dev_reset(elandev);
+	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, reset_sensor_run_state,
+					  RESET_SENSOR_NUM_STATES);
+	ssm->priv = dev;
+	fpi_ssm_start(ssm, reset_sensor_complete);
+}
+
 static void dev_deinit(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
@@ -621,11 +736,15 @@ static void dev_deinit(struct fp_img_dev *dev)
 	fpi_imgdev_close_complete(dev);
 }
 
+static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
+{
+	elan_reset_sensor(dev);
+	return 0;
+}
+
 static void dev_deactivate(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
 
 	elandev->deactivating = TRUE;
 

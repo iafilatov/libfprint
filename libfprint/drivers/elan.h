@@ -30,8 +30,11 @@
 #define ELAN_0903 1
 #define ELAN_0907 (1 << 1)
 #define ELAN_0C03 (1 << 2)
+#define ELAN_0C16 (1 << 3)
+#define ELAN_0C1A (1 << 4)
+#define ELAN_0C26 (1 << 5)
 
-#define ELAN_ALL_DEVICES (ELAN_0903|ELAN_0907|ELAN_0C03)
+#define ELAN_ALL_DEVICES (ELAN_0903|ELAN_0907|ELAN_0C03|ELAN_0C16|ELAN_0C1A|ELAN_0C26)
 
 /* min and max frames in a capture */
 #define ELAN_MIN_FRAMES 7
@@ -40,6 +43,13 @@
 /* number of frames to drop at the end of capture because frames captured
  * while the finger is being lifted can be bad */
 #define ELAN_SKIP_LAST_FRAMES 1
+
+/* max difference between background image mean and calibration mean
+* (the response value of get_calib_mean_cmd)*/
+#define ELAN_CALIBRATION_MAX_DELTA 500
+
+/* times to retry calibration */
+#define ELAN_CALIBRATION_ATTEMPTS 10
 
 #define ELAN_CMD_LEN 0x2
 #define ELAN_EP_CMD_OUT (0x1 | LIBUSB_ENDPOINT_OUT)
@@ -58,136 +68,94 @@ struct elan_cmd {
 	unsigned short devices;
 };
 
-static const struct elan_cmd get_sensor_dim_cmds[] = {
-	{
-	 .cmd = {0x00, 0x0c},
-	 .response_len = 0x4,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_ALL_DEVICES,
-	 },
+static const struct elan_cmd get_sensor_dim_cmd = {
+	.cmd = {0x00, 0x0c},
+	.response_len = 0x4,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
 };
 
-static const size_t get_sensor_dim_cmds_len =
-array_n_elements(get_sensor_dim_cmds);
-
-static const struct elan_cmd init_start_cmds[] = {
-	{
-	 .cmd = {0x40, 0x19},
-	 .response_len = 0x2,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
-	 },
-	{
-	 .cmd = {0x40, 0x2a},
-	 .response_len = 0x2,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
-	 },
+static const struct elan_cmd get_fw_ver_cmd = {
+	.cmd = {0x40, 0x19},
+	.response_len = 0x2,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
 };
 
-static const size_t init_start_cmds_len = array_n_elements(init_start_cmds);
+/* unknown, returns 0x0 0x1 on 0907 */
+static const struct elan_cmd activate_cmd_1 = {
+	.cmd = {0x40, 0x2a},
+	.response_len = 0x2,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_0907,
+};
 
-static const struct elan_cmd read_cmds[] = {
+static const struct elan_cmd get_image_cmd = {
+	.cmd = {0x00, 0x09},
 	/* raw frame sizes are calculated from image dimensions reported by the
 	 * device */
-	{
-	 .cmd = {0x00, 0x09},
-	 .response_len = -1,
-	 .response_in = ELAN_EP_IMG_IN,
-	 .devices = ELAN_ALL_DEVICES,
-	 },
+	.response_len = -1,
+	.response_in = ELAN_EP_IMG_IN,
+	.devices = ELAN_ALL_DEVICES,
 };
 
-const size_t read_cmds_len = array_n_elements(read_cmds);
-
-/* issued after data reads during init and calibration */
-static const struct elan_cmd init_end_cmds[] = {
-	{
-	 .cmd = {0x40, 0x24},
-	 .response_len = 0x2,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
-	 },
+static const struct elan_cmd get_calib_mean_cmd = {
+	.cmd = {0x40, 0x24},
+	.response_len = 0x2,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
 };
 
-static const size_t init_end_cmds_len = array_n_elements(init_end_cmds);
-
-/* same command 2 times
- * original driver may observe return value to determine how many times it
- * should be repeated */
-static const struct elan_cmd calibrate_start_cmds[] = {
-	{
-	 .cmd = {0x40, 0x23},
-	 .response_len = 0x1,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
-	 },
-	{
-	 .cmd = {0x40, 0x23},
-	 .response_len = 0x1,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
-	 },
+static const struct elan_cmd reset_sensor_cmd = {
+	.cmd = {0x40, 0x11},
+	.response_len = 0x0,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
 };
 
-static const size_t calibrate_start_cmds_len =
-array_n_elements(calibrate_start_cmds);
-
-/* issued after data reads during init and calibration */
-static const struct elan_cmd calibrate_end_cmds[] = {
-	{
-	 .cmd = {0x40, 0x24},
-	 .response_len = 0x2,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
-	 },
+static const struct elan_cmd fuse_load_cmd = {
+	.cmd = {0x40, 0x14},
+	.response_len = 0x0,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
 };
 
-static const size_t calibrate_end_cmds_len =
-array_n_elements(calibrate_end_cmds);
-
-static const struct elan_cmd capture_start_cmds[] = {
-	/* led on */
-	{
-	 .cmd = {0x40, 0x31},
-	 .response_len = 0x0,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_0907,
-	 },
+static const struct elan_cmd run_calibration_cmd = {
+	.cmd = {0x40, 0x23},
+	.response_len = 0x1,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
 };
 
-static size_t capture_start_cmds_len = array_n_elements(capture_start_cmds);
-
-static const struct elan_cmd capture_wait_finger_cmds[] = {
-	/* wait for finger
-	 * subsequent read will not complete until finger is placed on the reader */
-	{
-	 .cmd = {0x40, 0x3f},
-	 .response_len = 0x1,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_ALL_DEVICES,
-	 },
+static const struct elan_cmd led_on_cmd = {
+	.cmd = {0x40, 0x31},
+	.response_len = 0x0,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_0907,
 };
 
-static size_t capture_wait_finger_cmds_len =
-array_n_elements(capture_wait_finger_cmds);
-
-static const struct elan_cmd deactivate_cmds[] = {
-	/* led off */
-	{
-	 .cmd = {0x00, 0x0b},
-	 .response_len = 0x0,
-	 .response_in = ELAN_EP_CMD_IN,
-	 .devices = ELAN_ALL_DEVICES,
-	 },
+/* wait for finger
+ * subsequent read will not complete until finger is placed on the reader */
+static const struct elan_cmd pre_scan_cmd = {
+	.cmd = {0x40, 0x3f},
+	.response_len = 0x1,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
 };
 
-static const size_t deactivate_cmds_len = array_n_elements(deactivate_cmds);
+/* led off, stop waiting for finger */
+static const struct elan_cmd stop_cmd = {
+	.cmd = {0x00, 0x0b},
+	.response_len = 0x0,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
+};
 
-static void elan_cmd_cb(struct libusb_transfer *transfer);
+static void elan_cmd_done(struct fpi_ssm *ssm);
 static void elan_cmd_read(struct fpi_ssm *ssm);
-static void elan_run_next_cmd(struct fpi_ssm *ssm);
 
+static void elan_calibrate(struct fp_img_dev *dev);
 static void elan_capture(struct fp_img_dev *dev);
+static void elan_deactivate(struct fp_img_dev *dev);
 
 #endif
