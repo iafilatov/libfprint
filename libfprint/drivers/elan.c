@@ -440,6 +440,11 @@ static int elan_need_calibration(struct elan_dev *elandev)
 {
 	fp_dbg("");
 
+	if (elandev->dev_type && ELAN_0903) {
+		fp_dbg("don't know how to calibrate this device");
+		return 0;
+	}
+
 	unsigned short calib_mean =
 	    elandev->last_read[0] * 0xff + elandev->last_read[1];
 	unsigned short *bg_data = ((GSList *) elandev->frames)->data;
@@ -469,7 +474,7 @@ enum calibrate_states {
 	CALIBRATE_NUM_STATES,
 };
 
-static void alibrate_run_state(struct fpi_ssm *ssm)
+static void calibrate_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
@@ -543,7 +548,7 @@ static void elan_calibrate(struct fp_img_dev *dev)
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm =
-	    fpi_ssm_new(dev->dev, alibrate_run_state, CALIBRATE_NUM_STATES);
+	    fpi_ssm_new(dev->dev, calibrate_run_state, CALIBRATE_NUM_STATES);
 	ssm->priv = dev;
 	fpi_ssm_start(ssm, calibrate_complete);
 }
@@ -653,14 +658,13 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	dev->priv = elandev = g_malloc0(sizeof(struct elan_dev));
+
+	/* common params */
 	elandev->dev_type = driver_data;
 	elandev->calib_atts_left = ELAN_CALIBRATION_ATTEMPTS;
+	elandev->frame_margin = 0;
 
 	switch (driver_data) {
-	case ELAN_0903:
-	case ELAN_0C03:
-		elandev->frame_margin = 0;
-		break;
 	case ELAN_0907:
 		elandev->frame_margin = 12;
 		break;
@@ -674,6 +678,7 @@ enum reset_sensor_states {
 	RESET_SENSOR_DO_RESET,
 	RESET_SENSOR_WAIT,
 	RESET_SENSOR_FUSE_LOAD,
+	RESET_SENSOR_STATUS,
 	RESET_SENSOR_NUM_STATES,
 };
 
@@ -690,6 +695,9 @@ static void reset_sensor_run_state(struct fpi_ssm *ssm)
 		break;
 	case RESET_SENSOR_FUSE_LOAD:
 		elan_run_cmd(ssm, &fuse_load_cmd, ELAN_CMD_TIMEOUT);
+		break;
+	case RESET_SENSOR_STATUS:
+		elan_run_cmd(ssm, &read_sensor_status_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	}
 }
@@ -758,6 +766,9 @@ static const struct usb_id id_table[] = {
 	{.vendor = ELAN_VENDOR_ID,.product = 0x0903,.driver_data = ELAN_0903},
 	{.vendor = ELAN_VENDOR_ID,.product = 0x0907,.driver_data = ELAN_0907},
 	{.vendor = ELAN_VENDOR_ID,.product = 0x0c03,.driver_data = ELAN_0C03},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c16,.driver_data = ELAN_0C16},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c1a,.driver_data = ELAN_0C1A},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c26,.driver_data = ELAN_0C26},
 	{0, 0, 0,},
 };
 

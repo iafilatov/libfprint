@@ -120,6 +120,13 @@ static const struct elan_cmd fuse_load_cmd = {
 	.devices = ELAN_ALL_DEVICES,
 };
 
+static const struct elan_cmd read_sensor_status_cmd = {
+	.cmd = {0x40, 0x13},
+	.response_len = 0x1,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
+};
+
 static const struct elan_cmd run_calibration_cmd = {
 	.cmd = {0x40, 0x23},
 	.response_len = 0x1,
