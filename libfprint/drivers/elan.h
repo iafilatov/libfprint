@@ -103,7 +103,7 @@ static const struct elan_cmd get_calib_mean_cmd = {
 	.cmd = {0x40, 0x24},
 	.response_len = 0x2,
 	.response_in = ELAN_EP_CMD_IN,
-	.devices = ELAN_ALL_DEVICES,
+	.devices = ELAN_ALL_DEVICES & ~ELAN_0903,
 };
 
 static const struct elan_cmd reset_sensor_cmd = {
