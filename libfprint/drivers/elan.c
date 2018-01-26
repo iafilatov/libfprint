@@ -440,7 +440,7 @@ static int elan_need_calibration(struct elan_dev *elandev)
 {
 	fp_dbg("");
 
-	if (elandev->dev_type && ELAN_0903) {
+	if (elandev->dev_type & ELAN_0903) {
 		fp_dbg("don't know how to calibrate this device");
 		return 0;
 	}
