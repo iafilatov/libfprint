@@ -47,9 +47,7 @@ static struct fpi_frame_asmbl_ctx assembling_ctx = {
 struct elan_dev {
 	/* device config */
 	unsigned short dev_type;
-	/* number of pixels to discard on left and right (along raw image height)
-	 * because they have different intensity from the rest of the frame */
-	unsigned char frame_margin;
+	unsigned short fw_ver;
 	/* end device config */
 
 	/* commands */
@@ -61,6 +59,7 @@ struct elan_dev {
 	/* state */
 	gboolean deactivating;
 	unsigned char calib_atts_left;
+	unsigned char calib_status;
 	unsigned char *last_read;
 	unsigned char frame_width;
 	unsigned char frame_height;
@@ -76,10 +75,11 @@ static void elan_dev_reset(struct elan_dev *elandev)
 
 	BUG_ON(elandev->cur_transfer);
 
-	elandev->deactivating = FALSE;
-
 	elandev->cmd = NULL;
 	elandev->cmd_timeout = ELAN_CMD_TIMEOUT;
+
+	elandev->deactivating = FALSE;
+	elandev->calib_status = 0;
 
 	g_free(elandev->last_read);
 	elandev->last_read = NULL;
@@ -103,11 +103,10 @@ static void elan_save_frame(struct fp_img_dev *dev)
 	 * normalized image, which means we need to make them horizontal before
 	 * assembling. We also discard stripes of 'frame_margin' along raw
 	 * height. */
+	unsigned char frame_margin = (raw_width - elandev->frame_height) / 2;
 	for (int y = 0; y < raw_height; y++)
-		for (int x = elandev->frame_margin;
-		     x < raw_width - elandev->frame_margin; x++) {
-			int frame_idx =
-			    y + (x - elandev->frame_margin) * raw_height;
+		for (int x = frame_margin; x < raw_width - frame_margin; x++) {
+			int frame_idx = y + (x - frame_margin) * raw_height;
 			int raw_idx = x + y * raw_width;
 			frame[frame_idx] =
 			    ((unsigned short *)elandev->last_read)[raw_idx];
@@ -227,7 +226,7 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 
 	fp_dbg("");
 
-	if (!(elandev->cmd->response_len)) {
+	if (elandev->cmd->response_len == ELAN_CMD_SKIP_READ) {
 		fp_dbg("skipping read, not expecting anything");
 		elan_cmd_done(ssm);
 		return;
@@ -264,13 +263,14 @@ static void elan_run_cmd(struct fpi_ssm *ssm, const struct elan_cmd *cmd,
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("%02x%02x", cmd->cmd[0], cmd->cmd[1]);
+	fp_dbg("%04hx", (cmd->cmd[0] << 8 | cmd->cmd[1]));
 
 	elandev->cmd = cmd;
 	if (cmd_timeout != -1)
 		elandev->cmd_timeout = cmd_timeout;
 
-	if (!(cmd->devices & elandev->dev_type)) {
+	if (elandev->dev_type && cmd->devices
+	    && !(cmd->devices & elandev->dev_type)) {
 		fp_dbg("skipping for this device");
 		elan_cmd_done(ssm);
 		return;
@@ -443,11 +443,6 @@ static int elan_need_calibration(struct elan_dev *elandev)
 {
 	fp_dbg("");
 
-	if (elandev->dev_type & ELAN_0903) {
-		fp_dbg("don't know how to calibrate this device");
-		return 0;
-	}
-
 	unsigned short calib_mean =
 	    elandev->last_read[0] * 0xff + elandev->last_read[1];
 	unsigned short *bg_data = ((GSList *) elandev->frames)->data;
@@ -468,12 +463,13 @@ static int elan_need_calibration(struct elan_dev *elandev)
 }
 
 enum calibrate_states {
-	CALIBRATE_START,
-	CALIBRATE_CHECK_RESULT,
-	CALIBRATE_REPEAT,
 	CALIBRATE_GET_BACKGROUND,
 	CALIBRATE_SAVE_BACKGROUND,
 	CALIBRATE_GET_MEAN,
+	CALIBRATE_CHECK_NEEDED,
+	CALIBRATE_GET_STATUS,
+	CALIBRATE_CHECK_STATUS,
+	CALIBRATE_REPEAT_STATUS,
 	CALIBRATE_NUM_STATES,
 };
 
@@ -485,30 +481,6 @@ static void calibrate_run_state(struct fpi_ssm *ssm)
 	fp_dbg("");
 
 	switch (ssm->cur_state) {
-	case CALIBRATE_START:
-		elandev->calib_atts_left -= 1;
-		if (elandev->calib_atts_left)
-			elan_run_cmd(ssm, &run_calibration_cmd,
-				     ELAN_CMD_TIMEOUT);
-		else {
-			fp_dbg("too many calibration attempts");
-			fpi_ssm_mark_aborted(ssm, -1);
-		}
-		break;
-	case CALIBRATE_CHECK_RESULT:
-		/* 0x01 - retry, 0x03 - ok
-		 * but some devices send other responses so in order to avoid needless
-		 * retries we don't check 0x3 but only retry on 0x1 (need to wait 50 ms) */
-		fp_dbg("calibration status: 0x%02x", elandev->last_read[0]);
-		if (elandev->last_read[0] == 0x01) {
-			if (!fpi_timeout_add(50, fpi_ssm_next_state_async, ssm))
-				fpi_ssm_mark_aborted(ssm, -ETIME);
-		} else
-			fpi_ssm_jump_to_state(ssm, CALIBRATE_GET_BACKGROUND);
-		break;
-	case CALIBRATE_REPEAT:
-		fpi_ssm_jump_to_state(ssm, CALIBRATE_START);
-		break;
 	case CALIBRATE_GET_BACKGROUND:
 		elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		break;
@@ -518,6 +490,46 @@ static void calibrate_run_state(struct fpi_ssm *ssm)
 		break;
 	case CALIBRATE_GET_MEAN:
 		elan_run_cmd(ssm, &get_calib_mean_cmd, ELAN_CMD_TIMEOUT);
+		break;
+	case CALIBRATE_CHECK_NEEDED:
+		if (elan_need_calibration(elandev)) {
+			elandev->calib_status = 0;
+			fpi_ssm_next_state(ssm);
+		} else
+			fpi_ssm_mark_completed(ssm);
+		break;
+	case CALIBRATE_GET_STATUS:
+		elandev->calib_atts_left -= 1;
+		if (elandev->calib_atts_left)
+			elan_run_cmd(ssm, &get_calib_status_cmd,
+				     ELAN_CMD_TIMEOUT);
+		else {
+			fp_dbg("calibration failed");
+			fpi_ssm_mark_aborted(ssm, -1);
+		}
+		break;
+	case CALIBRATE_CHECK_STATUS:
+		/* 0x01 - retry, 0x03 - ok
+		 * It appears that when reading the response soon after 0x4023 the device
+		 * can return 0x03, and only after some time (up to 100 ms) the response
+		 * changes to 0x01. It stays that way for some time and then changes back
+		 * to 0x03. Because of this we don't just expect 0x03, we want to see 0x01
+		 * first. This is to make sure that a full calibration loop has completed */
+		fp_dbg("calibration status: 0x%02x", elandev->last_read[0]);
+		if (elandev->calib_status == 0x01
+		    && elandev->last_read[0] == 0x03) {
+			elandev->calib_status = 0x03;
+			fpi_ssm_jump_to_state(ssm, CALIBRATE_GET_BACKGROUND);
+		} else {
+			if (elandev->calib_status == 0x00
+			    && elandev->last_read[0] == 0x01)
+				elandev->calib_status = 0x01;
+			if (!fpi_timeout_add(50, fpi_ssm_next_state_async, ssm))
+				fpi_ssm_mark_aborted(ssm, -ETIME);
+		}
+		break;
+	case CALIBRATE_REPEAT_STATUS:
+		fpi_ssm_jump_to_state(ssm, CALIBRATE_GET_STATUS);
 		break;
 	}
 }
@@ -533,8 +545,6 @@ static void calibrate_complete(struct fpi_ssm *ssm)
 		elan_deactivate(dev);
 	else if (ssm->error)
 		fpi_imgdev_activate_complete(dev, ssm->error);
-	else if (elan_need_calibration(elandev))
-		elan_calibrate(dev);
 	else {
 		fpi_imgdev_activate_complete(dev, 0);
 		elan_capture(dev);
@@ -547,24 +557,29 @@ static void elan_calibrate(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	if (elandev->fw_ver < ELAN_MIN_CALIBRATION_FW) {
+		fp_dbg("FW does not support calibration");
+		fpi_imgdev_activate_complete(dev, 0);
+		elan_capture(dev);
+	} else {
+		fp_dbg("");
 
-	elan_dev_reset(elandev);
-	struct fpi_ssm *ssm =
-	    fpi_ssm_new(dev->dev, calibrate_run_state, CALIBRATE_NUM_STATES);
-	ssm->priv = dev;
-	fpi_ssm_start(ssm, calibrate_complete);
+		elan_dev_reset(elandev);
+		elandev->calib_atts_left = ELAN_CALIBRATION_ATTEMPTS;
+
+		struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, calibrate_run_state,
+						  CALIBRATE_NUM_STATES);
+		ssm->priv = dev;
+		fpi_ssm_start(ssm, calibrate_complete);
+	}
 }
 
 enum activate_states {
 	ACTIVATE_GET_FW_VER,
-	ACTIVATE_PRINT_FW_VER,
+	ACTIVATE_SET_FW_VER,
 	ACTIVATE_GET_SENSOR_DIM,
 	ACTIVATE_SET_SENSOR_DIM,
 	ACTIVATE_CMD_1,
-	ACTIVATE_GET_BACKGROUND,
-	ACTIVATE_SAVE_BACKGROUND,
-	ACTIVATE_GET_MEAN,
 	ACTIVATE_NUM_STATES,
 };
 
@@ -579,9 +594,10 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	case ACTIVATE_GET_FW_VER:
 		elan_run_cmd(ssm, &get_fw_ver_cmd, ELAN_CMD_TIMEOUT);
 		break;
-	case ACTIVATE_PRINT_FW_VER:
-		fp_dbg("FW ver %d.%d", elandev->last_read[0],
-		       elandev->last_read[1]);
+	case ACTIVATE_SET_FW_VER:
+		elandev->fw_ver =
+		    (elandev->last_read[0] << 8 | elandev->last_read[1]);
+		fp_dbg("FW ver 0x%04hx", elandev->fw_ver);
 		fpi_ssm_next_state(ssm);
 		break;
 	case ACTIVATE_GET_SENSOR_DIM:
@@ -590,9 +606,11 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	case ACTIVATE_SET_SENSOR_DIM:
 		elandev->frame_width = elandev->last_read[2];
 		elandev->raw_frame_width = elandev->last_read[0];
-		elandev->frame_height =
-		    elandev->raw_frame_width - 2 * elandev->frame_margin;
-		/* see elan_save_frame */
+		if (elandev->raw_frame_width < ELAN_MAX_FRAME_HEIGHT)
+			elandev->frame_height = elandev->raw_frame_width;
+		else
+			elandev->frame_height = ELAN_MAX_FRAME_HEIGHT;
+		/* see elan_save_frame for why it's width x raw_width */
 		fp_dbg("sensor dimensions, WxH: %dx%d", elandev->frame_width,
 		       elandev->raw_frame_width);
 		fpi_ssm_next_state(ssm);
@@ -600,16 +618,6 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	case ACTIVATE_CMD_1:
 		/* TODO: find out what this does, if we need it */
 		elan_run_cmd(ssm, &activate_cmd_1, ELAN_CMD_TIMEOUT);
-		break;
-	case ACTIVATE_GET_BACKGROUND:
-		elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
-		break;
-	case ACTIVATE_SAVE_BACKGROUND:
-		elan_save_frame(dev);
-		fpi_ssm_next_state(ssm);
-		break;
-	case ACTIVATE_GET_MEAN:
-		elan_run_cmd(ssm, &get_calib_mean_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	}
 }
@@ -625,12 +633,9 @@ static void activate_complete(struct fpi_ssm *ssm)
 		elan_deactivate(dev);
 	else if (ssm->error)
 		fpi_imgdev_activate_complete(dev, ssm->error);
-	else if (elan_need_calibration(elandev))
+	else
 		elan_calibrate(dev);
-	else {
-		fpi_imgdev_activate_complete(dev, 0);
-		elan_capture(dev);
-	}
+
 	fpi_ssm_free(ssm);
 }
 
@@ -661,78 +666,10 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	dev->priv = elandev = g_malloc0(sizeof(struct elan_dev));
-
-	/* common params */
 	elandev->dev_type = driver_data;
-	elandev->calib_atts_left = ELAN_CALIBRATION_ATTEMPTS;
-	elandev->frame_margin = 0;
-
-	switch (driver_data) {
-	case ELAN_0907:
-		elandev->frame_margin = 12;
-		break;
-	}
 
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
-}
-
-enum reset_sensor_states {
-	RESET_SENSOR_DO_RESET,
-	RESET_SENSOR_WAIT,
-	RESET_SENSOR_FUSE_LOAD,
-	RESET_SENSOR_STATUS,
-	RESET_SENSOR_NUM_STATES,
-};
-
-static void reset_sensor_run_state(struct fpi_ssm *ssm)
-{
-	switch (ssm->cur_state) {
-	case RESET_SENSOR_DO_RESET:
-		elan_run_cmd(ssm, &reset_sensor_cmd, ELAN_CMD_TIMEOUT);
-		break;
-	case RESET_SENSOR_WAIT:
-		/* must wait 5 ms after sensor reset command */
-		if (!fpi_timeout_add(5, fpi_ssm_next_state_async, ssm))
-			fpi_ssm_mark_aborted(ssm, -ETIME);
-		break;
-	case RESET_SENSOR_FUSE_LOAD:
-		elan_run_cmd(ssm, &fuse_load_cmd, ELAN_CMD_TIMEOUT);
-		break;
-	case RESET_SENSOR_STATUS:
-		elan_run_cmd(ssm, &read_sensor_status_cmd, ELAN_CMD_TIMEOUT);
-		break;
-	}
-}
-
-static void reset_sensor_complete(struct fpi_ssm *ssm)
-{
-	struct fp_img_dev *dev = ssm->priv;
-	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
-
-	if (elandev->deactivating)
-		elan_deactivate(dev);
-	else if (ssm->error)
-		fpi_imgdev_activate_complete(dev, ssm->error);
-	else
-		elan_activate(dev);
-
-	fpi_ssm_free(ssm);
-}
-
-static void elan_reset_sensor(struct fp_img_dev *dev)
-{
-	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
-
-	elan_dev_reset(elandev);
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, reset_sensor_run_state,
-					  RESET_SENSOR_NUM_STATES);
-	ssm->priv = dev;
-	fpi_ssm_start(ssm, reset_sensor_complete);
 }
 
 static void dev_deinit(struct fp_img_dev *dev)
@@ -749,7 +686,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	elan_reset_sensor(dev);
+	elan_activate(dev);
 	return 0;
 }
 
@@ -766,12 +703,17 @@ static void dev_deactivate(struct fp_img_dev *dev)
 }
 
 static const struct usb_id id_table[] = {
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0903,.driver_data = ELAN_0903},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0903,.driver_data =
+	 ELAN_ALL_DEVICES},
 	{.vendor = ELAN_VENDOR_ID,.product = 0x0907,.driver_data = ELAN_0907},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0c03,.driver_data = ELAN_0C03},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0c16,.driver_data = ELAN_0C16},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0c1a,.driver_data = ELAN_0C1A},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0c26,.driver_data = ELAN_0C26},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c03,.driver_data =
+	 ELAN_ALL_DEVICES},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c16,.driver_data =
+	 ELAN_ALL_DEVICES},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c1a,.driver_data =
+	 ELAN_ALL_DEVICES},
+	{.vendor = ELAN_VENDOR_ID,.product = 0x0c26,.driver_data =
+	 ELAN_ALL_DEVICES},
 	{0, 0, 0,},
 };
 
