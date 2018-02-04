@@ -26,6 +26,7 @@
 #include <assembling.h>
 #include <fp_internal.h>
 #include <fprint.h>
+#include <stdlib.h>
 
 #include "elan.h"
 #include "driver_ids.h"
@@ -48,6 +49,7 @@ struct elan_dev {
 	/* device config */
 	unsigned short dev_type;
 	unsigned short fw_ver;
+	void (*process_frame) (unsigned short *raw_frame, GSList ** frames);
 	/* end device config */
 
 	/* commands */
@@ -58,9 +60,10 @@ struct elan_dev {
 
 	/* state */
 	gboolean deactivating;
+	unsigned char *last_read;
 	unsigned char calib_atts_left;
 	unsigned char calib_status;
-	unsigned char *last_read;
+	unsigned short *background;
 	unsigned char frame_width;
 	unsigned char frame_height;
 	unsigned char raw_frame_width;
@@ -68,6 +71,11 @@ struct elan_dev {
 	GSList *frames;
 	/* end state */
 };
+
+int cmp_short(const void *a, const void *b)
+{
+	return (int)(*(short *)a - *(short *)b);
+}
 
 static void elan_dev_reset(struct elan_dev *elandev)
 {
@@ -89,15 +97,12 @@ static void elan_dev_reset(struct elan_dev *elandev)
 	elandev->num_frames = 0;
 }
 
-static void elan_save_frame(struct fp_img_dev *dev)
+static void elan_save_frame(struct elan_dev *elandev, unsigned short *frame)
 {
-	struct elan_dev *elandev = dev->priv;
+	fp_dbg("");
+
 	unsigned char raw_height = elandev->frame_width;
 	unsigned char raw_width = elandev->raw_frame_width;
-	unsigned short *frame =
-	    g_malloc(elandev->frame_width * elandev->frame_height * 2);
-
-	fp_dbg("");
 
 	/* Raw images are vertical and perpendicular to swipe direction of a
 	 * normalized image, which means we need to make them horizontal before
@@ -111,20 +116,81 @@ static void elan_save_frame(struct fp_img_dev *dev)
 			frame[frame_idx] =
 			    ((unsigned short *)elandev->last_read)[raw_idx];
 		}
+}
+
+static void elan_save_background(struct elan_dev *elandev)
+{
+	fp_dbg("");
+
+	g_free(elandev->background);
+	elandev->background =
+	    g_malloc(elandev->frame_width * elandev->frame_height *
+		     sizeof(short));
+	elan_save_frame(elandev, elandev->background);
+}
+
+/* save a frame as part of the fingerprint image
+ * background needs to have been captured for this routine to work
+ * Elantech recommends 2-step non-linear normalization in order to reduce
+ * 2^14 ADC resolution to 2^8 image:
+ *
+ * 1. background is subtracted (done here)
+ *
+ * 2. pixels are grouped in 3 groups by intensity and each group is mapped
+ *    separately onto the normalized frame (done in elan_process_frame_*)
+ *    ==== 16383     ____> ======== 255
+ *                  /
+ *    ----- lvl3 __/
+ *                   35% pixels
+ *
+ *    ----- lvl2 --------> ======== 156
+ *
+ *                   30% pixels
+ *    ----- lvl1 --------> ======== 99
+ *
+ *                   35% pixels
+ *    ----- lvl0 __
+ *                 \
+ *    ======== 0    \____> ======== 0
+ *
+ * For some devices we don't do 2. but instead do a simple linear mapping
+ * because it seems to produce better results (or at least as good):
+ *    ==== 16383      ___> ======== 255
+ *                   /
+ *    ------ max  __/
+ *
+ *
+ *    ------ min  __
+ *                  \
+ *    ======== 0     \___> ======== 0
+ */
+static void elan_save_img_frame(struct elan_dev *elandev)
+{
+	fp_dbg("");
+
+	unsigned int frame_size = elandev->frame_width * elandev->frame_height;
+	unsigned short *frame = g_malloc(frame_size * sizeof(short));
+	elan_save_frame(elandev, frame);
+
+	for (int i = 0; i < frame_size; i++)
+		if (elandev->background[i] > frame[i])
+			frame[i] = 0;
+		else
+			frame[i] -= elandev->background[i];
 
 	elandev->frames = g_slist_prepend(elandev->frames, frame);
 	elandev->num_frames += 1;
 }
 
-/* Transform raw sesnsor data to normalized 8-bit grayscale image. */
-static void elan_process_frame(unsigned short *raw_frame, GSList ** frames)
+static void elan_process_frame_linear(unsigned short *raw_frame,
+				      GSList ** frames)
 {
+	fp_dbg("");
+
 	unsigned int frame_size =
 	    assembling_ctx.frame_width * assembling_ctx.frame_height;
 	struct fpi_frame *frame =
 	    g_malloc(frame_size + sizeof(struct fpi_frame));
-
-	fp_dbg("");
 
 	unsigned short min = 0xffff, max = 0;
 	for (int i = 0; i < frame_size; i++) {
@@ -137,12 +203,42 @@ static void elan_process_frame(unsigned short *raw_frame, GSList ** frames)
 	unsigned short px;
 	for (int i = 0; i < frame_size; i++) {
 		px = raw_frame[i];
-		if (px <= min)
-			px = 0;
-		else if (px >= max)
-			px = 0xff;
-		else
-			px = (px - min) * 0xff / (max - min);
+		px = (px - min) * 0xff / (max - min);
+		frame->data[i] = (unsigned char)px;
+	}
+
+	*frames = g_slist_prepend(*frames, frame);
+}
+
+static void elan_process_frame_thirds(unsigned short *raw_frame,
+				      GSList ** frames)
+{
+	fp_dbg("");
+
+	unsigned int frame_size =
+	    assembling_ctx.frame_width * assembling_ctx.frame_height;
+	struct fpi_frame *frame =
+	    g_malloc(frame_size + sizeof(struct fpi_frame));
+
+	unsigned short lvl0, lvl1, lvl2, lvl3;
+	unsigned short *sorted = g_malloc(frame_size * sizeof(short));
+	memcpy(sorted, raw_frame, frame_size * sizeof(short));
+	qsort(sorted, frame_size, sizeof(short), cmp_short);
+	lvl0 = sorted[0];
+	lvl1 = sorted[frame_size * 3 / 10];
+	lvl2 = sorted[frame_size * 65 / 100];
+	lvl3 = sorted[frame_size - 1];
+	g_free(sorted);
+
+	unsigned short px;
+	for (int i = 0; i < frame_size; i++) {
+		px = raw_frame[i];
+		if (lvl0 <= px && px < lvl1)
+			px = (px - lvl0) * 99 / (lvl1 - lvl0);
+		else if (lvl1 <= px && px < lvl2)
+			px = 99 + ((px - lvl1) * 56 / (lvl2 - lvl1));
+		else		// (lvl2 <= px && px <= lvl3)
+			px = 155 + ((px - lvl2) * 100 / (lvl3 - lvl2));
 		frame->data[i] = (unsigned char)px;
 	}
 
@@ -151,11 +247,11 @@ static void elan_process_frame(unsigned short *raw_frame, GSList ** frames)
 
 static void elan_submit_image(struct fp_img_dev *dev)
 {
+	fp_dbg("");
+
 	struct elan_dev *elandev = dev->priv;
 	GSList *frames = NULL;
 	struct fp_img *img;
-
-	fp_dbg("");
 
 	for (int i = 0; i < ELAN_SKIP_LAST_FRAMES; i++)
 		elandev->frames = g_slist_next(elandev->frames);
@@ -163,11 +259,13 @@ static void elan_submit_image(struct fp_img_dev *dev)
 	assembling_ctx.frame_width = elandev->frame_width;
 	assembling_ctx.frame_height = elandev->frame_height;
 	assembling_ctx.image_width = elandev->frame_width * 3 / 2;
-	g_slist_foreach(elandev->frames, (GFunc) elan_process_frame, &frames);
+	g_slist_foreach(elandev->frames, (GFunc) elandev->process_frame,
+			&frames);
 	fpi_do_movement_estimation(&assembling_ctx, frames,
 				   elandev->num_frames - ELAN_SKIP_LAST_FRAMES);
-	img = fpi_assemble_frames(&assembling_ctx, frames,
-				  elandev->num_frames - ELAN_SKIP_LAST_FRAMES);
+	img =
+	    fpi_assemble_frames(&assembling_ctx, frames,
+				elandev->num_frames - ELAN_SKIP_LAST_FRAMES);
 
 	img->flags |= FP_IMG_PARTIAL;
 	fpi_imgdev_image_captured(dev, img);
@@ -181,11 +279,11 @@ static void elan_cmd_done(struct fpi_ssm *ssm)
 
 static void elan_cmd_cb(struct libusb_transfer *transfer)
 {
+	fp_dbg("");
+
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
 
 	elandev->cur_transfer = NULL;
 
@@ -220,11 +318,11 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 
 static void elan_cmd_read(struct fpi_ssm *ssm)
 {
+	fp_dbg("");
+
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 	int response_len = elandev->cmd->response_len;
-
-	fp_dbg("");
 
 	if (elandev->cmd->response_len == ELAN_CMD_SKIP_READ) {
 		fp_dbg("skipping read, not expecting anything");
@@ -260,10 +358,10 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 static void elan_run_cmd(struct fpi_ssm *ssm, const struct elan_cmd *cmd,
 			 int cmd_timeout)
 {
+	fp_dbg("%04hx", (cmd->cmd[0] << 8 | cmd->cmd[1]));
+
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("%04hx", (cmd->cmd[0] << 8 | cmd->cmd[1]));
 
 	elandev->cmd = cmd;
 	if (cmd_timeout != -1)
@@ -319,9 +417,9 @@ static void deactivate_complete(struct fpi_ssm *ssm)
 
 static void elan_deactivate(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
-
 	fp_dbg("");
+
+	struct elan_dev *elandev = dev->priv;
 
 	elan_dev_reset(elandev);
 
@@ -361,7 +459,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, FP_VERIFY_RETRY);
 		break;
 	case CAPTURE_CHECK_ENOUGH_FRAMES:
-		elan_save_frame(dev);
+		elan_save_img_frame(elandev);
 		if (elandev->num_frames < ELAN_MAX_FRAMES) {
 			/* quickly stop if finger is removed */
 			elandev->cmd_timeout = ELAN_FINGER_TIMEOUT;
@@ -380,10 +478,10 @@ static void elan_capture_async(void *data)
 
 static void capture_complete(struct fpi_ssm *ssm)
 {
+	fp_dbg("");
+
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
 
 	if (elandev->deactivating)
 		elan_deactivate(dev);
@@ -421,9 +519,9 @@ static void capture_complete(struct fpi_ssm *ssm)
 
 static void elan_capture(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
-
 	fp_dbg("");
+
+	struct elan_dev *elandev = dev->priv;
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm =
@@ -437,20 +535,19 @@ static void fpi_ssm_next_state_async(void *data)
 	fpi_ssm_next_state((struct fpi_ssm *)data);
 }
 
-/* this function needs last_read to be the calibration mean and at least
- * one frame */
+/* this function needs to have elandev->background and elandev->last_read to be
+ * the calibration mean */
 static int elan_need_calibration(struct elan_dev *elandev)
 {
 	fp_dbg("");
 
 	unsigned short calib_mean =
 	    elandev->last_read[0] * 0xff + elandev->last_read[1];
-	unsigned short *bg_data = ((GSList *) elandev->frames)->data;
 	unsigned int bg_mean = 0, delta;
 	unsigned int frame_size = elandev->frame_width * elandev->frame_height;
 
 	for (int i = 0; i < frame_size; i++)
-		bg_mean += bg_data[i];
+		bg_mean += elandev->background[i];
 	bg_mean /= frame_size;
 
 	delta =
@@ -478,15 +575,17 @@ static void calibrate_run_state(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
-
 	switch (ssm->cur_state) {
 	case CALIBRATE_GET_BACKGROUND:
 		elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case CALIBRATE_SAVE_BACKGROUND:
-		elan_save_frame(dev);
-		fpi_ssm_next_state(ssm);
+		elan_save_background(elandev);
+		if (elandev->fw_ver < ELAN_MIN_CALIBRATION_FW) {
+			fp_dbg("FW does not support calibration");
+			fpi_ssm_mark_completed(ssm);
+		} else
+			fpi_ssm_next_state(ssm);
 		break;
 	case CALIBRATE_GET_MEAN:
 		elan_run_cmd(ssm, &get_calib_mean_cmd, ELAN_CMD_TIMEOUT);
@@ -536,10 +635,10 @@ static void calibrate_run_state(struct fpi_ssm *ssm)
 
 static void calibrate_complete(struct fpi_ssm *ssm)
 {
+	fp_dbg("");
+
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
 
 	if (elandev->deactivating)
 		elan_deactivate(dev);
@@ -555,23 +654,17 @@ static void calibrate_complete(struct fpi_ssm *ssm)
 
 static void elan_calibrate(struct fp_img_dev *dev)
 {
+	fp_dbg("");
+
 	struct elan_dev *elandev = dev->priv;
 
-	if (elandev->fw_ver < ELAN_MIN_CALIBRATION_FW) {
-		fp_dbg("FW does not support calibration");
-		fpi_imgdev_activate_complete(dev, 0);
-		elan_capture(dev);
-	} else {
-		fp_dbg("");
+	elan_dev_reset(elandev);
+	elandev->calib_atts_left = ELAN_CALIBRATION_ATTEMPTS;
 
-		elan_dev_reset(elandev);
-		elandev->calib_atts_left = ELAN_CALIBRATION_ATTEMPTS;
-
-		struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, calibrate_run_state,
-						  CALIBRATE_NUM_STATES);
-		ssm->priv = dev;
-		fpi_ssm_start(ssm, calibrate_complete);
-	}
+	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, calibrate_run_state,
+					  CALIBRATE_NUM_STATES);
+	ssm->priv = dev;
+	fpi_ssm_start(ssm, calibrate_complete);
 }
 
 enum activate_states {
@@ -587,8 +680,6 @@ static void activate_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
 
 	switch (ssm->cur_state) {
 	case ACTIVATE_GET_FW_VER:
@@ -624,10 +715,10 @@ static void activate_run_state(struct fpi_ssm *ssm)
 
 static void activate_complete(struct fpi_ssm *ssm)
 {
+	fp_dbg("");
+
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
-
-	fp_dbg("");
 
 	if (elandev->deactivating)
 		elan_deactivate(dev);
@@ -641,11 +732,11 @@ static void activate_complete(struct fpi_ssm *ssm)
 
 static void elan_activate(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
-
 	fp_dbg("");
 
+	struct elan_dev *elandev = dev->priv;
 	elan_dev_reset(elandev);
+
 	struct fpi_ssm *ssm =
 	    fpi_ssm_new(dev->dev, activate_run_state, ACTIVATE_NUM_STATES);
 	ssm->priv = dev;
@@ -654,12 +745,11 @@ static void elan_activate(struct fp_img_dev *dev)
 
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
-	struct elan_dev *elandev;
-	int r;
-
 	fp_dbg("");
 
-	r = libusb_claim_interface(dev->udev, 0);
+	struct elan_dev *elandev;
+
+	int r = libusb_claim_interface(dev->udev, 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
@@ -667,6 +757,14 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	dev->priv = elandev = g_malloc0(sizeof(struct elan_dev));
 	elandev->dev_type = driver_data;
+	elandev->background = NULL;
+	elandev->process_frame = elan_process_frame_thirds;
+
+	switch (driver_data) {
+	case ELAN_0907:
+		elandev->process_frame = elan_process_frame_linear;
+		break;
+	}
 
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
@@ -674,11 +772,12 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
-
 	fp_dbg("");
 
+	struct elan_dev *elandev = dev->priv;
+
 	elan_dev_reset(elandev);
+	g_free(elandev->background);
 	g_free(elandev);
 	libusb_release_interface(dev->udev, 0);
 	fpi_imgdev_close_complete(dev);
@@ -686,12 +785,15 @@ static void dev_deinit(struct fp_img_dev *dev)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
+	fp_dbg("");
 	elan_activate(dev);
 	return 0;
 }
 
 static void dev_deactivate(struct fp_img_dev *dev)
 {
+	fp_dbg("");
+
 	struct elan_dev *elandev = dev->priv;
 
 	elandev->deactivating = TRUE;
