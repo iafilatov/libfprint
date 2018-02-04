@@ -804,27 +804,12 @@ static void dev_deactivate(struct fp_img_dev *dev)
 		elan_deactivate(dev);
 }
 
-static const struct usb_id id_table[] = {
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0903,.driver_data =
-	 ELAN_ALL_DEVICES},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0907,.driver_data = ELAN_0907},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0c03,.driver_data =
-	 ELAN_ALL_DEVICES},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0c16,.driver_data =
-	 ELAN_ALL_DEVICES},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0c1a,.driver_data =
-	 ELAN_ALL_DEVICES},
-	{.vendor = ELAN_VENDOR_ID,.product = 0x0c26,.driver_data =
-	 ELAN_ALL_DEVICES},
-	{0, 0, 0,},
-};
-
 struct fp_img_driver elan_driver = {
 	.driver = {
 		   .id = ELAN_ID,
 		   .name = FP_COMPONENT,
 		   .full_name = "ElanTech Fingerprint Sensor",
-		   .id_table = id_table,
+		   .id_table = elan_id_table,
 		   .scan_type = FP_SCAN_TYPE_SWIPE,
 		   },
 	.flags = 0,
