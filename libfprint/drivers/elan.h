@@ -48,7 +48,7 @@
 #define ELAN_MAX_FRAMES 30
 
 /* crop frames to this height to improve stitching */
-#define ELAN_MAX_FRAME_HEIGHT 30
+#define ELAN_MAX_FRAME_HEIGHT 50
 
 /* number of frames to drop at the end of capture because frames captured
  * while the finger is being lifted can be bad */
