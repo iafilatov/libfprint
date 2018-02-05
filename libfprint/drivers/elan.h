@@ -130,7 +130,7 @@ static const struct elan_cmd led_on_cmd = {
 	.cmd = {0x40, 0x31},
 	.response_len = ELAN_CMD_SKIP_READ,
 	.response_in = ELAN_EP_CMD_IN,
-	.devices = ELAN_0907,
+	.devices = ELAN_ALL_DEV,
 };
 
 /* wait for finger
@@ -213,5 +213,7 @@ static void elan_cmd_read(struct fpi_ssm *ssm);
 static void elan_calibrate(struct fp_img_dev *dev);
 static void elan_capture(struct fp_img_dev *dev);
 static void elan_deactivate(struct fp_img_dev *dev);
+
+static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state);
 
 #endif

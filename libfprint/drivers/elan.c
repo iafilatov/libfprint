@@ -69,7 +69,8 @@ struct elan_dev {
 	/* end commands */
 
 	/* state */
-	gboolean deactivating;
+	enum fp_imgdev_state dev_state;
+	enum fp_imgdev_state dev_state_next;
 	unsigned char *last_read;
 	unsigned char calib_atts_left;
 	unsigned char calib_status;
@@ -96,7 +97,6 @@ static void elan_dev_reset(struct elan_dev *elandev)
 	elandev->cmd = NULL;
 	elandev->cmd_timeout = ELAN_CMD_TIMEOUT;
 
-	elandev->deactivating = FALSE;
 	elandev->calib_status = 0;
 
 	g_free(elandev->last_read);
@@ -314,6 +314,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 	case LIBUSB_TRANSFER_CANCELLED:
 		fp_dbg("transfer cancelled");
 		fpi_ssm_mark_aborted(ssm, -ECANCELED);
+		elan_deactivate(dev);
 		break;
 	case LIBUSB_TRANSFER_TIMED_OUT:
 		fp_dbg("transfer timed out");
@@ -377,8 +378,7 @@ static void elan_run_cmd(struct fpi_ssm *ssm, const struct elan_cmd *cmd,
 	if (cmd_timeout != -1)
 		elandev->cmd_timeout = cmd_timeout;
 
-	if (elandev->dev_type && cmd->devices
-	    && !(cmd->devices & elandev->dev_type)) {
+	if (cmd->devices != ELAN_ALL_DEV && !(cmd->devices & elandev->dev_type)) {
 		fp_dbg("skipping for this device");
 		elan_cmd_done(ssm);
 		return;
@@ -463,10 +463,11 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		/* 0x55 - finger present
 		 * 0xff - device not calibrated (probably) */
 		if (elandev->last_read && elandev->last_read[0] == 0x55) {
-			fpi_imgdev_report_finger_status(dev, TRUE);
+			if (elandev->dev_state == IMGDEV_STATE_AWAIT_FINGER_ON)
+				fpi_imgdev_report_finger_status(dev, TRUE);
 			elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		} else
-			fpi_ssm_mark_aborted(ssm, FP_VERIFY_RETRY);
+			fpi_ssm_mark_aborted(ssm, -EBADMSG);
 		break;
 	case CAPTURE_CHECK_ENOUGH_FRAMES:
 		elan_save_img_frame(elandev);
@@ -481,11 +482,6 @@ static void capture_run_state(struct fpi_ssm *ssm)
 	}
 }
 
-static void elan_capture_async(void *data)
-{
-	elan_capture((struct fp_img_dev *)data);
-}
-
 static void capture_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
@@ -493,36 +489,38 @@ static void capture_complete(struct fpi_ssm *ssm)
 
 	G_DEBUG_HERE();
 
-	if (elandev->deactivating)
-		elan_deactivate(dev);
+	if (fpi_ssm_get_error(ssm) == -ECANCELED) {
+		fpi_ssm_free(ssm);
+		return;
+	}
 
 	/* either max frames captured or timed out waiting for the next frame */
-	else if (!fpi_ssm_get_error(ssm)
-		 || (fpi_ssm_get_error(ssm) == -ETIMEDOUT
-		     && fpi_ssm_get_cur_state(ssm) == CAPTURE_WAIT_FINGER))
-		if (elandev->num_frames >= ELAN_MIN_FRAMES) {
+	if (!fpi_ssm_get_error(ssm)
+	    || (fpi_ssm_get_error(ssm) == -ETIMEDOUT
+		&& fpi_ssm_get_cur_state(ssm) == CAPTURE_WAIT_FINGER))
+		if (elandev->num_frames >= ELAN_MIN_FRAMES)
 			elan_submit_image(dev);
-			fpi_imgdev_report_finger_status(dev, FALSE);
-		} else {
+		else {
 			fp_dbg("swipe too short: want >= %d frames, got %d",
 			       ELAN_MIN_FRAMES, elandev->num_frames);
-			fpi_imgdev_session_error(dev,
-						 FP_VERIFY_RETRY_TOO_SHORT);
+			fpi_imgdev_abort_scan(dev, FP_VERIFY_RETRY_TOO_SHORT);
 		}
 
 	/* other error
-	 * It says "...session_error" but repotring 1 during verification
-	 * makes it successful! */
+	 * It says "...abort_scan" but reporting 1 during verification makes it
+	 * successful! */
 	else
-		fpi_imgdev_session_error(dev, FP_VERIFY_NO_MATCH);
+		fpi_imgdev_abort_scan(dev, fpi_ssm_get_error(ssm));
 
-	/* When enrolling the lib won't restart the capture after a stage has
-	 * completed, so we need to keep feeding it images till it's had enough.
-	 * But after that it can't finalize enrollemnt until this callback exits.
-	 * That's why we schedule elan_capture instead of running it directly. */
-	if (fpi_dev_get_dev_state(fpi_imgdev_get_dev(dev)) == DEV_STATE_ENROLLING
-	    && !fpi_timeout_add(10, elan_capture_async, dev))
-		fpi_imgdev_session_error(dev, -ETIME);
+	/* this procedure must be called regardless of outcome because it advances
+	 * dev_state to AWAIT_FINGER_ON under the hood... */
+	fpi_imgdev_report_finger_status(dev, FALSE);
+
+	/* ...but only on enroll! If verify or identify fails because of short swipe,
+	 * we need to do it manually. It feels like libfprint or the application
+	 * should know better if they want to retry, but they don't. */
+	if (elandev->dev_state != IMGDEV_STATE_INACTIVE)
+		dev_change_state(dev, IMGDEV_STATE_AWAIT_FINGER_ON);
 
 	fpi_ssm_free(ssm);
 }
@@ -648,18 +646,12 @@ static void calibrate_run_state(struct fpi_ssm *ssm)
 static void calibrate_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
-	if (elandev->deactivating)
-		elan_deactivate(dev);
-	else if (fpi_ssm_get_error(ssm))
+
+	if (fpi_ssm_get_error(ssm) != -ECANCELED)
 		fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
-	else {
-		fpi_imgdev_activate_complete(dev, 0);
-		elan_capture(dev);
-	}
 
 	fpi_ssm_free(ssm);
 }
@@ -730,16 +722,15 @@ static void activate_run_state(struct fpi_ssm *ssm)
 static void activate_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
-	if (elandev->deactivating)
-		elan_deactivate(dev);
-	else if (fpi_ssm_get_error(ssm))
-		fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
-	else
-		elan_calibrate(dev);
+	if (fpi_ssm_get_error(ssm) != -ECANCELED) {
+		if (fpi_ssm_get_error(ssm))
+			fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
+		else
+			elan_calibrate(dev);
+	}
 
 	fpi_ssm_free(ssm);
 }
@@ -808,18 +799,80 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	return 0;
 }
 
-static void dev_deactivate(struct fp_img_dev *dev)
+static void elan_change_state(struct fp_img_dev *dev)
+{
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
+	enum fp_imgdev_state next_state = elandev->dev_state_next;
+
+	if (elandev->dev_state == next_state) {
+		fp_dbg("already in %d", next_state);
+		return;
+	} else
+		fp_dbg("changing to %d", next_state);
+
+	switch (next_state) {
+	case IMGDEV_STATE_INACTIVE:
+		if (elandev->cur_transfer)
+			/* deactivation will complete in transfer callback */
+			libusb_cancel_transfer(elandev->cur_transfer);
+		else
+			elan_deactivate(dev);
+		break;
+	case IMGDEV_STATE_AWAIT_FINGER_ON:
+		/* activation completed or another enroll stage started */
+		elan_capture(dev);
+		break;
+	case IMGDEV_STATE_CAPTURE:
+	case IMGDEV_STATE_AWAIT_FINGER_OFF:
+		break;
+	}
+
+	elandev->dev_state = next_state;
+}
+
+static void elan_change_state_async(void *data)
+{
+	elan_change_state((struct fp_img_dev *)data);
+}
+
+static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
-	elandev->deactivating = TRUE;
+	switch (state) {
+	case IMGDEV_STATE_INACTIVE:
+	case IMGDEV_STATE_AWAIT_FINGER_ON:
+		/* schedule state change instead of calling it directly to allow all actions
+		 * related to the previous state to complete */
+		elandev->dev_state_next = state;
+		if (!fpi_timeout_add(10, elan_change_state_async, dev)) {
+			fpi_imgdev_session_error(dev, -ETIME);
+			return -ETIME;
+		}
+		break;
+	case IMGDEV_STATE_CAPTURE:
+	case IMGDEV_STATE_AWAIT_FINGER_OFF:
+		/* TODO MAYBE: split capture ssm into smaller ssms and use these states */
+		elandev->dev_state = state;
+		elandev->dev_state_next = state;
+		break;
+	default:
+		fp_err("unrecognized state %d", state);
+		fpi_imgdev_session_error(dev, -EINVAL);
+		return -EINVAL;
+	}
 
-	if (elandev->cur_transfer)
-		libusb_cancel_transfer(elandev->cur_transfer);
-	else
-		elan_deactivate(dev);
+	/* as of time of writing libfprint never checks the return value */
+	return 0;
+}
+
+static void dev_deactivate(struct fp_img_dev *dev)
+{
+	G_DEBUG_HERE();
+
+	dev_change_state(dev, IMGDEV_STATE_INACTIVE);
 }
 
 struct fp_img_driver elan_driver = {
@@ -838,4 +891,5 @@ struct fp_img_driver elan_driver = {
 	.close = dev_deinit,
 	.activate = dev_activate,
 	.deactivate = dev_deactivate,
+	.change_state = dev_change_state,
 };
