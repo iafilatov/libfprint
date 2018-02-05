@@ -384,8 +384,7 @@ static void elan_run_cmd(struct fpi_ssm *ssm, const struct elan_cmd *cmd,
 	if (cmd_timeout != -1)
 		elandev->cmd_timeout = cmd_timeout;
 
-	if (elandev->dev_type && cmd->devices
-	    && !(cmd->devices & elandev->dev_type)) {
+	if (cmd->devices != ELAN_ALL_DEV && !(cmd->devices & elandev->dev_type)) {
 		fp_dbg("skipping for this device");
 		elan_cmd_done(ssm);
 		return;

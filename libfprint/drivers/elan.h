@@ -130,7 +130,7 @@ static const struct elan_cmd led_on_cmd = {
 	.cmd = {0x40, 0x31},
 	.response_len = ELAN_CMD_SKIP_READ,
 	.response_in = ELAN_EP_CMD_IN,
-	.devices = ELAN_0907,
+	.devices = ELAN_ALL_DEV,
 };
 
 /* wait for finger
