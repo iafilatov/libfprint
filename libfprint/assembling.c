@@ -280,10 +280,17 @@ struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 	do {
 		fpi_frame = stripe->data;
 
-		y += fpi_frame->delta_y;
-		x += fpi_frame->delta_x;
+		if(reverse) {
+			y += fpi_frame->delta_y;
+			x += fpi_frame->delta_x;
+		}
 
 		aes_blit_stripe(ctx, img, fpi_frame, x, y);
+
+		if(!reverse) {
+			y += fpi_frame->delta_y;
+			x += fpi_frame->delta_x;
+		}
 
 		stripe = g_slist_next(stripe);
 		i++;
