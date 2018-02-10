@@ -132,8 +132,8 @@ static unsigned int do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
 
 		if (reverse) {
 			find_overlap(ctx, prev_stripe, cur_stripe, &min_error);
-			prev_stripe->delta_y = -prev_stripe->delta_y;
-			prev_stripe->delta_x = -prev_stripe->delta_x;
+			cur_stripe->delta_y = -cur_stripe->delta_y;
+			cur_stripe->delta_x = -cur_stripe->delta_x;
 		}
 		else
 			find_overlap(ctx, cur_stripe, prev_stripe, &min_error);
