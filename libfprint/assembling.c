@@ -131,8 +131,8 @@ static unsigned int do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
 
 		if (reverse) {
 			find_overlap(ctx, prev_stripe, cur_stripe, &min_error);
-			prev_stripe->delta_y = -prev_stripe->delta_y;
-			prev_stripe->delta_x = -prev_stripe->delta_x;
+			cur_stripe->delta_y = -cur_stripe->delta_y;
+			cur_stripe->delta_x = -cur_stripe->delta_x;
 		}
 		else
 			find_overlap(ctx, cur_stripe, prev_stripe, &min_error);
@@ -279,10 +279,17 @@ struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 	do {
 		fpi_frame = stripe->data;
 
-		y += fpi_frame->delta_y;
-		x += fpi_frame->delta_x;
+		if(reverse) {
+			y += fpi_frame->delta_y;
+			x += fpi_frame->delta_x;
+		}
 
 		aes_blit_stripe(ctx, img, fpi_frame, x, y);
+
+		if(!reverse) {
+			y += fpi_frame->delta_y;
+			x += fpi_frame->delta_x;
+		}
 
 		stripe = g_slist_next(stripe);
 		i++;
