@@ -865,7 +865,7 @@ struct fp_img_driver elan_driver = {
 		   },
 	.flags = 0,
 
-	.bz3_threshold = 22,
+	.bz3_threshold = 30,
 
 	.open = dev_init,
 	.close = dev_deinit,
