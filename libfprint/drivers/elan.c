@@ -76,7 +76,7 @@ struct elan_dev {
 	/* end commands */
 
 	/* state */
-	gboolean deactivating;
+	enum fp_imgdev_state dev_state;
 	unsigned char *last_read;
 	unsigned char calib_atts_left;
 	unsigned char calib_status;
@@ -103,7 +103,6 @@ static void elan_dev_reset(struct elan_dev *elandev)
 	elandev->cmd = NULL;
 	elandev->cmd_timeout = ELAN_CMD_TIMEOUT;
 
-	elandev->deactivating = FALSE;
 	elandev->calib_status = 0;
 
 	g_free(elandev->last_read);
@@ -321,6 +320,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 	case LIBUSB_TRANSFER_CANCELLED:
 		fp_dbg("transfer cancelled");
 		fpi_ssm_mark_aborted(ssm, -ECANCELED);
+		elan_deactivate(dev);
 		break;
 	case LIBUSB_TRANSFER_TIMED_OUT:
 		fp_dbg("transfer timed out");
@@ -469,10 +469,11 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		/* 0x55 - finger present
 		 * 0xff - device not calibrated (probably) */
 		if (elandev->last_read && elandev->last_read[0] == 0x55) {
-			fpi_imgdev_report_finger_status(dev, TRUE);
+			if (elandev->dev_state == IMGDEV_STATE_AWAIT_FINGER_ON)
+				fpi_imgdev_report_finger_status(dev, TRUE);
 			elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		} else
-			fpi_ssm_mark_aborted(ssm, FP_VERIFY_RETRY);
+			fpi_ssm_mark_aborted(ssm, -EBADMSG);
 		break;
 	case CAPTURE_CHECK_ENOUGH_FRAMES:
 		elan_save_img_frame(elandev);
@@ -487,11 +488,6 @@ static void capture_run_state(struct fpi_ssm *ssm)
 	}
 }
 
-static void elan_capture_async(void *data)
-{
-	elan_capture((struct fp_img_dev *)data);
-}
-
 static void capture_complete(struct fpi_ssm *ssm)
 {
 	fp_dbg("");
@@ -499,13 +495,15 @@ static void capture_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	if (elandev->deactivating)
-		elan_deactivate(dev);
+	if (ssm->error == -ECANCELED) {
+		fpi_ssm_free(ssm);
+		return;
+	}
 
 	/* either max frames captured or timed out waiting for the next frame */
-	else if (!ssm->error
-		 || (ssm->error == -ETIMEDOUT
-		     && ssm->cur_state == CAPTURE_WAIT_FINGER))
+	if (!ssm->error
+	    || (ssm->error == -ETIMEDOUT
+		&& ssm->cur_state == CAPTURE_WAIT_FINGER))
 		if (elandev->num_frames >= ELAN_MIN_FRAMES) {
 			elan_submit_image(dev);
 			fpi_imgdev_report_finger_status(dev, FALSE);
@@ -520,15 +518,7 @@ static void capture_complete(struct fpi_ssm *ssm)
 	 * It says "...session_error" but repotring 1 during verification
 	 * makes it successful! */
 	else
-		fpi_imgdev_session_error(dev, FP_VERIFY_NO_MATCH);
-
-	/* When enrolling the lib won't restart the capture after a stage has
-	 * completed, so we need to keep feeding it images till it's had enough.
-	 * But after that it can't finalize enrollemnt until this callback exits.
-	 * That's why we schedule elan_capture instead of running it directly. */
-	if (dev->dev->state == DEV_STATE_ENROLLING
-	    && !fpi_timeout_add(10, elan_capture_async, dev))
-		fpi_imgdev_session_error(dev, -ETIME);
+		fpi_imgdev_session_error(dev, ssm->error);
 
 	fpi_ssm_free(ssm);
 }
@@ -654,16 +644,9 @@ static void calibrate_complete(struct fpi_ssm *ssm)
 	fp_dbg("");
 
 	struct fp_img_dev *dev = ssm->priv;
-	struct elan_dev *elandev = dev->priv;
 
-	if (elandev->deactivating)
-		elan_deactivate(dev);
-	else if (ssm->error)
+	if (ssm->error != -ECANCELED)
 		fpi_imgdev_activate_complete(dev, ssm->error);
-	else {
-		fpi_imgdev_activate_complete(dev, 0);
-		elan_capture(dev);
-	}
 
 	fpi_ssm_free(ssm);
 }
@@ -734,14 +717,13 @@ static void activate_complete(struct fpi_ssm *ssm)
 	fp_dbg("");
 
 	struct fp_img_dev *dev = ssm->priv;
-	struct elan_dev *elandev = dev->priv;
 
-	if (elandev->deactivating)
-		elan_deactivate(dev);
-	else if (ssm->error)
-		fpi_imgdev_activate_complete(dev, ssm->error);
-	else
-		elan_calibrate(dev);
+	if (ssm->error != -ECANCELED) {
+		if (ssm->error)
+			fpi_imgdev_activate_complete(dev, ssm->error);
+		else
+			elan_calibrate(dev);
+	}
 
 	fpi_ssm_free(ssm);
 }
@@ -806,18 +788,71 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	return 0;
 }
 
+static void elan_change_state(struct fp_img_dev *dev)
+{
+	struct elan_dev *elandev = dev->priv;
+
+	fp_dbg("%d", elandev->dev_state);
+
+	switch (elandev->dev_state) {
+	case IMGDEV_STATE_INACTIVE:
+		if (elandev->cur_transfer)
+			/* deactivation will complete in transfer callback */
+			libusb_cancel_transfer(elandev->cur_transfer);
+		else
+			elan_deactivate(dev);
+		break;
+	case IMGDEV_STATE_AWAIT_FINGER_ON:
+		/* activation completed or another enroll stage started */
+		elan_capture(dev);
+		break;
+	case IMGDEV_STATE_CAPTURE:
+	case IMGDEV_STATE_AWAIT_FINGER_OFF:
+		break;
+	}
+}
+
+static void elan_change_state_async(void *data)
+{
+	elan_change_state((struct fp_img_dev *)data);
+}
+
+static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
+{
+	fp_dbg("%d", state);
+
+	struct elan_dev *elandev = dev->priv;
+
+	switch (state) {
+	case IMGDEV_STATE_INACTIVE:
+	case IMGDEV_STATE_AWAIT_FINGER_ON:
+		/* schedule state change instead of calling it directly to allow all actions
+		 * related to the previous state to complete */
+		elandev->dev_state = state;
+		if (!fpi_timeout_add(10, elan_change_state_async, dev)) {
+			fpi_imgdev_session_error(dev, -ETIME);
+			return -ETIME;
+		}
+		break;
+	case IMGDEV_STATE_CAPTURE:
+	case IMGDEV_STATE_AWAIT_FINGER_OFF:
+		/* TODO MAYBE: split capture ssm into smaller ssms and use these states */
+		break;
+	default:
+		fp_err("unrecognized state %d", state);
+		fpi_imgdev_session_error(dev, -EINVAL);
+		return -EINVAL;
+	}
+
+	/* as of time of writing libfprint never checks the return value */
+	return 0;
+}
+
 static void dev_deactivate(struct fp_img_dev *dev)
 {
 	fp_dbg("");
 
-	struct elan_dev *elandev = dev->priv;
-
-	elandev->deactivating = TRUE;
-
-	if (elandev->cur_transfer)
-		libusb_cancel_transfer(elandev->cur_transfer);
-	else
-		elan_deactivate(dev);
+	dev_change_state(dev, IMGDEV_STATE_INACTIVE);
 }
 
 struct fp_img_driver elan_driver = {
@@ -836,4 +871,5 @@ struct fp_img_driver elan_driver = {
 	.close = dev_deinit,
 	.activate = dev_activate,
 	.deactivate = dev_deactivate,
+	.change_state = dev_change_state,
 };
