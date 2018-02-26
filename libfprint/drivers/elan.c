@@ -504,21 +504,23 @@ static void capture_complete(struct fpi_ssm *ssm)
 	if (!ssm->error
 	    || (ssm->error == -ETIMEDOUT
 		&& ssm->cur_state == CAPTURE_WAIT_FINGER))
-		if (elandev->num_frames >= ELAN_MIN_FRAMES) {
+		if (elandev->num_frames >= ELAN_MIN_FRAMES)
 			elan_submit_image(dev);
-			fpi_imgdev_report_finger_status(dev, FALSE);
-		} else {
+		else {
 			fp_dbg("swipe too short: want >= %d frames, got %d",
 			       ELAN_MIN_FRAMES, elandev->num_frames);
-			fpi_imgdev_session_error(dev,
-						 FP_VERIFY_RETRY_TOO_SHORT);
+			fpi_imgdev_abort_scan(dev, FP_VERIFY_RETRY_TOO_SHORT);
 		}
 
 	/* other error
-	 * It says "...session_error" but repotring 1 during verification
-	 * makes it successful! */
+	 * It says "...abort_scan" but reporting 1 during verification makes it
+	 * successful! */
 	else
-		fpi_imgdev_session_error(dev, ssm->error);
+		fpi_imgdev_abort_scan(dev, ssm->error);
+
+	/* this procedure must be called regardless of outcome because it advances
+	 * dev_state under the hood */
+	fpi_imgdev_report_finger_status(dev, FALSE);
 
 	fpi_ssm_free(ssm);
 }
