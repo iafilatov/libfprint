@@ -77,6 +77,7 @@ struct elan_dev {
 
 	/* state */
 	enum fp_imgdev_state dev_state;
+	enum fp_imgdev_state dev_state_next;
 	unsigned char *last_read;
 	unsigned char calib_atts_left;
 	unsigned char calib_status;
@@ -519,8 +520,14 @@ static void capture_complete(struct fpi_ssm *ssm)
 		fpi_imgdev_abort_scan(dev, ssm->error);
 
 	/* this procedure must be called regardless of outcome because it advances
-	 * dev_state under the hood */
+	 * dev_state to AWAIT_FINGER_ON under the hood... */
 	fpi_imgdev_report_finger_status(dev, FALSE);
+
+	/* ...but only on enroll! If verify or identify fails because of short swipe,
+	 * we need to do it manually. It feels like libfprint or the application
+	 * should know better if they want to retry, but they don't. */
+	if (elandev->dev_state != IMGDEV_STATE_INACTIVE)
+		dev_change_state(dev, IMGDEV_STATE_AWAIT_FINGER_ON);
 
 	fpi_ssm_free(ssm);
 }
@@ -793,10 +800,15 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 static void elan_change_state(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
+	enum fp_imgdev_state next_state = elandev->dev_state_next;
 
-	fp_dbg("%d", elandev->dev_state);
+	if (elandev->dev_state == next_state) {
+		fp_dbg("already in %d", next_state);
+		return 0;
+	} else
+		fp_dbg("changing to %d", next_state);
 
-	switch (elandev->dev_state) {
+	switch (next_state) {
 	case IMGDEV_STATE_INACTIVE:
 		if (elandev->cur_transfer)
 			/* deactivation will complete in transfer callback */
@@ -812,6 +824,8 @@ static void elan_change_state(struct fp_img_dev *dev)
 	case IMGDEV_STATE_AWAIT_FINGER_OFF:
 		break;
 	}
+
+	elandev->dev_state = next_state;
 }
 
 static void elan_change_state_async(void *data)
@@ -830,7 +844,7 @@ static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	case IMGDEV_STATE_AWAIT_FINGER_ON:
 		/* schedule state change instead of calling it directly to allow all actions
 		 * related to the previous state to complete */
-		elandev->dev_state = state;
+		elandev->dev_state_next = state;
 		if (!fpi_timeout_add(10, elan_change_state_async, dev)) {
 			fpi_imgdev_session_error(dev, -ETIME);
 			return -ETIME;
@@ -839,6 +853,8 @@ static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	case IMGDEV_STATE_CAPTURE:
 	case IMGDEV_STATE_AWAIT_FINGER_OFF:
 		/* TODO MAYBE: split capture ssm into smaller ssms and use these states */
+		elandev->dev_state = state;
+		elandev->dev_state_next = state;
 		break;
 	default:
 		fp_err("unrecognized state %d", state);

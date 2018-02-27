@@ -214,4 +214,6 @@ static void elan_calibrate(struct fp_img_dev *dev);
 static void elan_capture(struct fp_img_dev *dev);
 static void elan_deactivate(struct fp_img_dev *dev);
 
+static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state);
+
 #endif
