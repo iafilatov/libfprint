@@ -30,7 +30,11 @@
 #define ELAN_ALL_DEV 0
 
 /* devices with quirks */
-#define ELAN_0907 1
+#define ELAN_0907 (1 << 0)
+#define ELAN_0C03 (1 << 1)
+
+/* devices which don't require frame rotation before assembling */
+#define ELAN_NOT_ROTATED ELAN_0C03
 
 /* min FW version that supports calibration */
 #define ELAN_MIN_CALIBRATION_FW 0x0138
@@ -155,7 +159,7 @@ static const struct usb_id elan_id_table[] = {
 	{.vendor = ELAN_VEND_ID,.product = 0x0907,.driver_data = ELAN_0907},
 	{.vendor = ELAN_VEND_ID,.product = 0x0c01,.driver_data = ELAN_ALL_DEV},
 	{.vendor = ELAN_VEND_ID,.product = 0x0c02,.driver_data = ELAN_ALL_DEV},
-	{.vendor = ELAN_VEND_ID,.product = 0x0c03,.driver_data = ELAN_ALL_DEV},
+	{.vendor = ELAN_VEND_ID,.product = 0x0c03,.driver_data = ELAN_0C03},
 	{.vendor = ELAN_VEND_ID,.product = 0x0c04,.driver_data = ELAN_ALL_DEV},
 	{.vendor = ELAN_VEND_ID,.product = 0x0c05,.driver_data = ELAN_ALL_DEV},
 	{.vendor = ELAN_VEND_ID,.product = 0x0c06,.driver_data = ELAN_ALL_DEV},
