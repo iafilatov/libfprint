@@ -77,7 +77,7 @@ struct elan_dev {
 	unsigned short *background;
 	unsigned char frame_width;
 	unsigned char frame_height;
-	unsigned char raw_frame_width;
+	unsigned char raw_frame_height;
 	int num_frames;
 	GSList *frames;
 	/* end state */
@@ -111,18 +111,33 @@ static void elan_save_frame(struct elan_dev *elandev, unsigned short *frame)
 {
 	G_DEBUG_HERE();
 
-	unsigned char raw_height = elandev->frame_width;
-	unsigned char raw_width = elandev->raw_frame_width;
+	/* so far 3 types of readers by sensor dimensions and orientation have been
+	 * seen in the wild:
+	 * 1. 144x64. Raw images are in portrait orientation while readers themselves
+	 *    are placed (e.g. built into a touchpad) in landscape orientation. These
+	 *    need to be rotated before assembling.
+	 * 2. 96x96 rotated. Like the first type but square. Likewise, need to be
+	 *    rotated before assembling.
+	 * 3. 96x96 normal. Square and need NOT be rotated. So far there's only been
+	 *    1 report of a 0c03 of this type. Hopefully this type can be identified
+	 *    by device id (and manufacturers don't just install the readers as they
+	 *    please).
+	 * we also discard stripes of 'frame_margin' from bottom and top because
+	 * assembling works bad for tall frames */
 
-	/* Raw images are vertical and perpendicular to swipe direction of a
-	 * normalized image, which means we need to make them horizontal before
-	 * assembling. We also discard stripes of 'frame_margin' along raw
-	 * height. */
-	unsigned char frame_margin = (raw_width - elandev->frame_height) / 2;
-	for (int y = 0; y < raw_height; y++)
-		for (int x = frame_margin; x < raw_width - frame_margin; x++) {
-			int frame_idx = y + (x - frame_margin) * raw_height;
-			int raw_idx = x + y * raw_width;
+	unsigned char frame_width = elandev->frame_width;
+	unsigned char frame_height = elandev->frame_height;
+	unsigned char raw_height = elandev->raw_frame_height;
+	unsigned char frame_margin = (raw_height - elandev->frame_height) / 2;
+	int frame_idx, raw_idx;
+
+	for (int y = 0; y < frame_height; y++)
+		for (int x = 0; x < frame_width; x++) {
+			if (elandev->dev_type & ELAN_NOT_ROTATED)
+				raw_idx = x + (y + frame_margin) * frame_width;
+			else
+				raw_idx = frame_margin + y + x * raw_height;
+			frame_idx = x + y * frame_width;
 			frame[frame_idx] =
 			    ((unsigned short *)elandev->last_read)[raw_idx];
 		}
@@ -344,7 +359,7 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 	if (elandev->cmd->cmd == get_image_cmd.cmd)
 		/* raw data has 2-byte "pixels" and the frame is vertical */
 		response_len =
-		    elandev->raw_frame_width * elandev->frame_width * 2;
+		    elandev->raw_frame_height * elandev->frame_width * 2;
 
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	if (!transfer) {
@@ -701,15 +716,20 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		elan_run_cmd(ssm, &get_sensor_dim_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case ACTIVATE_SET_SENSOR_DIM:
-		elandev->frame_width = elandev->last_read[2];
-		elandev->raw_frame_width = elandev->last_read[0];
-		if (elandev->raw_frame_width < ELAN_MAX_FRAME_HEIGHT)
-			elandev->frame_height = elandev->raw_frame_width;
-		else
+		/* see elan_save_frame for details */
+		if (elandev->dev_type & ELAN_NOT_ROTATED) {
+			elandev->frame_width = elandev->last_read[0];
+			elandev->frame_height = elandev->raw_frame_height =
+			    elandev->last_read[2];
+		} else {
+			elandev->frame_width = elandev->last_read[2];
+			elandev->frame_height = elandev->raw_frame_height =
+			    elandev->last_read[0];
+		}
+		if (elandev->frame_height > ELAN_MAX_FRAME_HEIGHT)
 			elandev->frame_height = ELAN_MAX_FRAME_HEIGHT;
-		/* see elan_save_frame for why it's width x raw_width */
 		fp_dbg("sensor dimensions, WxH: %dx%d", elandev->frame_width,
-		       elandev->raw_frame_width);
+		       elandev->raw_frame_height);
 		fpi_ssm_next_state(ssm);
 		break;
 	case ACTIVATE_CMD_1:
