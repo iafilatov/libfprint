@@ -48,6 +48,14 @@
 #include "elan.h"
 #include "driver_ids.h"
 
+#define dbg_buf(buf, len)                                     \
+  if (len == 1)                                               \
+    fp_dbg("%02hx", buf[0]);                                  \
+  else if (len == 2)                                          \
+    fp_dbg("%04hx", buf[0] << 8 | buf[1]);                    \
+  else if (len > 2)                                           \
+    fp_dbg("%04hx... (%d bytes)", buf[0] << 8 | buf[1], len)
+
 unsigned char elan_get_pixel(struct fpi_frame_asmbl_ctx *ctx,
 			     struct fpi_frame *frame, unsigned int x,
 			     unsigned int y)
@@ -196,22 +204,32 @@ static void elan_save_background(struct elan_dev *elandev)
  *                  \
  *    ======== 0     \___> ======== 0
  */
-static void elan_save_img_frame(struct elan_dev *elandev)
+static int elan_save_img_frame(struct elan_dev *elandev)
 {
 	fp_dbg("");
 
 	unsigned int frame_size = elandev->frame_width * elandev->frame_height;
 	unsigned short *frame = g_malloc(frame_size * sizeof(short));
 	elan_save_frame(elandev, frame);
+	unsigned int sum = 0;
 
-	for (int i = 0; i < frame_size; i++)
+	for (int i = 0; i < frame_size; i++) {
 		if (elandev->background[i] > frame[i])
 			frame[i] = 0;
 		else
 			frame[i] -= elandev->background[i];
+		sum += frame[i];
+	}
+
+	if (sum == 0) {
+		fp_dbg
+		    ("frame darker that background; finger present during calibration?");
+		return -1;
+	}
 
 	elandev->frames = g_slist_prepend(elandev->frames, frame);
 	elandev->num_frames += 1;
+	return 0;
 }
 
 static void elan_process_frame_linear(unsigned short *raw_frame,
@@ -287,6 +305,7 @@ static void elan_submit_image(struct fp_img_dev *dev)
 
 	for (int i = 0; i < ELAN_SKIP_LAST_FRAMES; i++)
 		elandev->frames = g_slist_next(elandev->frames);
+	elandev->num_frames -= ELAN_SKIP_LAST_FRAMES;
 
 	assembling_ctx.frame_width = elandev->frame_width;
 	assembling_ctx.frame_height = elandev->frame_height;
@@ -294,10 +313,8 @@ static void elan_submit_image(struct fp_img_dev *dev)
 	g_slist_foreach(elandev->frames, (GFunc) elandev->process_frame,
 			&frames);
 	fpi_do_movement_estimation(&assembling_ctx, frames,
-				   elandev->num_frames - ELAN_SKIP_LAST_FRAMES);
-	img =
-	    fpi_assemble_frames(&assembling_ctx, frames,
-				elandev->num_frames - ELAN_SKIP_LAST_FRAMES);
+				   elandev->num_frames);
+	img = fpi_assemble_frames(&assembling_ctx, frames, elandev->num_frames);
 
 	img->flags |= FP_IMG_PARTIAL;
 	fpi_imgdev_image_captured(dev, img);
@@ -311,8 +328,6 @@ static void elan_cmd_done(struct fpi_ssm *ssm)
 
 static void elan_cmd_cb(struct libusb_transfer *transfer)
 {
-	fp_dbg("");
-
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
@@ -326,12 +341,15 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 			       transfer->length, transfer->actual_length);
 			elan_dev_reset(elandev);
 			fpi_ssm_mark_aborted(ssm, -EPROTO);
-		} else if (transfer->endpoint & LIBUSB_ENDPOINT_IN)
+		} else if (transfer->endpoint & LIBUSB_ENDPOINT_IN) {
 			/* just finished receiving */
+			dbg_buf(elandev->last_read, transfer->actual_length);
 			elan_cmd_done(ssm);
-		else
+		} else {
 			/* just finished sending */
+			fp_dbg("");
 			elan_cmd_read(ssm);
+		}
 		break;
 	case LIBUSB_TRANSFER_CANCELLED:
 		fp_dbg("transfer cancelled");
@@ -391,7 +409,7 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 static void elan_run_cmd(struct fpi_ssm *ssm, const struct elan_cmd *cmd,
 			 int cmd_timeout)
 {
-	fp_dbg("%04hx", (cmd->cmd[0] << 8 | cmd->cmd[1]));
+	dbg_buf(cmd->cmd, 2);
 
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
@@ -473,6 +491,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
+	int r;
 
 	switch (ssm->cur_state) {
 	case CAPTURE_LED_ON:
@@ -492,8 +511,10 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, -EBADMSG);
 		break;
 	case CAPTURE_CHECK_ENOUGH_FRAMES:
-		elan_save_img_frame(elandev);
-		if (elandev->num_frames < ELAN_MAX_FRAMES) {
+		r = elan_save_img_frame(elandev);
+		if (r < 0)
+			fpi_ssm_mark_aborted(ssm, r);
+		else if (elandev->num_frames < ELAN_MAX_FRAMES) {
 			/* quickly stop if finger is removed */
 			elandev->cmd_timeout = ELAN_FINGER_TIMEOUT;
 			fpi_ssm_jump_to_state(ssm, CAPTURE_WAIT_FINGER);
@@ -540,8 +561,11 @@ static void capture_complete(struct fpi_ssm *ssm)
 
 	/* ...but only on enroll! If verify or identify fails because of short swipe,
 	 * we need to do it manually. It feels like libfprint or the application
-	 * should know better if they want to retry, but they don't. */
-	if (elandev->dev_state != IMGDEV_STATE_INACTIVE)
+	 * should know better if they want to retry, but they don't. Unless we've
+	 * been asked to deactivate, try to re-enter the capture loop. Since state
+	 * change is async, there's still a chance to be deactivated by another
+	 * pending event. */
+	if (elandev->dev_state_next != IMGDEV_STATE_INACTIVE)
 		dev_change_state(dev, IMGDEV_STATE_AWAIT_FINGER_ON);
 
 	fpi_ssm_free(ssm);
