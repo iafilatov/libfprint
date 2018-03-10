@@ -561,9 +561,13 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 		struct fp_dscv_dev *ddev = discover_dev(udev);
 		if (!ddev)
 			continue;
+		/* discover_dev() doesn't hold a reference to the udev,
+		 * so increase the reference for ddev to hold this ref */
+		libusb_ref_device(udev);
 		tmplist = g_slist_prepend(tmplist, (gpointer) ddev);
 		dscv_count++;
 	}
+	libusb_free_device_list(devs, 1);
 
 	/* Convert our temporary GSList into a standard NULL-terminated pointer
 	 * array. */
@@ -594,8 +598,10 @@ API_EXPORTED void fp_dscv_devs_free(struct fp_dscv_dev **devs)
 	if (!devs)
 		return;
 
-	for (i = 0; devs[i]; i++)
+	for (i = 0; devs[i]; i++) {
+		libusb_unref_device(devs[i]->udev);
 		g_free(devs[i]);
+	}
 	g_free(devs);
 }
 
