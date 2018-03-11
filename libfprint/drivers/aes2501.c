@@ -776,7 +776,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		read_regs(dev, activate_read_regs_cb, ssm);
 		break;
 	case WRITE_INIT_3:
-		aes_write_regv(dev, init_4, G_N_ELEMENTS(init_4),
+		aes_write_regv(dev, init_3, G_N_ELEMENTS(init_3),
 			activate_init3_cb, ssm);
 		break;
 	case WRITE_INIT_4:
