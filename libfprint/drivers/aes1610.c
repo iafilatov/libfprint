@@ -725,10 +725,11 @@ static const struct aes_regwrite init[] = {
 	{ 0x82, 0x00 }
 };
 
+/*
 static const struct aes_regwrite stop_reader[] = {
 	{ 0xFF, 0x00 }
 };
-
+*/
 
 enum activate_states {
 	WRITE_INIT,
