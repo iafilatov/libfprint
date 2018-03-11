@@ -57,6 +57,7 @@ int main(void)
 
 	ddev = discover_device(discovered_devs);
 	if (!ddev) {
+		fp_dscv_devs_free(discovered_devs);
 		fprintf(stderr, "No devices detected.\n");
 		goto out;
 	}
