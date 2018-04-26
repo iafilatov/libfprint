@@ -253,11 +253,9 @@ static struct fp_dscv_dev *discover_dev(libusb_device *udev)
  */
 API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 {
-	GSList *tmplist = NULL;
-	struct fp_dscv_dev **list;
+	GPtrArray *tmparray;
 	libusb_device *udev;
 	libusb_device **devs;
-	int dscv_count = 0;
 	int r;
 	int i = 0;
 
@@ -270,11 +268,10 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 		return NULL;
 	}
 
+	tmparray = g_ptr_array_new ();
+
 	/* Check each device against each driver, temporarily storing successfully
-	 * discovered devices in a GSList.
-	 *
-	 * Quite inefficient but excusable as we'll only be dealing with small
-	 * sets of drivers against small sets of USB devices */
+	 * discovered devices in a GPtrArray. */
 	while ((udev = devs[i++]) != NULL) {
 		struct fp_dscv_dev *ddev = discover_dev(udev);
 		if (!ddev)
@@ -282,25 +279,14 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 		/* discover_dev() doesn't hold a reference to the udev,
 		 * so increase the reference for ddev to hold this ref */
 		libusb_ref_device(udev);
-		tmplist = g_slist_prepend(tmplist, (gpointer) ddev);
-		dscv_count++;
+		g_ptr_array_add (tmparray, (gpointer) ddev);
 	}
 	libusb_free_device_list(devs, 1);
 
-	/* Convert our temporary GSList into a standard NULL-terminated pointer
+	/* Convert our temporary array into a standard NULL-terminated pointer
 	 * array. */
-	list = g_malloc(sizeof(*list) * (dscv_count + 1));
-	if (dscv_count > 0) {
-		GSList *elem = tmplist;
-		i = 0;
-		do {
-			list[i++] = elem->data;
-		} while ((elem = g_slist_next(elem)));
-	}
-	list[dscv_count] = NULL; /* NULL-terminate */
-
-	g_slist_free(tmplist);
-	return list;
+	g_ptr_array_add (tmparray, NULL);
+	return (struct fp_dscv_dev **) g_ptr_array_free (tmparray, FALSE);
 }
 
 /**
