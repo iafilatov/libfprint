@@ -29,6 +29,7 @@ require_imaging='no'
 require_aeslib='no'
 require_aesX660='no'
 require_aes3k='no'
+require_nss='no'
 enable_upeke2='no'
 enable_upekts='no'
 enable_upektc='no'
@@ -81,6 +82,7 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 		uru4000)
 			AC_DEFINE([ENABLE_URU4000], [], [Build Digital Persona U.are.U 4000 driver])
 			enable_uru4000="yes"
+			require_nss="yes"
 		;;
 		fdu2000)
 			AC_DEFINE([ENABLE_FDU2000], [], [Build Secugen FDU 2000 driver])
@@ -193,8 +195,13 @@ PKG_CHECK_MODULES(LIBUSB, [libusb-1.0 >= 0.9.1])
 AC_SUBST(LIBUSB_CFLAGS)
 AC_SUBST(LIBUSB_LIBS)
 
-# check for OpenSSL's libcrypto
-PKG_CHECK_MODULES(CRYPTO, nss)
+if test "$require_nss" = "yes"; then
+	# check for NSS
+	PKG_CHECK_MODULES(CRYPTO, nss, [nss_found=yes], [nss_found=no])
+	if test "$nss_found" != "yes"; then
+		AC_MSG_ERROR([NSS is required for the URU4000/URU4500 driver])
+	fi
+fi
 AC_SUBST(CRYPTO_CFLAGS)
 AC_SUBST(CRYPTO_LIBS)
 
