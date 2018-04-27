@@ -133,6 +133,7 @@ static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	uint16_t crc;
+	const char *ciao = "Ciao";
 
 	/* 9 bytes extra for: 4 byte 'Ciao', 1 byte A, 1 byte B | lenHI,
 	 * 1 byte lenLO, 2 byte CRC */
@@ -150,7 +151,7 @@ static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 	buf = g_malloc(urblen);
 
 	/* Write header */
-	strncpy(buf, "Ciao", 4);
+	memcpy(buf, ciao, strlen(ciao));
 	len = GUINT16_TO_LE(len);
 	buf[4] = seq_a;
 	buf[5] = seq_b | ((len & 0xf00) >> 8);
