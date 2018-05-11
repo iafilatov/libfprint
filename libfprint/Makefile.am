@@ -2,7 +2,6 @@ lib_LTLIBRARIES = libfprint.la
 noinst_PROGRAMS = fprint-list-udev-rules
 MOSTLYCLEANFILES = $(udev_rules_DATA)
 
-UPEKE2_SRC = drivers/upeke2.c
 UPEKTS_SRC = drivers/upekts.c
 UPEKTC_SRC = drivers/upektc.c drivers/upektc.h
 UPEKSONLY_SRC = drivers/upeksonly.c drivers/upeksonly.h
@@ -25,7 +24,6 @@ VFS0050_SRC = drivers/vfs0050.c drivers/vfs0050.h
 ELAN_SRC = drivers/elan.c drivers/elan.h
 
 EXTRA_DIST = \
-	$(UPEKE2_SRC)		\
 	$(UPEKTS_SRC)		\
 	$(UPEKTC_SRC)		\
 	$(UPEKSONLY_SRC)	\
@@ -110,10 +108,6 @@ udev_rules_DATA = 60-fprint-autosuspend.rules
 if ENABLE_UDEV_RULES
 $(udev_rules_DATA): fprint-list-udev-rules
 	$(builddir)/fprint-list-udev-rules > $@
-endif
-
-if ENABLE_UPEKE2
-DRIVER_SRC += $(UPEKE2_SRC)
 endif
 
 if ENABLE_UPEKTS

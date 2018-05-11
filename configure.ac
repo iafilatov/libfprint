@@ -30,7 +30,6 @@ require_aeslib='no'
 require_aesX660='no'
 require_aes3k='no'
 require_nss='no'
-enable_upeke2='no'
 enable_upekts='no'
 enable_upektc='no'
 enable_upeksonly='no'
@@ -66,10 +65,6 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 		upekts)
 			AC_DEFINE([ENABLE_UPEKTS], [], [Build UPEK TouchStrip driver])
 			enable_upekts="yes"
-		;;
-		upeke2)
-			AC_DEFINE([ENABLE_UPEKE2], [], [Build UPEK Eikon 2])
-			enable_upeke2="yes"
 		;;
 		upektc)
 			AC_DEFINE([ENABLE_UPEKTC], [], [Build UPEK TouchChip driver])
@@ -166,7 +161,6 @@ for driver in `echo ${drivers} | sed -e 's/,/ /g' -e 's/,$//g'`; do
 done
 
 AM_CONDITIONAL([ENABLE_UPEKTS], [test "$enable_upekts" = "yes"])
-AM_CONDITIONAL([ENABLE_UPEKE2], [test "$enable_upeke2" = "yes"])
 AM_CONDITIONAL([ENABLE_UPEKTC], [test "$enable_upektc" = "yes"])
 AM_CONDITIONAL([ENABLE_UPEKSONLY], [test "$enable_upeksonly" = "yes"])
 AM_CONDITIONAL([ENABLE_VCOM5S], [test "$enable_vcom5s" = "yes"])
@@ -324,11 +318,6 @@ if test x$enable_upekts != xno ; then
 	AC_MSG_NOTICE([** upekts driver enabled])
 else
 	AC_MSG_NOTICE([   upekts driver disabled])
-fi
-if test x$enable_upeke2 != xno ; then
-	AC_MSG_NOTICE([** upeke2 driver enabled])
-else
-	AC_MSG_NOTICE([   upeke2 driver disabled (handled by upektc_img driver)])
 fi
 if test x$enable_upektc != xno ; then
 	AC_MSG_NOTICE([** upektc driver enabled])

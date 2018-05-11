@@ -251,9 +251,6 @@ struct fp_img_driver {
 #ifdef ENABLE_UPEKTS
 extern struct fp_driver upekts_driver;
 #endif
-#ifdef ENABLE_UPEKE2
-extern struct fp_driver upeke2_driver;
-#endif
 #ifdef ENABLE_UPEKTC
 extern struct fp_img_driver upektc_driver;
 #endif
