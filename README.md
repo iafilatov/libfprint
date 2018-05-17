@@ -6,13 +6,33 @@ Original libfprint readme is in [README](README)
 
 `04f3: 0903, 0907, 0c01-0c33`
 
-## Trying it out
+## Getting code and Build tools
+
+libfprint is built with [Meson Build System](http://mesonbuild.com/Quick-guide.html).
+
+**If you installed libfprint from source before c5c5fcf (May 17, 2018)** please see [Uninstalling with autotools](#uninstalling-with-autotools).
 
 ```
 git clone git@github.com:iafilatov/libfprint.git
 cd libfprint
-./autogen.sh
-make
+
+apt install ninja-build
+
+# The doc recommends system-wide installation with pip, which might not be the best/easiest option.
+# Here is how you can install meson in isolated environment:
+python3 -m venv venv
+. venv/bin/activate
+pip install -U pip
+pip install meson
+```
+
+## Trying it out
+
+```
+venv/bin/meson builddir_dbg
+venv/bin/meson configure builddir_dbg -Ddebug_log=true
+cd builddir_dbg
+ninja
 ```
 
 ### Capture
@@ -45,18 +65,26 @@ LD_LIBRARY_PATH=./libfprint/.libs/ fprint_demo
 
 ## Installing
 
-Running `./configure` disables debug logging which you probably don't want all over your system logs.
+You probably want a clean build without debug logging.
 
 ```
-./autogen.sh
-./configure
-make
-sudo make install
+venv/bin/meson builddir
+venv/bin/meson configure builddir -Ddoc=false -Dlibdir=lib
+cd builddir
+ninja
+sudo ninja install
 ```
 
-Now you can use it with [fprintd](https://www.freedesktop.org/wiki/Software/fprint/fprintd/). Don't forget to enroll: `fprintd-enroll`.
+Now you can use it with [fprintd](https://www.freedesktop.org/wiki/Software/fprint/fprintd/). Don't forget to enroll: `fprintd-enroll`. If you want to use it for auth (login, sudo etc.) you also need PAM module: `apt install libpam-fprintd`.
 
 > `frpintd-enroll` and `fprintd-verify` are separate from `examples/enroll` and `examples/verify`.
+
+## Uninstalling
+
+```
+cd builddir
+sudo ninja uninstall
+```
 
 ## Common problems
 
@@ -113,3 +141,15 @@ Some readers have square sensors and since they are in fact touch type, there's 
 ![rotated reader](img/rotated.png)
 
 Since in theory the same reader can be installed differently, there's no good way to deal with this problem at the moment. If you have it, please open an issue and include your device id and short description (e.g laptop model if the reader is integrated or model if it's a separate USB device).
+
+
+## Uninstalling with autotools
+
+libfprint has been ported to Meson. This means once you clone a recent version of code, you won't be able to `make uninstall` libfprint you installed from source earlier. Before you upgrade it's better to remove the previous installation:
+
+```
+git checkout c723a0f
+./autogen.sh
+sudo make uninstall
+git checkout elan
+```
