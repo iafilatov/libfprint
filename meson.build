@@ -101,9 +101,12 @@ endif
 libfprint_conf.set('API_EXPORTED', '__attribute__((visibility("default")))')
 configure_file(output: 'config.h', configuration: libfprint_conf)
 
-subdir('doc')
 subdir('libfprint')
 subdir('examples')
+if get_option('doc')
+    gnome = import('gnome')
+    subdir('doc')
+endif
 
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(

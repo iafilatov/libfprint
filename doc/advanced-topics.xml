@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+               "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd" [
+]>
+<chapter id="advanced-topics" xmlns:xi="http://www.w3.org/2003/XInclude">
+  <title>Advanced Topics</title>
+
+  <refsect2 id="compatibility">
+    <title>Device and print compatibility</title>
+
+    <para>
+    Moving off generic conceptual ideas and onto libfprint-specific
+    implementation details, here are some introductory notes regarding how
+    libfprint copes with compatibility of fingerprints.
+    </para>
+
+    <para>
+    libfprint deals with a whole variety of different fingerprint readers and
+    the design includes considerations of compatibility and interoperability
+    between multiple devices. Your application should also be prepared to
+    work with more than one type of fingerprint reader and should consider that
+    enrolled fingerprint X may not be compatible with the device the user has
+    plugged in today.
+    </para>
+
+    <para>
+    libfprint implements the principle that fingerprints from different devices
+    are not necessarily compatible. For example, different devices may see
+    significantly different areas of fingerprint surface, and comparing images
+    between the devices would be unreliable. Also, devices can stretch and
+    distort images in different ways.
+    </para>
+
+    <para>
+    libfprint also implements the principle that in some cases, fingerprints
+    <emphasis>are</emphasis> compatible between different devices. If you go and buy two
+    identical fingerprint readers, it seems logical that you should be able
+    to enroll on one and verify on another without problems.
+    </para>
+
+    <para>
+    libfprint takes a fairly simplistic approach to these issues. Internally,
+    fingerprint hardware is driven by individual drivers. libfprint enforces
+    that a fingerprint that came from a device backed by driver X is never
+    compared to a fingerprint that came from a device backed by driver Y.
+    </para>
+
+    <para>
+    Additionally, libfprint is designed for the situation where a single driver
+    may support a range of devices which differ in imaging or scanning
+    properties. For example, a driver may support two ranges of devices which
+    even though are programmed over the same interface, one device sees
+    substantially less of the finger flesh, therefore images from the two
+    device types should be incompatible despite being from the same driver. To
+    implement this, each driver assigns a <emphasis>device type</emphasis> to each device
+    that it detects based on its imaging characteristics. libfprint ensures that
+    two prints being compared have the same device type.
+    </para>
+
+    <para>
+    In summary, libfprint represents fingerprints in several internal structures
+    and each representation will offer you a way of determining the
+    \ref driver_id "driver ID" and \ref devtype "devtype" of the print in
+    question. Prints are only compatible if the driver ID <emphasis role="strong">and</emphasis> devtypes
+    match. libfprint does offer you some "is this print compatible?" helper
+    functions, so you don't have to worry about these details too much.
+    </para>
+  </refsect2>
+
+  <refsect2 id="driver_id">
+    <title>Driver IDs</title>
+
+    <para>
+    Each driver is assigned a unique ID by the project maintainer. These
+    assignments are
+    <ulink href="http://www.reactivated.net/fprint/Driver_ID_assignments">
+    documented on the wiki</ulink> and will never change.
+    </para>
+
+    <para>
+    The only reason you may be interested in retrieving the driver ID for a
+    driver is for the purpose of checking if some print data is compatible
+    with a device. libfprint uses the driver ID as one way of checking that
+    the print you are trying to verify is compatible with the device in
+    question - it ensures that enrollment data from one driver is never fed to
+    another. Note that libfprint does provide you with helper functions to
+    determine whether a print is compatible with a device, so under most
+    circumstances, you don't have to worry about driver IDs at all.
+    </para>
+  </refsect2>
+
+  <refsect2 id="device-types">
+    <title>Device types</title>
+
+    <para>
+    Internally, the \ref drv "driver" behind a device assigns a 32-bit
+    <emphasis>devtype</emphasis> identifier to the device. This cannot be used as a unique
+    ID for a specific device as many devices under the same range may share
+    the same devtype. The devtype may even be 0 in all cases.
+    </para>
+
+    <para>
+    The only reason you may be interested in retrieving the devtype for a
+    device is for the purpose of checking if some print data is compatible
+    with a device. libfprint uses the devtype as one way of checking that the
+    print you are verifying is compatible with the device in question - the
+    devtypes must be equal. This effectively allows drivers to support more
+    than one type of device where the data from each one is not compatible with
+    the other. Note that libfprint does provide you with helper functions to
+    determine whether a print is compatible with a device, so under most
+    circumstances, you don't have to worry about devtypes at all.
+    </para>
+  </refsect2>
+
+</chapter>

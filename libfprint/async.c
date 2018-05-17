@@ -36,7 +36,15 @@ void fpi_drvcb_open_complete(struct fp_dev *dev, int status)
 		dev->open_cb(dev, status, dev->open_cb_data);
 }
 
-API_EXPORTED int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb cb,
+/**
+ * fp_async_dev_open:
+ * @ddev:
+ * @callback:
+ * @user_data
+ *
+ * Returns:
+ */
+API_EXPORTED int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb callback,
 	void *user_data)
 {
 	struct fp_driver *drv = ddev->drv;
@@ -56,7 +64,7 @@ API_EXPORTED int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb cb,
 	dev->udev = udevh;
 	dev->__enroll_stage = -1;
 	dev->state = DEV_STATE_INITIALIZING;
-	dev->open_cb = cb;
+	dev->open_cb = callback;
 	dev->open_cb_data = user_data;
 
 	if (!drv->open) {
@@ -87,6 +95,12 @@ void fpi_drvcb_close_complete(struct fp_dev *dev)
 	g_free(dev);
 }
 
+/**
+ * fp_async_dev_close:
+ * @dev:
+ * @callback:
+ * @user_data
+ */
 API_EXPORTED void fp_async_dev_close(struct fp_dev *dev,
 	fp_dev_close_cb callback, void *user_data)
 {
@@ -127,6 +141,14 @@ void fpi_drvcb_enroll_started(struct fp_dev *dev, int status)
 	}
 }
 
+/**
+ * fp_async_enroll_start:
+ * @dev:
+ * @callback:
+ * @user_data:
+ *
+ * Returns:
+ */
 API_EXPORTED int fp_async_enroll_start(struct fp_dev *dev,
 	fp_enroll_stage_cb callback, void *user_data)
 {
@@ -181,6 +203,14 @@ void fpi_drvcb_enroll_stopped(struct fp_dev *dev)
 		dev->enroll_stop_cb(dev, dev->enroll_stop_cb_data);
 }
 
+/**
+ * fp_async_enroll_stop:
+ * @dev:
+ * @callback:
+ * @user_data:
+ *
+ * Returns:
+ */
 API_EXPORTED int fp_async_enroll_stop(struct fp_dev *dev,
 	fp_enroll_stop_cb callback, void *user_data)
 {
@@ -210,6 +240,15 @@ API_EXPORTED int fp_async_enroll_stop(struct fp_dev *dev,
 	return r;
 }
 
+/**
+ * fp_async_verify_start:
+ * @dev:
+ * @data:
+ * @callback:
+ * @user_data:
+ *
+ * Returns:
+ */
 API_EXPORTED int fp_async_verify_start(struct fp_dev *dev,
 	struct fp_print_data *data, fp_verify_cb callback, void *user_data)
 {
@@ -278,6 +317,14 @@ void fpi_drvcb_verify_stopped(struct fp_dev *dev)
 		dev->verify_stop_cb(dev, dev->verify_stop_cb_data);
 }
 
+/**
+ * fp_async_verify_stop:
+ * @dev:
+ * @callback:
+ * @user_data:
+ *
+ * Returns:
+ */
 API_EXPORTED int fp_async_verify_stop(struct fp_dev *dev,
 	fp_verify_stop_cb callback, void *user_data)
 {
@@ -311,6 +358,15 @@ API_EXPORTED int fp_async_verify_stop(struct fp_dev *dev,
 	return r;
 }
 
+/**
+ * fp_async_identify_start:
+ * @dev:
+ * @gallery:
+ * @callback:
+ * @user_data:
+ *
+ * Returns:
+ */
 API_EXPORTED int fp_async_identify_start(struct fp_dev *dev,
 	struct fp_print_data **gallery, fp_identify_cb callback, void *user_data)
 {
@@ -369,6 +425,14 @@ void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
 		fp_dbg("ignoring verify result as no callback is subscribed");
 }
 
+/**
+ * fp_async_identify_stop:
+ * @dev:
+ * @callback:
+ * @user_data:
+ *
+ * Returns:
+ */
 API_EXPORTED int fp_async_identify_stop(struct fp_dev *dev,
 	fp_identify_stop_cb callback, void *user_data)
 {
@@ -412,6 +476,15 @@ void fpi_drvcb_identify_stopped(struct fp_dev *dev)
 		dev->identify_stop_cb(dev, dev->identify_stop_cb_data);
 }
 
+/**
+ * fp_async_capture_start:
+ * @dev:
+ * @unconditional:
+ * @callback:
+ * @user_data:
+ *
+ * Returns:
+ */
 API_EXPORTED int fp_async_capture_start(struct fp_dev *dev, int unconditional,
 	fp_capture_cb callback, void *user_data)
 {
@@ -479,6 +552,14 @@ void fpi_drvcb_capture_stopped(struct fp_dev *dev)
 		dev->capture_stop_cb(dev, dev->capture_stop_cb_data);
 }
 
+/**
+ * fp_async_capture_stop:
+ * @dev:
+ * @callback:
+ * @user_data:
+ *
+ * Returns:
+ */
 API_EXPORTED int fp_async_capture_stop(struct fp_dev *dev,
 	fp_capture_stop_cb callback, void *user_data)
 {

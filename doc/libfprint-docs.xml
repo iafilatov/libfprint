@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+               "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd"
+[
+  <!ENTITY % local.common.attrib "xmlns:xi  CDATA  #FIXED 'http://www.w3.org/2003/XInclude'">
+]>
+<book id="index">
+  <bookinfo>
+    <title>libfprint Reference Manual</title>
+    <releaseinfo>
+      <para>This document is the API reference for the libfprint library.</para>
+      <para>
+        The latest version of libfprint, as well as the latest version of
+        this API reference, is <ulink role="online-location" url="https://www.freedesktop.org/wiki/Software/fprint/libfprint/">available online</ulink>.
+      </para>
+    </releaseinfo>
+  </bookinfo>
+
+  <part>
+    <title>Library Overview</title>
+    <xi:include href="intro.xml"/>
+    <xi:include href="advanced-topics.xml"/>
+    <xi:include href="getting-started.xml"/>
+  </part>
+
+  <part>
+    <title>API Documentation</title>
+    <xi:include href="xml/events.xml"/>
+    <xi:include href="xml/discovery.xml"/>
+
+    <xi:include href="xml/drv.xml"/>
+    <xi:include href="xml/dev.xml"/>
+    <xi:include href="xml/print_data.xml"/>
+    <!-- https://bugs.freedesktop.org/show_bug.cgi?id=106550
+    <xi:include href="xml/dscv_print.xml"/> -->
+    <xi:include href="xml/img.xml"/>
+  </part>
+
+  <!--
+  <part>
+    <title>Writing Drivers</title>
+  </part>
+  -->
+
+  <index id="api-index">
+    <title>API Index</title>
+    <xi:include href="xml/api-index-full.xml"><xi:fallback /></xi:include>
+  </index>
+  <index id="deprecated-api-index" role="deprecated">
+    <title>Index of deprecated API</title>
+    <xi:include href="xml/api-index-deprecated.xml"><xi:fallback /></xi:include>
+  </index>
+</book>

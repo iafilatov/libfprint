@@ -22,3 +22,7 @@ option('debug_log',
        description: 'Debug message logging',
        type: 'boolean',
        value: false)
+option('doc',
+       description: 'Whether to build the API documentation',
+       type: 'boolean',
+       value: true)

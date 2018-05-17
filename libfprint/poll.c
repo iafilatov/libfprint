@@ -30,7 +30,9 @@
 #include "fp_internal.h"
 
 /**
- * @defgroup poll Polling and timing operations
+ * SECTION:events
+ * @title: Initialisation and events handling
+ *
  * These functions are only applicable to users of libfprint's asynchronous
  * API.
  *
@@ -50,10 +52,10 @@
  * If there are no events pending, fp_handle_events() will block for a few
  * seconds (and will handle any new events should anything occur in that time).
  * If you wish to customise this timeout, you can use
- * fp_handle_events_timeout() instead. If you wish to do a nonblocking
+ * fp_handle_events_timeout() instead. If you wish to do a non-blocking
  * iteration, call fp_handle_events_timeout() with a zero timeout.
  *
- * TODO: document how application is supposed to know when to call these
+ * FIXME: document how application is supposed to know when to call these
  * functions.
  */
 
@@ -192,14 +194,16 @@ static int handle_timeouts(void)
 	return 0;
 }
 
-/** \ingroup poll
+/**
+ * fp_handle_events_timeout:
+ * @timeout: Maximum timeout for this blocking function
+ *
  * Handle any pending events. If a non-zero timeout is specified, the function
  * will potentially block for the specified amount of time, although it may
  * return sooner if events have been handled. The function acts as non-blocking
  * for a zero timeout.
  *
- * \param timeout Maximum timeout for this blocking function
- * \returns 0 on success, non-zero on error.
+ * Returns: 0 on success, non-zero on error.
  */
 API_EXPORTED int fp_handle_events_timeout(struct timeval *timeout)
 {
@@ -236,12 +240,14 @@ API_EXPORTED int fp_handle_events_timeout(struct timeval *timeout)
 	return handle_timeouts();
 }
 
-/** \ingroup poll
+/**
+ * fp_handle_events:
+ *
  * Convenience function for calling fp_handle_events_timeout() with a sensible
  * default timeout value of two seconds (subject to change if we decide another
  * value is more sensible).
  *
- * \returns 0 on success, non-zero on error.
+ * Returns: 0 on success, non-zero on error.
  */
 API_EXPORTED int fp_handle_events(void)
 {
@@ -251,10 +257,14 @@ API_EXPORTED int fp_handle_events(void)
 	return fp_handle_events_timeout(&tv);
 }
 
-/* FIXME: docs
- * returns 0 if no timeouts active
- * returns 1 if timeout returned
- * zero timeout means events are to be handled immediately */
+/**
+ * fp_get_next_timeout:
+ * @tv: a %timeval structure containing the duration to the next timeout.
+ *
+ * A zero filled @tv timeout means events are to be handled immediately
+ *
+ * Returns: returns 0 if no timeouts active, or 1 if timeout returned.
+ */
 API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
 {
 	struct timeval fprint_timeout;
@@ -286,16 +296,18 @@ API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
 	return 1;
 }
 
-/** \ingroup poll
+/**
+ * fp_get_pollfds:
+ * @pollfds: output location for a list of pollfds. If non-%NULL, must be
+ * released with free() when done.
+ *
  * Retrieve a list of file descriptors that should be polled for events
  * interesting to libfprint. This function is only for users who wish to
  * combine libfprint's file descriptor set with other event sources - more
  * simplistic users will be able to call fp_handle_events() or a variant
  * directly.
  *
- * \param pollfds output location for a list of pollfds. If non-NULL, must be
- * released with free() when done.
- * \returns the number of pollfds in the resultant list, or negative on error.
+ * Returns: the number of pollfds in the resultant list, or negative on error.
  */
 API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
 {
@@ -326,7 +338,12 @@ API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
 	return cnt;
 }
 
-/* FIXME: docs */
+/**
+ * fp_set_pollfd_notifiers:
+ * @added_cb:
+ * @removed_cb:
+ *
+ */
 API_EXPORTED void fp_set_pollfd_notifiers(fp_pollfd_added_cb added_cb,
 	fp_pollfd_removed_cb removed_cb)
 {
