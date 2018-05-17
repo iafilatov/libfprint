@@ -671,18 +671,14 @@ static int discover(struct libusb_device_descriptor *dsc, uint32_t *devtype)
 {
 	if (dsc->idProduct == 0x2020 && dsc->bcdDevice == 1)
 		return 1;
-#ifndef ENABLE_UPEKE2
 	if (dsc->idProduct == 0x2016 && dsc->bcdDevice == 2)
 		return 1;
-#endif
 
 	return 0;
 }
 
 static const struct usb_id id_table[] = {
-#ifndef ENABLE_UPEKE2
 	{ .vendor = 0x147e, .product = 0x2016 },
-#endif
 	{ .vendor = 0x147e, .product = 0x2020 },
 	{ 0, 0, 0, },
 };

@@ -84,7 +84,7 @@ static void display_frame(struct fp_img *img)
 			0, 0, width, height, 0, 0, width, height);
 }
 
-static void QueryXv()
+static void QueryXv(void)
 {
 	unsigned int num_adaptors;
 	int num_formats;

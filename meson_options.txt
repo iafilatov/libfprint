@@ -1,0 +1,28 @@
+option('drivers',
+       description: 'Drivers to integrate',
+       type: 'string',
+       value: 'all')
+option('udev_rules',
+       description: 'Whether to create a udev rules file',
+       type: 'boolean',
+       value: true)
+option('udev_rules_dir',
+       description: 'Installation path for udev rules',
+       type: 'string',
+       value: 'auto')
+option('x11-examples',
+       description: 'Whether to build X11 example applications',
+       type: 'boolean',
+       value: true)
+option('log',
+       description: 'Message logging',
+       type: 'boolean',
+       value: true)
+option('debug_log',
+       description: 'Debug message logging',
+       type: 'boolean',
+       value: false)
+option('doc',
+       description: 'Whether to build the API documentation',
+       type: 'boolean',
+       value: true)

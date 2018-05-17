@@ -37,12 +37,15 @@ static void sync_open_cb(struct fp_dev *dev, int status, void *user_data)
 	odata->status = status;
 }
 
-/** \ingroup dev
+/**
+ * fp_dev_open:
+ * @ddev: the discovered device to open
+ *
  * Opens and initialises a device. This is the function you call in order
- * to convert a \ref dscv_dev "discovered device" into an actual device handle
+ * to convert a #fp_dscv_dev "discovered device" into an actual device handle
  * that you can perform operations with.
- * \param ddev the discovered device to open
- * \returns the opened device handle, or NULL on error
+ *
+ * Returns: (transfer none): the opened device handle, or %NULL on error
  */
 API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 {
@@ -76,10 +79,12 @@ static void sync_close_cb(struct fp_dev *dev, void *user_data)
 	*closed = TRUE;
 }
 
-/** \ingroup dev
+/**
+ * fp_dev_close:
+ * @dev: the device to close. If %NULL, function simply returns.
+ *
  * Close a device. You must call this function when you are finished using
  * a fingerprint device.
- * \param dev the device to close. If NULL, function simply returns.
  */
 API_EXPORTED void fp_dev_close(struct fp_dev *dev)
 {
@@ -120,9 +125,17 @@ static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
 	*stopped = TRUE;
 }
 
-/** \ingroup dev
- * Performs an enroll stage. See \ref enrolling for an explanation of enroll
- * stages.
+/**
+ * fp_enroll_finger_img:
+ * @dev: the device
+ * @print_data a location to return the resultant enrollment data from
+ * the final stage. Must be freed with fp_print_data_free() after use.
+ * @img: location to store the scan image. accepts %NULL for no image
+ * storage. If an image is returned, it must be freed with fp_img_free() after
+ * use.
+ *
+ * Performs an enroll stage. See [Enrolling](libfprint-Devices-operations.html#enrolling)
+ * for an explanation of enroll stages.
  *
  * If no enrollment is in process, this kicks of the process and runs the
  * first stage. If an enrollment is already in progress, calling this
@@ -137,7 +150,7 @@ static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
  * The RETRY codes from #fp_enroll_result may be returned from any enroll
  * stage. These codes indicate that the scan was not succesful in that the
  * user did not position their finger correctly or similar. When a RETRY code
- * is returned, the enrollment stage is <b>not</b> advanced, so the next call
+ * is returned, the enrollment stage is <emphasis role="strong">not</emphasis> advanced, so the next call
  * into this function will retry the current stage again. The current stage may
  * need to be retried several times.
  *
@@ -159,19 +172,13 @@ static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
  * resultant enrollment data. The print_data parameter will not be modified
  * during any other enrollment stages, hence it is actually legal to pass NULL
  * as this argument for all but the final stage.
- * 
+ *
  * If the device is an imaging device, it can also return the image from
  * the scan, even when the enroll fails with a RETRY or FAIL code. It is legal
  * to call this function even on non-imaging devices, just don't expect them to
  * provide images.
  *
- * \param dev the device
- * \param print_data a location to return the resultant enrollment data from
- * the final stage. Must be freed with fp_print_data_free() after use.
- * \param img location to store the scan image. accepts NULL for no image
- * storage. If an image is returned, it must be freed with fp_img_free() after
- * use.
- * \return negative code on error, otherwise a code from #fp_enroll_result
+ * Returns: negative code on error, otherwise a code from #fp_enroll_result
  */
 API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 	struct fp_print_data **print_data, struct fp_img **img)
@@ -302,20 +309,22 @@ static void verify_stop_cb(struct fp_dev *dev, void *user_data)
 	*stopped = TRUE;
 }
 
-/** \ingroup dev
+/**
+ * fp_verify_finger_img:
+ * @dev: the device to perform the scan.
+ * @enrolled_print: the print to verify against. Must have been previously
+ * enrolled with a device compatible to the device selected to perform the scan.
+ * @img: location to store the scan image. accepts %NULL for no image
+ * storage. If an image is returned, it must be freed with fp_img_free() after
+ * use.
+
  * Performs a new scan and verify it against a previously enrolled print.
  * If the device is an imaging device, it can also return the image from
  * the scan, even when the verify fails with a RETRY code. It is legal to
  * call this function even on non-imaging devices, just don't expect them to
  * provide images.
  *
- * \param dev the device to perform the scan.
- * \param enrolled_print the print to verify against. Must have been previously
- * enrolled with a device compatible to the device selected to perform the scan.
- * \param img location to store the scan image. accepts NULL for no image
- * storage. If an image is returned, it must be freed with fp_img_free() after
- * use.
- * \return negative code on error, otherwise a code from #fp_verify_result
+ * Returns: negative code on error, otherwise a code from #fp_verify_result
  */
 API_EXPORTED int fp_verify_finger_img(struct fp_dev *dev,
 	struct fp_print_data *enrolled_print, struct fp_img **img)
@@ -416,7 +425,19 @@ static void identify_stop_cb(struct fp_dev *dev, void *user_data)
 	*stopped = TRUE;
 }
 
-/** \ingroup dev
+/**
+ * fp_identify_finger_img:
+ * @dev: the device to perform the scan.
+ * @print_gallery: NULL-terminated array of pointers to the prints to
+ * identify against. Each one must have been previously enrolled with a device
+ * compatible to the device selected to perform the scan.
+ * @match_offset: output location to store the array index of the matched
+ * gallery print (if any was found). Only valid if FP_VERIFY_MATCH was
+ * returned.
+ * @img: location to store the scan image. accepts %NULL for no image
+ * storage. If an image is returned, it must be freed with fp_img_free() after
+ * use.
+
  * Performs a new scan and attempts to identify the scanned finger against
  * a collection of previously enrolled fingerprints.
  * If the device is an imaging device, it can also return the image from
@@ -435,17 +456,7 @@ static void identify_stop_cb(struct fp_dev *dev, void *user_data)
  * Not all devices support identification. -ENOTSUP will be returned when
  * this is the case.
  *
- * \param dev the device to perform the scan.
- * \param print_gallery NULL-terminated array of pointers to the prints to
- * identify against. Each one must have been previously enrolled with a device
- * compatible to the device selected to perform the scan.
- * \param match_offset output location to store the array index of the matched
- * gallery print (if any was found). Only valid if FP_VERIFY_MATCH was
- * returned.
- * \param img location to store the scan image. accepts NULL for no image
- * storage. If an image is returned, it must be freed with fp_img_free() after
- * use.
- * \return negative code on error, otherwise a code from #fp_verify_result
+ * Returns: negative code on error, otherwise a code from #fp_verify_result
  */
 API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset,
@@ -533,23 +544,26 @@ static void capture_stop_cb(struct fp_dev *dev, void *user_data)
 	fp_dbg("");
 	*stopped = TRUE;
 }
-/** \ingroup dev
- * Captures an \ref img "image" from a device. The returned image is the raw
- * image provided by the device, you may wish to \ref img_std "standardize" it.
+/**
+ * fp_dev_img_capture:
+ * @dev: the device
+ * @unconditional: whether to unconditionally capture an image, or to only capture when a finger is detected
+ * @img: a location to return the captured image. Must be freed with
+ * fp_img_free() after use.
  *
- * If set, the <tt>unconditional</tt> flag indicates that the device should
+ * Captures a #fp_img "image" from a device. The returned image is the raw
+ * image provided by the device, you may wish to [standardize](libfprint-Image-operations.html#img_std) it.
+ *
+ * If set, the @unconditional flag indicates that the device should
  * capture an image unconditionally, regardless of whether a finger is there
  * or not. If unset, this function will block until a finger is detected on
  * the sensor.
  *
- * \param dev the device
- * \param unconditional whether to unconditionally capture an image, or to only capture when a finger is detected
- * \param img a location to return the captured image. Must be freed with
- * fp_img_free() after use.
- * \return 0 on success, non-zero on error. -ENOTSUP indicates that either the
- * unconditional flag was set but the device does not support this, or that the
+ * See fp_dev_supports_imaging().
+ *
+ * Returns: 0 on success, non-zero on error. -ENOTSUP indicates that either the
+ * @unconditional flag was set but the device does not support this, or that the
  * device does not support imaging.
- * \sa fp_dev_supports_imaging()
  */
 API_EXPORTED int fp_dev_img_capture(struct fp_dev *dev, int unconditional,
 	struct fp_img **img)

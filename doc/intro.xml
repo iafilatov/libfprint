@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+               "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd" [
+]>
+<chapter id="intro" xmlns:xi="http://www.w3.org/2003/XInclude">
+  <title>Introduction</title>
+
+  <para>
+  libfprint is an open source library to provide access to fingerprint
+  scanning devices. For more info, see the
+  <ulink url="http://www.reactivated.net/fprint/Libfprint">libfprint project homepage</ulink>.
+  </para>
+
+  <para>
+  This documentation is aimed at application developers who wish to integrate
+  fingerprint-related functionality into their software. libfprint has been
+  designed so that you only have to do this once - by integrating your
+  software with libfprint, you'll be supporting all the fingerprint readers
+  that we have got our hands on. As such, the API is rather general (and
+  therefore hopefully easy to comprehend!), and does its best to hide the
+  technical details that required to operate the hardware.
+  </para>
+
+  <para>
+  This documentation is not aimed at developers wishing to develop and
+  contribute fingerprint device drivers to libfprint.
+  </para>
+
+  <para>
+  Feedback on this API and its associated documentation is appreciated. Was
+  anything unclear? Does anything seem unreasonably complicated? Is anything
+  missing? Let us know on the
+  <ulink url="http://www.reactivated.net/fprint/Mailing_list">mailing list</ulink>.
+  </para>
+
+  <refsect2 id="enrollment">
+    <title>Enrollment</title>
+
+    <para>
+    Before you dive into the API, it's worth introducing a couple of concepts.
+    </para>
+
+    <para>
+    The process of enrolling a finger is where you effectively scan your
+    finger for the purposes of teaching the system what your finger looks like.
+    This means that you scan your fingerprint, then the system processes it and
+    stores some data about your fingerprint to refer to later.
+    </para>
+  </refsect2>
+
+  <refsect2 id="verification">
+    <title>Verification</title>
+
+    <para>
+    Verification is what most people think of when they think about fingerprint
+    scanning. The process of verification is effectively performing a fresh
+    fingerprint scan, and then comparing that scan to a finger that was
+    previously enrolled.
+    </para>
+
+    <para>
+    As an example scenario, verification can be used to implement what people
+    would picture as fingerprint login (i.e. fingerprint replaces password).
+    For example:
+    </para>
+    <itemizedlist mark='dot'>
+      <listitem>
+       I enroll my fingerprint through some software that trusts I am who I say
+       I am. This is a prerequisite before I can perform fingerprint-based
+       login for my account.
+      </listitem>
+      <listitem>
+       Some time later, I want to login to my computer. I enter my username,
+       but instead of prompting me for a password, it asks me to scan my finger.
+       I scan my finger.
+      </listitem>
+      <listitem>
+       The system compares the finger I just scanned to the one that was
+       enrolled earlier. If the system decides that the fingerprints match,
+       I am successfully logged in. Otherwise, the system informs me that I am
+       not authorised to login as that user.
+      </listitem>
+    </itemizedlist>
+  </refsect2>
+
+  <refsect2 id="identification">
+    <title>Identification</title>
+
+    <para>
+    Identification is the process of comparing a freshly scanned fingerprint
+    to a <emphasis>collection</emphasis> of previously enrolled fingerprints. For example,
+    imagine there are 100 people in an organisation, and they all have enrolled
+    their fingerprints. One user walks up to a fingerprint scanner and scans
+    their finger. With <emphasis>no other knowledge</emphasis> of who that user might be,
+    the system examines their fingerprint, looks in the database, and determines
+    that the user is user number #61.
+    </para>
+
+    <para>
+    In other words, verification might be seen as a one-to-one fingerprint
+    comparison where you know the identity of the user that you wish to
+    authenticate, whereas identification is a one-to-many comparison where you
+    do not know the identity of the user that you wish to authenticate.
+    </para>
+  </refsect2>
+</chapter>
