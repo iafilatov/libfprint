@@ -303,7 +303,7 @@ API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
  *
  * Retrieve a list of file descriptors that should be polled for events
  * interesting to libfprint. This function is only for users who wish to
- * combine libfprint's file descriptor set with other event sources - more
+ * combine libfprint's file descriptor set with other event sources – more
  * simplistic users will be able to call fp_handle_events() or a variant
  * directly.
  *

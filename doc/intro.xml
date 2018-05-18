@@ -14,7 +14,7 @@
   <para>
   This documentation is aimed at application developers who wish to integrate
   fingerprint-related functionality into their software. libfprint has been
-  designed so that you only have to do this once - by integrating your
+  designed so that you only have to do this once – by integrating your
   software with libfprint, you'll be supporting all the fingerprint readers
   that we have got our hands on. As such, the API is rather general (and
   therefore hopefully easy to comprehend!), and does its best to hide the

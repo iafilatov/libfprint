@@ -446,7 +446,7 @@ API_EXPORTED void fp_dscv_devs_free(struct fp_dscv_dev **devs)
  * fp_dscv_dev_get_driver:
  * @dev: the discovered device
  *
- * Gets the #fp_driver "driver" for a discovered device.
+ * Gets the #fp_driver for a discovered device.
  *
  * Returns: the driver backing the device
  */
@@ -486,7 +486,7 @@ enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv)
  * @dev: the discovered device
  * @print: the print for compatibility checking
  *
- * Determines if a specific #fp_print_data "stored print" appears to be
+ * Determines if a specific #fp_print_data stored print appears to be
  * compatible with a discovered device.
  *
  * Returns: 1 if the print is compatible with the device, 0 otherwise
@@ -504,7 +504,7 @@ API_EXPORTED int fp_dscv_dev_supports_print_data(struct fp_dscv_dev *dev,
  * @dev: the discovered device
  * @print: the discovered print for compatibility checking
  *
- * Determines if a specific #fp_dscv_print "discovered print" appears to be
+ * Determines if a specific #fp_dscv_print discovered print appears to be
  * compatible with a discovered device.
  *
  * Returns: 1 if the print is compatible with the device, 0 otherwise
@@ -522,7 +522,7 @@ API_EXPORTED int fp_dscv_dev_supports_dscv_print(struct fp_dscv_dev *dev,
  * @print: the print under inspection
  *
  * Searches a list of discovered devices for a device that appears to be
- * compatible with a #fp_print_data "stored print".
+ * compatible with a #fp_print_data stored print.
  *
  * Returns: the first discovered device that appears to support the print, or
  * %NULL if no apparently compatible devices could be found
@@ -545,7 +545,7 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev *
  * @print: the print under inspection
  *
  * Searches a list of discovered devices for a device that appears to be
- * compatible with a #fp_dscv_print "discovered print".
+ * compatible with a #fp_dscv_print discovered print.
  *
  * Returns: the first discovered device that appears to support the print, or
  * %NULL if no apparently compatible devices could be found
@@ -566,7 +566,7 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev *
  * fp_dev_get_driver:
  * @dev: the device
  *
- * Get the #fp_driver "driver" for a fingerprint device.
+ * Get the #fp_driver for a fingerprint device.
  *
  * Returns: the driver controlling the device
  */
@@ -624,7 +624,7 @@ API_EXPORTED int fp_dev_supports_print_data(struct fp_dev *dev,
  * @dev: the device
  * @print: the discovered print
  *
- * Determines if a #fp_dscv_print "discovered print" appears to be compatible
+ * Determines if a #fp_dscv_print discovered print appears to be compatible
  * with a certain device.
  *
  * Returns: 1 if the print is compatible with the device, 0 if not
@@ -702,7 +702,7 @@ static struct fp_img_dev *dev_to_img_dev(struct fp_dev *dev)
  * Determines if a device has imaging capabilities. If a device has imaging
  * capabilities you are able to perform imaging operations such as retrieving
  * scan images using fp_dev_img_capture(). However, not all devices are
- * imaging devices - some do all processing in hardware. This function will
+ * imaging devices – some do all processing in hardware. This function will
  * indicate which class a device in question falls into.
  *
  * Returns: 1 if the device is an imaging device, 0 if the device does not

@@ -501,7 +501,7 @@ API_EXPORTED int fp_print_data_delete(struct fp_dev *dev,
  * be freed with fp_print_data_free() after use.
 
  * Attempts to load a stored print based on a #fp_dscv_print
- * "discovered print" record.
+ * discovered print record.
  *
  * A return code of -ENOENT indicates that the file referred to by the
  * discovered print could not be found. Other error codes (both positive and

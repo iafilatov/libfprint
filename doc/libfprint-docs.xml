@@ -31,8 +31,8 @@
     <xi:include href="xml/drv.xml"/>
     <xi:include href="xml/dev.xml"/>
     <xi:include href="xml/print_data.xml"/>
-    <!-- https://bugs.freedesktop.org/show_bug.cgi?id=106550
-    <xi:include href="xml/dscv_print.xml"/> -->
+    <!-- FIXME https://bugs.freedesktop.org/show_bug.cgi?id=106550 -->
+    <xi:include href="xml/dscv_print.xml"/>
     <xi:include href="xml/img.xml"/>
   </part>
 

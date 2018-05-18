@@ -42,7 +42,7 @@ static void sync_open_cb(struct fp_dev *dev, int status, void *user_data)
  * @ddev: the discovered device to open
  *
  * Opens and initialises a device. This is the function you call in order
- * to convert a #fp_dscv_dev "discovered device" into an actual device handle
+ * to convert a #fp_dscv_dev discovered device into an actual device handle
  * that you can perform operations with.
  *
  * Returns: (transfer none): the opened device handle, or %NULL on error
@@ -154,19 +154,19 @@ static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
  * into this function will retry the current stage again. The current stage may
  * need to be retried several times.
  *
- * The fp_enroll_result#FP_ENROLL_FAIL code may be returned from any enroll
+ * The %FP_ENROLL_FAIL code may be returned from any enroll
  * stage. This code indicates that even though the scans themselves have been
  * acceptable, data processing applied to these scans produces incomprehensible
  * results. In other words, the user may have been scanning a different finger
  * for each stage or something like that. Like negative error codes, this
  * return code indicates that the enrollment process has been aborted.
  *
- * The fp_enroll_result#FP_ENROLL_PASS code will only ever be returned for
+ * The %FP_ENROLL_PASS code will only ever be returned for
  * non-final stages. This return code indicates that the scan was acceptable
  * and the next call into this function will advance onto the next enroll
  * stage.
  *
- * The fp_enroll_result#FP_ENROLL_COMPLETE code will only ever be returned
+ * The %FP_ENROLL_COMPLETE code will only ever be returned
  * from the final enroll stage. It indicates that enrollment completed
  * successfully, and that print_data has been assigned to point to the
  * resultant enrollment data. The print_data parameter will not be modified
@@ -446,7 +446,7 @@ static void identify_stop_cb(struct fp_dev *dev, void *user_data)
  * provide images.
  *
  * This function returns codes from #fp_verify_result. The return code
- * fp_verify_result#FP_VERIFY_MATCH indicates that the scanned fingerprint
+ * %FP_VERIFY_MATCH indicates that the scanned fingerprint
  * does appear in the print gallery, and the match_offset output parameter
  * will indicate the index into the print gallery array of the matched print.
  *
@@ -551,7 +551,7 @@ static void capture_stop_cb(struct fp_dev *dev, void *user_data)
  * @img: a location to return the captured image. Must be freed with
  * fp_img_free() after use.
  *
- * Captures a #fp_img "image" from a device. The returned image is the raw
+ * Captures a #fp_img from a device. The returned image is the raw
  * image provided by the device, you may wish to [standardize](libfprint-Image-operations.html#img_std) it.
  *
  * If set, the @unconditional flag indicates that the device should
