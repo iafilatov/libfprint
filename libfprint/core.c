@@ -456,6 +456,17 @@ API_EXPORTED struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev)
 }
 
 /**
+ * fp_dscv_dev_get_driver_id:
+ * @dev: a discovered fingerprint device
+ *
+ * Returns: the ID for the underlying driver for that device
+ */
+API_EXPORTED uint16_t fp_dscv_dev_get_driver_id(struct fp_dscv_dev *dev)
+{
+	return fp_driver_get_driver_id(fp_dscv_dev_get_driver(dev));
+}
+
+/**
  * fp_dscv_dev_get_devtype:
  * @dev: the discovered device
  *

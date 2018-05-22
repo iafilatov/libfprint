@@ -287,6 +287,25 @@ err:
 	return r;
 }
 
+/**
+ * fp_enroll_finger:
+ * @dev: the device
+ * @print_data: a location to return the resultant enrollment data from
+ * the final stage. Must be freed with fp_print_data_free() after use.
+ *
+ * Performs an enroll stage. See [Enrolling](libfprint-Devices-operations.html#enrolling)
+ * for an explanation of enroll stages. This function is just a shortcut to
+ * calling fp_enroll_finger_img() with a %NULL image parameter. Be sure to read
+ * the description of fp_enroll_finger_img() in order to understand its behaviour.
+ *
+ * Returns: negative code on error, otherwise a code from #fp_enroll_result
+ */
+API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
+	struct fp_print_data **print_data)
+{
+	return fp_enroll_finger_img(dev, print_data, NULL);
+}
+
 struct sync_verify_data {
 	gboolean populated;
 	int result;
@@ -399,6 +418,25 @@ err:
 				break;
 
 	return r;
+}
+
+/**
+ * fp_verify_finger:
+ * @dev: the device to perform the scan.
+ * @enrolled_print: the print to verify against. Must have been previously
+ * enrolled with a device compatible to the device selected to perform the scan.
+ *
+ * Performs a new scan and verify it against a previously enrolled print. This
+ * function is just a shortcut to calling fp_verify_finger_img() with a NULL
+ * image output parameter.
+ *
+ * Returns: negative code on error, otherwise a code from #fp_verify_result
+ * \sa fp_verify_finger_img()
+ */
+API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
+	struct fp_print_data *enrolled_print)
+{
+	return fp_verify_finger_img(dev, enrolled_print, NULL);
 }
 
 struct sync_identify_data {
@@ -521,6 +559,30 @@ err_stop:
 err:
 	g_free(idata);
 	return r;
+}
+
+/**
+ * fp_identify_finger:
+ * @dev: the device to perform the scan.
+ * @print_gallery: %NULL-terminated array of pointers to the prints to
+ * identify against. Each one must have been previously enrolled with a device
+ * compatible to the device selected to perform the scan.
+ * @match_offset: output location to store the array index of the matched
+ * gallery print (if any was found). Only valid if FP_VERIFY_MATCH was
+ * returned.
+
+ * Performs a new scan and attempts to identify the scanned finger against a
+ * collection of previously enrolled fingerprints. This function is just a
+ * shortcut to calling fp_identify_finger_img() with a %NULL image output
+ * parameter.
+ *
+ * Returns: negative code on error, otherwise a code from #fp_verify_result
+ * \sa fp_identify_finger_img()
+ */
+API_EXPORTED int fp_identify_finger(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset)
+{
+	return fp_identify_finger_img(dev, print_gallery, match_offset, NULL);
 }
 
 struct sync_capture_data {

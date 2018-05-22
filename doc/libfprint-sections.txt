@@ -22,6 +22,7 @@ fp_discover_devs
 fp_dscv_devs_free
 fp_dscv_dev_get_driver
 fp_dscv_dev_get_devtype
+fp_dscv_dev_get_driver_id
 fp_dscv_dev_supports_print_data
 fp_dscv_dev_supports_dscv_print
 fp_dscv_dev_for_print_data
