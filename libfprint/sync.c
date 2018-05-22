@@ -430,8 +430,9 @@ err:
  * function is just a shortcut to calling fp_verify_finger_img() with a NULL
  * image output parameter.
  *
+ * See also fp_verify_finger_img().
+ *
  * Returns: negative code on error, otherwise a code from #fp_verify_result
- * \sa fp_verify_finger_img()
  */
 API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
 	struct fp_print_data *enrolled_print)
@@ -576,8 +577,9 @@ err:
  * shortcut to calling fp_identify_finger_img() with a %NULL image output
  * parameter.
  *
+ * See also fp_identify_finger_img().
+ *
  * Returns: negative code on error, otherwise a code from #fp_verify_result
- * \sa fp_identify_finger_img()
  */
 API_EXPORTED int fp_identify_finger(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset)
