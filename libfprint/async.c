@@ -102,7 +102,7 @@ void fpi_drvcb_close_complete(struct fp_dev *dev)
  * @user_data
  */
 API_EXPORTED void fp_async_dev_close(struct fp_dev *dev,
-	fp_dev_close_cb callback, void *user_data)
+	fp_operation_stop_cb callback, void *user_data)
 {
 	struct fp_driver *drv = dev->drv;
 
@@ -212,7 +212,7 @@ void fpi_drvcb_enroll_stopped(struct fp_dev *dev)
  * Returns:
  */
 API_EXPORTED int fp_async_enroll_stop(struct fp_dev *dev,
-	fp_enroll_stop_cb callback, void *user_data)
+	fp_operation_stop_cb callback, void *user_data)
 {
 	struct fp_driver *drv = dev->drv;
 	int r;
@@ -326,7 +326,7 @@ void fpi_drvcb_verify_stopped(struct fp_dev *dev)
  * Returns:
  */
 API_EXPORTED int fp_async_verify_stop(struct fp_dev *dev,
-	fp_verify_stop_cb callback, void *user_data)
+	fp_operation_stop_cb callback, void *user_data)
 {
 	struct fp_driver *drv = dev->drv;
 	gboolean iterating = (dev->state == DEV_STATE_VERIFYING);
@@ -434,7 +434,7 @@ void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
  * Returns:
  */
 API_EXPORTED int fp_async_identify_stop(struct fp_dev *dev,
-	fp_identify_stop_cb callback, void *user_data)
+	fp_operation_stop_cb callback, void *user_data)
 {
 	struct fp_driver *drv = dev->drv;
 	gboolean iterating = (dev->state == DEV_STATE_IDENTIFYING);
@@ -561,7 +561,7 @@ void fpi_drvcb_capture_stopped(struct fp_dev *dev)
  * Returns:
  */
 API_EXPORTED int fp_async_capture_stop(struct fp_dev *dev,
-	fp_capture_stop_cb callback, void *user_data)
+	fp_operation_stop_cb callback, void *user_data)
 {
 	struct fp_driver *drv = dev->drv;
 	int r;

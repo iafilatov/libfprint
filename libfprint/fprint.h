@@ -323,12 +323,13 @@ void fp_set_debug(int level);
 
 /* Asynchronous I/O */
 
+typedef void (*fp_operation_stop_cb)(struct fp_dev *dev, void *user_data);
+
 typedef void (*fp_dev_open_cb)(struct fp_dev *dev, int status, void *user_data);
 int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb callback,
 	void *user_data);
 
-typedef void (*fp_dev_close_cb)(struct fp_dev *dev, void *user_data);
-void fp_async_dev_close(struct fp_dev *dev, fp_dev_close_cb callback,
+void fp_async_dev_close(struct fp_dev *dev, fp_operation_stop_cb callback,
 	void *user_data);
 
 typedef void (*fp_enroll_stage_cb)(struct fp_dev *dev, int result,
@@ -336,8 +337,7 @@ typedef void (*fp_enroll_stage_cb)(struct fp_dev *dev, int result,
 int fp_async_enroll_start(struct fp_dev *dev, fp_enroll_stage_cb callback,
 	void *user_data);
 
-typedef void (*fp_enroll_stop_cb)(struct fp_dev *dev, void *user_data);
-int fp_async_enroll_stop(struct fp_dev *dev, fp_enroll_stop_cb callback,
+int fp_async_enroll_stop(struct fp_dev *dev, fp_operation_stop_cb callback,
 	void *user_data);
 
 typedef void (*fp_verify_cb)(struct fp_dev *dev, int result,
@@ -345,8 +345,7 @@ typedef void (*fp_verify_cb)(struct fp_dev *dev, int result,
 int fp_async_verify_start(struct fp_dev *dev, struct fp_print_data *data,
 	fp_verify_cb callback, void *user_data);
 
-typedef void (*fp_verify_stop_cb)(struct fp_dev *dev, void *user_data);
-int fp_async_verify_stop(struct fp_dev *dev, fp_verify_stop_cb callback,
+int fp_async_verify_stop(struct fp_dev *dev, fp_operation_stop_cb callback,
 	void *user_data);
 
 typedef void (*fp_identify_cb)(struct fp_dev *dev, int result,
@@ -354,16 +353,14 @@ typedef void (*fp_identify_cb)(struct fp_dev *dev, int result,
 int fp_async_identify_start(struct fp_dev *dev, struct fp_print_data **gallery,
 	fp_identify_cb callback, void *user_data);
 
-typedef void (*fp_identify_stop_cb)(struct fp_dev *dev, void *user_data);
-int fp_async_identify_stop(struct fp_dev *dev, fp_identify_stop_cb callback,
+int fp_async_identify_stop(struct fp_dev *dev, fp_operation_stop_cb callback,
 	void *user_data);
 
 typedef void (*fp_capture_cb)(struct fp_dev *dev, int result,
 	struct fp_img *img, void *user_data);
 int fp_async_capture_start(struct fp_dev *dev, int unconditional, fp_capture_cb callback, void *user_data);
 
-typedef void (*fp_capture_stop_cb)(struct fp_dev *dev, void *user_data);
-int fp_async_capture_stop(struct fp_dev *dev, fp_capture_stop_cb callback, void *user_data);
+int fp_async_capture_stop(struct fp_dev *dev, fp_operation_stop_cb callback, void *user_data);
 
 #ifdef __cplusplus
 }

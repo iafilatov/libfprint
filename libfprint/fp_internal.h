@@ -119,23 +119,23 @@ struct fp_dev {
 	/* FIXME: convert this to generic state operational data mechanism? */
 	fp_dev_open_cb open_cb;
 	void *open_cb_data;
-	fp_dev_close_cb close_cb;
+	fp_operation_stop_cb close_cb;
 	void *close_cb_data;
 	fp_enroll_stage_cb enroll_stage_cb;
 	void *enroll_stage_cb_data;
-	fp_enroll_stop_cb enroll_stop_cb;
+	fp_operation_stop_cb enroll_stop_cb;
 	void *enroll_stop_cb_data;
 	fp_verify_cb verify_cb;
 	void *verify_cb_data;
-	fp_verify_stop_cb verify_stop_cb;
+	fp_operation_stop_cb verify_stop_cb;
 	void *verify_stop_cb_data;
 	fp_identify_cb identify_cb;
 	void *identify_cb_data;
-	fp_identify_stop_cb identify_stop_cb;
+	fp_operation_stop_cb identify_stop_cb;
 	void *identify_stop_cb_data;
 	fp_capture_cb capture_cb;
 	void *capture_cb_data;
-	fp_capture_stop_cb capture_stop_cb;
+	fp_operation_stop_cb capture_stop_cb;
 	void *capture_stop_cb_data;
 
 	/* FIXME: better place to put this? */
