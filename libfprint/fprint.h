@@ -347,22 +347,10 @@ uint32_t fp_print_data_get_devtype(struct fp_print_data *data);
 /**
  * fp_minutia:
  *
- * FIXME
+ * #fp_minutia is an opaque structure type.  You must access it using the
+ * functions below.
  */
-struct fp_minutia {
-	int x;
-	int y;
-	int ex;
-	int ey;
-	int direction;
-	double reliability;
-	int type;
-	int appearing;
-	int feature_id;
-	int *nbrs;
-	int *ridge_counts;
-	int num_nbrs;
-};
+struct fp_minutia;
 
 int fp_img_get_height(struct fp_img *img);
 int fp_img_get_width(struct fp_img *img);
