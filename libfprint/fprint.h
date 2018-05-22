@@ -299,7 +299,11 @@ void fp_img_free(struct fp_img *img);
 
 /**
  * fp_pollfd:
+ * @fd: a file descriptor
+ * @events: Event flags to poll for from `<poll.h>`
  *
+ * A structure representing a file descriptor and the events to poll
+ * for, as returned by fp_get_pollfds().
  */
 struct fp_pollfd {
 	int fd;
@@ -311,7 +315,24 @@ int fp_handle_events(void);
 size_t fp_get_pollfds(struct fp_pollfd **pollfds);
 int fp_get_next_timeout(struct timeval *tv);
 
+/**
+ * fp_pollfd_added_cb:
+ * @fd: the new file descriptor
+ * @events: events to monitor for, see `<poll.h>` for the possible values
+ *
+ * Type definition for a function that will be called when a new
+ * event source is added. The @events argument is a flag as defined in
+ * `<poll.h>` such as `POLLIN`, or `POLLOUT`. See fp_set_pollfd_notifiers().
+ */
 typedef void (*fp_pollfd_added_cb)(int fd, short events);
+
+/**
+ * fp_pollfd_removed_cb:
+ * @fd: the file descriptor to stop monitoring
+ *
+ * Type definition for a function that will be called when an
+ * event source is removed. See fp_set_pollfd_notifiers().
+ */
 typedef void (*fp_pollfd_removed_cb)(int fd);
 void fp_set_pollfd_notifiers(fp_pollfd_added_cb added_cb,
 	fp_pollfd_removed_cb removed_cb);

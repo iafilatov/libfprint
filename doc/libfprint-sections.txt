@@ -11,6 +11,8 @@ fp_handle_events_timeout
 fp_handle_events
 fp_get_next_timeout
 fp_get_pollfds
+fp_pollfd_added_cb
+fp_pollfd_removed_cb
 fp_set_pollfd_notifiers
 </SECTION>
 

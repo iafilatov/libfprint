@@ -340,9 +340,11 @@ API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
 
 /**
  * fp_set_pollfd_notifiers:
- * @added_cb:
- * @removed_cb:
+ * @added_cb: a #fp_pollfd_added_cb callback or %NULL
+ * @removed_cb: a #fp_pollfd_removed_cb callback or %NULL
  *
+ * This sets the callback functions to call for every new or removed
+ * file descriptor used as an event source.
  */
 API_EXPORTED void fp_set_pollfd_notifiers(fp_pollfd_added_cb added_cb,
 	fp_pollfd_removed_cb removed_cb)
