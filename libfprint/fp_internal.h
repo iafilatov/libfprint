@@ -398,7 +398,6 @@ struct fp_img *fpi_img_new(size_t length);
 struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *dev);
 struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
 gboolean fpi_img_is_sane(struct fp_img *img);
-int fpi_img_detect_minutiae(struct fp_img *img);
 int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 	struct fp_print_data **ret);
 int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,

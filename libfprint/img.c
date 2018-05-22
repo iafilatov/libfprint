@@ -286,7 +286,7 @@ static void minutiae_to_xyt(struct fp_minutiae *minutiae, int bwidth,
 	xyt->nrows = nmin;
 }
 
-int fpi_img_detect_minutiae(struct fp_img *img)
+static int fpi_img_detect_minutiae(struct fp_img *img)
 {
 	struct fp_minutiae *minutiae;
 	int r;
