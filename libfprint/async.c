@@ -250,7 +250,7 @@ API_EXPORTED int fp_async_enroll_stop(struct fp_dev *dev,
  * Returns:
  */
 API_EXPORTED int fp_async_verify_start(struct fp_dev *dev,
-	struct fp_print_data *data, fp_verify_cb callback, void *user_data)
+	struct fp_print_data *data, fp_img_operation_cb callback, void *user_data)
 {
 	struct fp_driver *drv = dev->drv;
 	int r;
@@ -486,7 +486,7 @@ void fpi_drvcb_identify_stopped(struct fp_dev *dev)
  * Returns:
  */
 API_EXPORTED int fp_async_capture_start(struct fp_dev *dev, int unconditional,
-	fp_capture_cb callback, void *user_data)
+	fp_img_operation_cb callback, void *user_data)
 {
 	struct fp_driver *drv = dev->drv;
 	int r;

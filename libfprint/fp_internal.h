@@ -125,7 +125,7 @@ struct fp_dev {
 	void *enroll_stage_cb_data;
 	fp_operation_stop_cb enroll_stop_cb;
 	void *enroll_stop_cb_data;
-	fp_verify_cb verify_cb;
+	fp_img_operation_cb verify_cb;
 	void *verify_cb_data;
 	fp_operation_stop_cb verify_stop_cb;
 	void *verify_stop_cb_data;
@@ -133,7 +133,7 @@ struct fp_dev {
 	void *identify_cb_data;
 	fp_operation_stop_cb identify_stop_cb;
 	void *identify_stop_cb_data;
-	fp_capture_cb capture_cb;
+	fp_img_operation_cb capture_cb;
 	void *capture_cb_data;
 	fp_operation_stop_cb capture_stop_cb;
 	void *capture_stop_cb_data;
