@@ -30,36 +30,48 @@ extern "C" {
 /**
  * fp_dscv_dev:
  *
+ * #fp_dscv_dev is an opaque structure type.  You must access it using the
+ * functions below.
  */
 struct fp_dscv_dev;
 
 /**
  * fp_dscv_print:
  *
+ * #fp_dscv_print is an opaque structure type.  You must access it using the
+ * functions below.
  */
 struct fp_dscv_print;
 
 /**
  * fp_dev:
  *
+ * #fp_dev is an opaque structure type.  You must access it using the
+ * functions below.
  */
 struct fp_dev;
 
 /**
  * fp_driver:
  *
+ * #fp_driver is an opaque structure type.  You must access it using the
+ * functions below.
  */
 struct fp_driver;
 
 /**
  * fp_print_data:
  *
+ * #fp_print_data is an opaque structure type.  You must access it using the
+ * functions below.
  */
 struct fp_print_data;
 
 /**
  * fp_img:
  *
+ * #fp_img is an opaque structure type.  You must access it using the
+ * functions below.
  */
 struct fp_img;
 
