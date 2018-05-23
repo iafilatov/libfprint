@@ -90,11 +90,6 @@ if get_option('x11-examples')
     endif
 endif
 
-# Message logging
-if get_option('debug_log')
-    libfprint_conf.set('ENABLE_DEBUG_LOGGING', '1')
-endif
-
 libfprint_conf.set('API_EXPORTED', '__attribute__((visibility("default")))')
 configure_file(output: 'config.h', configuration: libfprint_conf)
 

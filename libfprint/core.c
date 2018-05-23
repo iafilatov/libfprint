@@ -123,14 +123,12 @@ void fpi_log(enum fpi_log_level level, const char *component,
 	FILE *stream = stdout;
 	const char *prefix;
 
-#ifndef ENABLE_DEBUG_LOGGING
 	if (!log_level)
 		return;
 	if (level == FPRINT_LOG_LEVEL_WARNING && log_level < 2)
 		return;
 	if (level == FPRINT_LOG_LEVEL_INFO && log_level < 3)
 		return;
-#endif
 
 	switch (level) {
 	case FPRINT_LOG_LEVEL_INFO:

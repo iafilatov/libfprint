@@ -50,12 +50,7 @@ void fpi_log(enum fpi_log_level, const char *component, const char *function,
 
 #define _fpi_log(level, fmt...) fpi_log(level, FP_COMPONENT, __FUNCTION__, fmt)
 
-#ifdef ENABLE_DEBUG_LOGGING
 #define fp_dbg(fmt...) _fpi_log(FPRINT_LOG_LEVEL_DEBUG, fmt)
-#else
-#define fp_dbg(fmt...)
-#endif
-
 #define fp_info(fmt...) _fpi_log(FPRINT_LOG_LEVEL_INFO, fmt)
 #define fp_warn(fmt...) _fpi_log(FPRINT_LOG_LEVEL_WARNING, fmt)
 #define fp_err(fmt...) _fpi_log(FPRINT_LOG_LEVEL_ERROR, fmt)
