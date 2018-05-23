@@ -126,7 +126,7 @@ struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 
 void fpi_timeout_cancel(struct fpi_timeout *timeout)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	active_timers = g_slist_remove(active_timers, timeout);
 	g_free(timeout);
 }
@@ -172,7 +172,7 @@ static int get_next_timeout_expiry(struct timeval *out,
 /* handle a timeout that has expired */
 static void handle_timeout(struct fpi_timeout *timeout)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	timeout->callback(timeout->data);
 	active_timers = g_slist_remove(active_timers, timeout);
 	g_free(timeout);

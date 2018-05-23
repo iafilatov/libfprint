@@ -730,7 +730,7 @@ static void sm_await_intr(struct fpi_ssm *ssm)
 		return;
 	}
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	data = g_malloc(4);
 	libusb_fill_interrupt_transfer(transfer, dev->udev, 0x83, data, 4,
 		sm_await_intr_cb, ssm, 0);
@@ -1224,7 +1224,7 @@ static void deactivate_done(struct fp_img_dev *dev)
 {
 	struct sonly_dev *sdev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	free_img_transfers(sdev);
 	g_free(sdev->rowbuf);
 	sdev->rowbuf = NULL;

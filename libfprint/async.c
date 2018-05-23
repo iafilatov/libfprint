@@ -52,7 +52,7 @@ API_EXPORTED int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb call
 	libusb_device_handle *udevh;
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	r = libusb_open(ddev->udev, &udevh);
 	if (r < 0) {
 		fp_err("usb_open failed, error %d", r);
@@ -86,7 +86,7 @@ API_EXPORTED int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb call
 /* Drivers call this when device deinitialisation has completed */
 void fpi_drvcb_close_complete(struct fp_dev *dev)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_DEINITIALIZING);
 	dev->state = DEV_STATE_DEINITIALIZED;
 	libusb_close(dev->udev);
@@ -196,7 +196,7 @@ void fpi_drvcb_enroll_stage_completed(struct fp_dev *dev, int result,
 /* Drivers call this when enrollment has stopped */
 void fpi_drvcb_enroll_stopped(struct fp_dev *dev)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_ENROLL_STOPPING);
 	dev->state = DEV_STATE_INITIALIZED;
 	if (dev->enroll_stop_cb)
@@ -217,7 +217,7 @@ API_EXPORTED int fp_async_enroll_stop(struct fp_dev *dev,
 	struct fp_driver *drv = dev->drv;
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	if (!drv->enroll_start)
 		return -ENOTSUP;
 
@@ -255,7 +255,7 @@ API_EXPORTED int fp_async_verify_start(struct fp_dev *dev,
 	struct fp_driver *drv = dev->drv;
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	if (!drv->verify_start)
 		return -ENOTSUP;
 
@@ -276,7 +276,7 @@ API_EXPORTED int fp_async_verify_start(struct fp_dev *dev,
 /* Drivers call this when verification has started */
 void fpi_drvcb_verify_started(struct fp_dev *dev, int status)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_VERIFY_STARTING);
 	if (status) {
 		if (status > 0) {
@@ -310,7 +310,7 @@ void fpi_drvcb_report_verify_result(struct fp_dev *dev, int result,
 /* Drivers call this when verification has stopped */
 void fpi_drvcb_verify_stopped(struct fp_dev *dev)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_VERIFY_STOPPING);
 	dev->state = DEV_STATE_INITIALIZED;
 	if (dev->verify_stop_cb)
@@ -332,7 +332,7 @@ API_EXPORTED int fp_async_verify_stop(struct fp_dev *dev,
 	gboolean iterating = (dev->state == DEV_STATE_VERIFYING);
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_ERROR
 		&& dev->state != DEV_STATE_VERIFYING
 		&& dev->state != DEV_STATE_VERIFY_DONE);
@@ -373,7 +373,7 @@ API_EXPORTED int fp_async_identify_start(struct fp_dev *dev,
 	struct fp_driver *drv = dev->drv;
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	if (!drv->identify_start)
 		return -ENOTSUP;
 	dev->state = DEV_STATE_IDENTIFY_STARTING;
@@ -440,7 +440,7 @@ API_EXPORTED int fp_async_identify_stop(struct fp_dev *dev,
 	gboolean iterating = (dev->state == DEV_STATE_IDENTIFYING);
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_IDENTIFYING
 		&& dev->state != DEV_STATE_IDENTIFY_DONE);
 
@@ -469,7 +469,7 @@ API_EXPORTED int fp_async_identify_stop(struct fp_dev *dev,
 /* Drivers call this when identification has stopped */
 void fpi_drvcb_identify_stopped(struct fp_dev *dev)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_IDENTIFY_STOPPING);
 	dev->state = DEV_STATE_INITIALIZED;
 	if (dev->identify_stop_cb)
@@ -491,7 +491,7 @@ API_EXPORTED int fp_async_capture_start(struct fp_dev *dev, int unconditional,
 	struct fp_driver *drv = dev->drv;
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	if (!drv->capture_start)
 		return -ENOTSUP;
 
@@ -512,7 +512,7 @@ API_EXPORTED int fp_async_capture_start(struct fp_dev *dev, int unconditional,
 /* Drivers call this when capture has started */
 void fpi_drvcb_capture_started(struct fp_dev *dev, int status)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_CAPTURE_STARTING);
 	if (status) {
 		if (status > 0) {
@@ -545,7 +545,7 @@ void fpi_drvcb_report_capture_result(struct fp_dev *dev, int result,
 /* Drivers call this when capture has stopped */
 void fpi_drvcb_capture_stopped(struct fp_dev *dev)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_CAPTURE_STOPPING);
 	dev->state = DEV_STATE_INITIALIZED;
 	if (dev->capture_stop_cb)
@@ -566,7 +566,7 @@ API_EXPORTED int fp_async_capture_stop(struct fp_dev *dev,
 	struct fp_driver *drv = dev->drv;
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_ERROR
 		&& dev->state != DEV_STATE_CAPTURING
 		&& dev->state != DEV_STATE_CAPTURE_DONE);

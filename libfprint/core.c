@@ -833,7 +833,7 @@ API_EXPORTED int fp_init(void)
 {
 	char *dbg = getenv("LIBFPRINT_DEBUG");
 	int r;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	r = libusb_init(&fpi_usb_ctx);
 	if (r < 0)
@@ -861,7 +861,7 @@ API_EXPORTED int fp_init(void)
  */
 API_EXPORTED void fp_exit(void)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (opened_devices) {
 		GSList *copy = g_slist_copy(opened_devices);

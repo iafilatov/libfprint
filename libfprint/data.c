@@ -147,7 +147,7 @@ API_EXPORTED size_t fp_print_data_get_data(struct fp_print_data *data,
 	GSList *list_item;
 	unsigned char *buf;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	list_item = data->prints;
 	while (list_item) {

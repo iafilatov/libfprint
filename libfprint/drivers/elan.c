@@ -62,7 +62,7 @@ struct elan_dev {
 
 static void elan_dev_reset(struct elan_dev *elandev)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	BUG_ON(elandev->cur_transfer);
 
@@ -88,7 +88,7 @@ static void elan_save_frame(struct fp_img_dev *dev)
 	unsigned short *frame =
 	    g_malloc(elandev->frame_width * elandev->frame_height * 2);
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	/* Raw images are vertical and perpendicular to swipe direction of a
 	 * normalized image, which means we need to make them horizontal before
@@ -116,7 +116,7 @@ static void elan_process_frame(unsigned short *raw_frame, GSList ** frames)
 	struct fpi_frame *frame =
 	    g_malloc(frame_size + sizeof(struct fpi_frame));
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	unsigned short min = 0xffff, max = 0;
 	for (int i = 0; i < frame_size; i++) {
@@ -147,7 +147,7 @@ static void elan_submit_image(struct fp_img_dev *dev)
 	GSList *frames = NULL;
 	struct fp_img *img;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	for (int i = 0; i < ELAN_SKIP_LAST_FRAMES; i++)
 		elandev->frames = g_slist_next(elandev->frames);
@@ -170,7 +170,7 @@ static void elan_cmd_done(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elandev->cmd_idx += 1;
 	if (elandev->cmd_idx < elandev->cmds_len)
@@ -185,7 +185,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elandev->cur_transfer = NULL;
 
@@ -228,7 +228,7 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 	struct elan_dev *elandev = dev->priv;
 	int response_len = elandev->cmds[elandev->cmd_idx].response_len;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (elandev->cmds[elandev->cmd_idx].cmd == read_cmds[0].cmd)
 		/* raw data has 2-byte "pixels" and the frame is vertical */
@@ -260,7 +260,7 @@ static void elan_run_next_cmd(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	if (!transfer) {
@@ -287,7 +287,7 @@ static void elan_run_cmds(struct fpi_ssm *ssm, const struct elan_cmd *cmds,
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elandev->cmds = cmds;
 	elandev->cmds_len = cmds_len;
@@ -323,7 +323,7 @@ static void elan_deactivate(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 
@@ -386,7 +386,7 @@ static void capture_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (elandev->deactivating)
 		elan_deactivate(dev);
@@ -423,7 +423,7 @@ static void elan_capture(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm =
@@ -466,7 +466,7 @@ static void calibrate_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (elandev->deactivating)
 		elan_deactivate(dev);
@@ -483,7 +483,7 @@ static void elan_calibrate(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, elan_calibrate_run_state,
@@ -536,7 +536,7 @@ static void activate_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (elandev->deactivating)
 		elan_deactivate(dev);
@@ -551,7 +551,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm =
@@ -567,7 +567,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	struct elan_dev *elandev;
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	r = libusb_claim_interface(dev->udev, 0);
 	if (r < 0) {
@@ -584,7 +584,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 	g_free(elandev);
@@ -596,7 +596,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	elandev->deactivating = TRUE;
 

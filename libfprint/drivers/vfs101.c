@@ -589,7 +589,7 @@ static void vfs_abort_print(struct fpi_ssm *ssm)
 {
 	unsigned char data[0x06] = { 0x00, 0x00, 0x00, 0x00, 0x0E, 0x00 };
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	/* Run swap sequential state machine */
 	m_swap (ssm, data, 0x06);
@@ -622,7 +622,7 @@ static void vfs_get_finger_state(struct fpi_ssm *ssm)
 {
 	unsigned char data[0x06] = { 0x00, 0x00, 0x00, 0x00, 0x16, 0x00 };
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	/* Run swap sequential state machine */
 	m_swap (ssm, data, 0x06);
@@ -634,7 +634,7 @@ static void vfs_img_load(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct vfs101_dev *vdev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	/* Reset buffer length */
 	vdev->length = 0;

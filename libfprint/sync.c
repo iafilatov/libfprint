@@ -53,7 +53,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	struct sync_open_data *odata = g_malloc0(sizeof(*odata));
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	r = fp_async_dev_open(ddev, sync_open_cb, odata);
 	if (r)
 		goto out;
@@ -74,7 +74,7 @@ out:
 
 static void sync_close_cb(struct fp_dev *dev, void *user_data)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	gboolean *closed = user_data;
 	*closed = TRUE;
 }
@@ -93,7 +93,7 @@ API_EXPORTED void fp_dev_close(struct fp_dev *dev)
 	if (!dev)
 		return;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	fp_async_dev_close(dev, sync_close_cb, &closed);
 	while (!closed)
 		if (fp_handle_events() < 0)
@@ -121,7 +121,7 @@ static void sync_enroll_cb(struct fp_dev *dev, int result,
 static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
 {
 	gboolean *stopped = user_data;
-	fp_dbg("");
+	G_DEBUG_HERE();
 	*stopped = TRUE;
 }
 
@@ -189,7 +189,7 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 	gboolean stopped = FALSE;
 	struct sync_enroll_data *edata = NULL;
 	int r;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	/* FIXME __enroll_stage is ugly, can we replace it by some function that
 	 * says whether we're enrolling or not, and then put __enroll_stage into
@@ -324,7 +324,7 @@ static void sync_verify_cb(struct fp_dev *dev, int result, struct fp_img *img,
 static void verify_stop_cb(struct fp_dev *dev, void *user_data)
 {
 	gboolean *stopped = user_data;
-	fp_dbg("");
+	G_DEBUG_HERE();
 	*stopped = TRUE;
 }
 
@@ -460,7 +460,7 @@ static void sync_identify_cb(struct fp_dev *dev, int result,
 static void identify_stop_cb(struct fp_dev *dev, void *user_data)
 {
 	gboolean *stopped = user_data;
-	fp_dbg("");
+	G_DEBUG_HERE();
 	*stopped = TRUE;
 }
 
@@ -605,7 +605,7 @@ static void sync_capture_cb(struct fp_dev *dev, int result, struct fp_img *img,
 static void capture_stop_cb(struct fp_dev *dev, void *user_data)
 {
 	gboolean *stopped = user_data;
-	fp_dbg("");
+	G_DEBUG_HERE();
 	*stopped = TRUE;
 }
 /**

@@ -701,7 +701,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct aes1610_dev *aesdev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	if (aesdev->deactivating)
 		complete_deactivation(dev);
 	else if (ssm->error)
@@ -722,7 +722,7 @@ static void start_capture(struct fp_img_dev *dev)
 	}
 
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
-	fp_dbg("");
+	G_DEBUG_HERE();
 	ssm->priv = dev;
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
@@ -791,7 +791,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 static void complete_deactivation(struct fp_img_dev *dev)
 {
 	struct aes1610_dev *aesdev = dev->priv;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	/* FIXME: if we're in the middle of a scan, we should cancel the scan.
 	 * maybe we can do this with a master reset, unconditionally? */

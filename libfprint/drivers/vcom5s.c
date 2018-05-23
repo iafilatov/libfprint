@@ -256,7 +256,7 @@ static void sm_do_capture(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct v5s_dev *vdev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	vdev->capture_img = fpi_img_new_for_imgdev(dev);
 	vdev->capture_iteration = 0;
 	capture_iterate(ssm);

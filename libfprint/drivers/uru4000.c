@@ -366,7 +366,7 @@ static void sm_do_challenge_response(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	r = read_regs(dev, REG_CHALLENGE, CR_LENGTH, challenge_cb, ssm);
 	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);

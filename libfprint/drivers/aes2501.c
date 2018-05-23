@@ -155,7 +155,7 @@ static void read_regs(struct fp_img_dev *dev, aes2501_read_regs_cb callback,
 	struct aes_regwrite *regwrite = g_malloc(sizeof(*regwrite));
 	struct aes2501_read_regs *rdata = g_malloc(sizeof(*rdata));
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	regwrite->reg = AES2501_REG_CTRL2;
 	regwrite->value = AES2501_CTRL2_READ_REGS;
 	rdata->dev = dev;
@@ -354,7 +354,7 @@ static void finger_det_reqs_cb(struct fp_img_dev *dev, int result,
 static void start_finger_detection(struct fp_img_dev *dev)
 {
 	struct aes2501_dev *aesdev = dev->priv;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (aesdev->deactivating) {
 		complete_deactivation(dev);
@@ -583,7 +583,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	struct aes2501_dev *aesdev = dev->priv;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	if (aesdev->deactivating)
 		complete_deactivation(dev);
 	else if (ssm->error)
@@ -607,7 +607,7 @@ static void start_capture(struct fp_img_dev *dev)
 	/* Reset gain */
 	strip_scan_reqs[4].value = AES2501_ADREFHI_MAX_VALUE;
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
-	fp_dbg("");
+	G_DEBUG_HERE();
 	ssm->priv = dev;
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
@@ -831,7 +831,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 static void complete_deactivation(struct fp_img_dev *dev)
 {
 	struct aes2501_dev *aesdev = dev->priv;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	/* FIXME: if we're in the middle of a scan, we should cancel the scan.
 	 * maybe we can do this with a master reset, unconditionally? */
