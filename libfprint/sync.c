@@ -128,7 +128,7 @@ static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
 /**
  * fp_enroll_finger_img:
  * @dev: the device
- * @print_data a location to return the resultant enrollment data from
+ * @print_data: a location to return the resultant enrollment data from
  * the final stage. Must be freed with fp_print_data_free() after use.
  * @img: location to store the scan image. accepts %NULL for no image
  * storage. If an image is returned, it must be freed with fp_img_free() after
