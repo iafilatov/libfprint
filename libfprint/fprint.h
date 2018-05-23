@@ -344,19 +344,62 @@ void fp_set_debug(int level);
 
 /* Asynchronous I/O */
 
+/**
+ * fp_operation_stop_cb:
+ * @dev: the #fp_dev device
+ * @user_data: user data passed to the callback
+ *
+ * Type definition for a function that will be called when fp_async_dev_close(),
+ * fp_async_verify_stop(), fp_async_identify_stop() or fp_async_capture_stop()
+ * finishes.
+ */
 typedef void (*fp_operation_stop_cb)(struct fp_dev *dev, void *user_data);
+
+/**
+ * fp_img_operation_cb:
+ * @dev: the #fp_dev device
+ * @result: an #fp_verify_result for fp_async_verify_start(), or an #fp_capture_result
+ * for fp_async_capture_start(), or a negative value on error
+ * @img: the captured #fp_img if capture or verification was successful
+ * @user_data: user data passed to the callback
+ *
+ * Type definition for a function that will be called when fp_async_verify_start()
+ * or fp_async_capture_start() finished.
+ */
 typedef void (*fp_img_operation_cb)(struct fp_dev *dev, int result,
 	struct fp_img *img, void *user_data);
 
+/**
+ * fp_dev_open_cb:
+ * @dev: the #fp_dev device
+ * @status: 0 on success, or a negative value on error
+ * @user_data: user data passed to the callback
+ *
+ * Type definition for a function that will be called when fp_async_dev_open
+ * finishes.
+ */
 typedef void (*fp_dev_open_cb)(struct fp_dev *dev, int status, void *user_data);
+
 int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb callback,
 	void *user_data);
 
 void fp_async_dev_close(struct fp_dev *dev, fp_operation_stop_cb callback,
 	void *user_data);
 
+/**
+ * fp_enroll_stage_cb:
+ * @dev: the #fp_dev device
+ * @result: a #fp_enroll_result on success, or a negative value on failure
+ * @print: the enrollment data from the final stage
+ * @img: an #fp_img to free with fp_img_free()
+ * @user_data: user data passed to the callback
+ *
+ * Type definition for a function that will be called when
+ * fp_async_enroll_start() finishes.
+ */
 typedef void (*fp_enroll_stage_cb)(struct fp_dev *dev, int result,
 	struct fp_print_data *print, struct fp_img *img, void *user_data);
+
 int fp_async_enroll_start(struct fp_dev *dev, fp_enroll_stage_cb callback,
 	void *user_data);
 
@@ -369,6 +412,18 @@ int fp_async_verify_start(struct fp_dev *dev, struct fp_print_data *data,
 int fp_async_verify_stop(struct fp_dev *dev, fp_operation_stop_cb callback,
 	void *user_data);
 
+/**
+ * fp_identify_cb:
+ * @dev: the #fp_dev device
+ * @result: a #fp_verify_result on success, or a negative value on error.
+ * @match_offset: the array index of the matched gallery print (if any was found).
+ * Only valid if %FP_VERIFY_MATCH was returned.
+ * @img: the scan image, it must be freed with fp_img_free() after use.
+ * @user_data: user data passed to the callback
+ *
+ * Type definition for a function that will be called when fp_async_identify_start()
+ * finishes.
+ */
 typedef void (*fp_identify_cb)(struct fp_dev *dev, int result,
 	size_t match_offset, struct fp_img *img, void *user_data);
 int fp_async_identify_start(struct fp_dev *dev, struct fp_print_data **gallery,

@@ -58,6 +58,12 @@ fp_dev_supports_dscv_print
 fp_dev_get_img_width
 fp_dev_get_img_height
 
+fp_operation_stop_cb
+fp_img_operation_cb
+fp_dev_open_cb
+fp_enroll_stage_cb
+fp_identify_cb
+
 fp_dev_open
 fp_async_dev_open
 
