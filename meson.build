@@ -91,9 +91,6 @@ if get_option('x11-examples')
 endif
 
 # Message logging
-if get_option('log')
-    libfprint_conf.set('ENABLE_LOGGING', '1')
-endif
 if get_option('debug_log')
     libfprint_conf.set('ENABLE_DEBUG_LOGGING', '1')
 endif

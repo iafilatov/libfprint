@@ -14,10 +14,6 @@ option('x11-examples',
        description: 'Whether to build X11 example applications',
        type: 'boolean',
        value: true)
-option('log',
-       description: 'Message logging',
-       type: 'boolean',
-       value: true)
 option('debug_log',
        description: 'Debug message logging',
        type: 'boolean',
