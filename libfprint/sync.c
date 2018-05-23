@@ -471,7 +471,7 @@ static void identify_stop_cb(struct fp_dev *dev, void *user_data)
  * identify against. Each one must have been previously enrolled with a device
  * compatible to the device selected to perform the scan.
  * @match_offset: output location to store the array index of the matched
- * gallery print (if any was found). Only valid if FP_VERIFY_MATCH was
+ * gallery print (if any was found). Only valid if %FP_VERIFY_MATCH was
  * returned.
  * @img: location to store the scan image. accepts %NULL for no image
  * storage. If an image is returned, it must be freed with fp_img_free() after
@@ -569,7 +569,7 @@ err:
  * identify against. Each one must have been previously enrolled with a device
  * compatible to the device selected to perform the scan.
  * @match_offset: output location to store the array index of the matched
- * gallery print (if any was found). Only valid if FP_VERIFY_MATCH was
+ * gallery print (if any was found). Only valid if %FP_VERIFY_MATCH was
  * returned.
 
  * Performs a new scan and attempts to identify the scanned finger against a
