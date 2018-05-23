@@ -44,14 +44,8 @@
 #define fp_warn g_warning
 #define fp_err g_error
 
-#ifndef NDEBUG
-#define BUG_ON(condition) \
-	if ((condition)) fp_err("BUG at %s:%d", __FILE__, __LINE__)
-#else
-#define BUG_ON(condition)
-#endif
-
-#define BUG() BUG_ON(1)
+#define BUG_ON(condition) g_assert(condition)
+#define BUG() g_assert_not_reached()
 
 enum fp_dev_state {
 	DEV_STATE_INITIAL = 0,
