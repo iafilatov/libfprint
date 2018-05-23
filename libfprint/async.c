@@ -19,11 +19,11 @@
 
 #define FP_COMPONENT "async"
 
+#include "fp_internal.h"
+
 #include <config.h>
 #include <errno.h>
 #include <glib.h>
-
-#include "fp_internal.h"
 
 /* Drivers call this when device initialisation has completed */
 void fpi_drvcb_open_complete(struct fp_dev *dev, int status)

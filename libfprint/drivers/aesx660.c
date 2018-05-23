@@ -23,6 +23,8 @@
 
 #define FP_COMPONENT "aesX660"
 
+#include "fp_internal.h"
+
 #include <stdio.h>
 
 #include <errno.h>
@@ -32,7 +34,6 @@
 
 #include <assembling.h>
 #include <aeslib.h>
-#include <fp_internal.h>
 
 #include "aesx660.h"
 

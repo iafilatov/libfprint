@@ -19,6 +19,8 @@
 
 #define FP_COMPONENT "vcom5s"
 
+#include "fp_internal.h"
+
 /* TODO:
  * calibration?
  * image size: windows gets 300x300 through vpas enrollment util?
@@ -31,8 +33,6 @@
 
 #include <glib.h>
 #include <libusb.h>
-
-#include <fp_internal.h>
 
 #include "driver_ids.h"
 

@@ -23,6 +23,8 @@
 
 #define FP_COMPONENT "aes2501"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 
@@ -30,7 +32,6 @@
 
 #include <assembling.h>
 #include <aeslib.h>
-#include <fp_internal.h>
 
 #include "aes2501.h"
 #include "driver_ids.h"

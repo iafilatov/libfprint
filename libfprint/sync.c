@@ -19,10 +19,10 @@
 
 #define FP_COMPONENT "sync"
 
+#include "fp_internal.h"
+
 #include <config.h>
 #include <errno.h>
-
-#include "fp_internal.h"
 
 struct sync_open_data {
 	struct fp_dev *dev;

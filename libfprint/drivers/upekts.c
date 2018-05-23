@@ -27,13 +27,13 @@
 
 #define FP_COMPONENT "upekts"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 
 #include <glib.h>
 #include <libusb.h>
-
-#include <fp_internal.h>
 
 #include "driver_ids.h"
 

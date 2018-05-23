@@ -19,6 +19,8 @@
 
 #define FP_COMPONENT "poll"
 
+#include "fp_internal.h"
+
 #include <config.h>
 #include <errno.h>
 #include <time.h>
@@ -26,8 +28,6 @@
 
 #include <glib.h>
 #include <libusb.h>
-
-#include "fp_internal.h"
 
 /**
  * SECTION:events

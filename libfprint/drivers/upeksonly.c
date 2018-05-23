@@ -25,13 +25,13 @@
 
 #define FP_COMPONENT "upeksonly"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 
 #include <glib.h>
 #include <libusb.h>
-
-#include <fp_internal.h>
 
 #include <assembling.h>
 

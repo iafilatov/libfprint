@@ -21,8 +21,13 @@
 #define __FPRINT_INTERNAL_H__
 
 #include <config.h>
-#include <stdint.h>
 
+#ifdef FP_COMPONENT
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "libfprint-"FP_COMPONENT
+#endif
+
+#include <stdint.h>
 #include <glib.h>
 #include <libusb.h>
 
@@ -34,26 +39,10 @@
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)( (char *)__mptr - offsetof(type,member) );})
 
-enum fpi_log_level {
-	FPRINT_LOG_LEVEL_DEBUG,
-	FPRINT_LOG_LEVEL_INFO,
-	FPRINT_LOG_LEVEL_WARNING,
-	FPRINT_LOG_LEVEL_ERROR,
-};
-
-void fpi_log(enum fpi_log_level, const char *component, const char *function,
-	const char *format, ...);
-
-#ifndef FP_COMPONENT
-#define FP_COMPONENT NULL
-#endif
-
-#define _fpi_log(level, fmt...) fpi_log(level, FP_COMPONENT, __FUNCTION__, fmt)
-
-#define fp_dbg(fmt...) _fpi_log(FPRINT_LOG_LEVEL_DEBUG, fmt)
-#define fp_info(fmt...) _fpi_log(FPRINT_LOG_LEVEL_INFO, fmt)
-#define fp_warn(fmt...) _fpi_log(FPRINT_LOG_LEVEL_WARNING, fmt)
-#define fp_err(fmt...) _fpi_log(FPRINT_LOG_LEVEL_ERROR, fmt)
+#define fp_dbg g_debug
+#define fp_info g_debug
+#define fp_warn g_warning
+#define fp_err g_error
 
 #ifndef NDEBUG
 #define BUG_ON(condition) \

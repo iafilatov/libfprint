@@ -19,13 +19,14 @@
 
 #define FP_COMPONENT "upektc_img"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 
 #include <libusb.h>
 
 #include <aeslib.h>
-#include <fp_internal.h>
 
 #include "upektc_img.h"
 #include "driver_ids.h"

@@ -19,14 +19,14 @@
 
 #define FP_COMPONENT "aes2660"
 
+#include "fp_internal.h"
+
 #include <stdio.h>
 
 #include <errno.h>
 #include <string.h>
 
 #include <libusb.h>
-
-#include <fp_internal.h>
 
 #include <assembling.h>
 #include <aeslib.h>

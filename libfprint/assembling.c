@@ -21,13 +21,14 @@
 
 #define FP_COMPONENT "assembling"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 
 #include <libusb.h>
 #include <glib.h>
 
-#include "fp_internal.h"
 #include "assembling.h"
 
 static unsigned int calc_error(struct fpi_frame_asmbl_ctx *ctx,

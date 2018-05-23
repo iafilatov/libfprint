@@ -27,9 +27,6 @@
 
 #include "fp_internal.h"
 
-static int log_level = 0;
-static int log_level_fixed = 0;
-
 libusb_context *fpi_usb_ctx = NULL;
 GSList *opened_devices = NULL;
 
@@ -115,52 +112,6 @@ GSList *opened_devices = NULL;
  */
 
 static GSList *registered_drivers = NULL;
-
-void fpi_log(enum fpi_log_level level, const char *component,
-	const char *function, const char *format, ...)
-{
-	va_list args;
-	FILE *stream = stdout;
-	const char *prefix;
-
-	if (!log_level)
-		return;
-	if (level == FPRINT_LOG_LEVEL_WARNING && log_level < 2)
-		return;
-	if (level == FPRINT_LOG_LEVEL_INFO && log_level < 3)
-		return;
-
-	switch (level) {
-	case FPRINT_LOG_LEVEL_INFO:
-		prefix = "info";
-		break;
-	case FPRINT_LOG_LEVEL_WARNING:
-		stream = stderr;
-		prefix = "warning";
-		break;
-	case FPRINT_LOG_LEVEL_ERROR:
-		stream = stderr;
-		prefix = "error";
-		break;
-	case FPRINT_LOG_LEVEL_DEBUG:
-		stream = stderr;
-		prefix = "debug";
-		break;
-	default:
-		stream = stderr;
-		prefix = "unknown";
-		break;
-	}
-
-	fprintf(stream, "%s:%s [%s] ", component ? component : "fp", prefix,
-		function);
-
-	va_start (args, format);
-	vfprintf(stream, format, args);
-	va_end (args);
-
-	fprintf(stream, "\n");
-}
 
 static void register_driver(struct fp_driver *drv)
 {
@@ -787,38 +738,11 @@ API_EXPORTED int fp_dev_get_img_height(struct fp_dev *dev)
  * fp_set_debug:
  * @level: the verbosity level
  *
- * Set message verbosity.
- *  - Level 0: no messages ever printed by the library (default)
- *  - Level 1: error messages are printed to stderr
- *  - Level 2: warning and error messages are printed to stderr
- *  - Level 3: informational messages are printed to stdout, warning and error
- *    messages are printed to stderr
- *
- * The default level is 0, which means no messages are ever printed. If you
- * choose to increase the message verbosity level, ensure that your
- * application does not close the stdout/stderr file descriptors.
- *
- * You are advised to set level 3. libfprint is conservative with its message
- * logging and most of the time, will only log messages that explain error
- * conditions and other oddities. This will help you debug your software.
- *
- * If the LIBFPRINT_DEBUG environment variable was set when libfprint was
- * initialized, this function does nothing: the message verbosity is fixed
- * to the value in the environment variable.
- *
- * If libfprint was compiled without any message logging, this function does
- * nothing: you'll never get any messages.
- *
- * If libfprint was compiled with verbose debug message logging, this function
- * does nothing: you'll always get messages from all levels.
+ * This call does nothing, see fp_init() for details.
  */
 API_EXPORTED void fp_set_debug(int level)
 {
-	if (log_level_fixed)
-		return;
-
-	log_level = level;
-	libusb_set_debug(fpi_usb_ctx, level);
+	/* Nothing */
 }
 
 /**
@@ -827,25 +751,33 @@ API_EXPORTED void fp_set_debug(int level)
  * Initialise libfprint. This function must be called before you attempt to
  * use the library in any way.
  *
+ * To enable debug output of libfprint specifically, use GLib's `G_MESSAGES_DEBUG`
+ * environment variable as explained in [Running and debugging GLib Applications](https://developer.gnome.org/glib/stable/glib-running.html#G_MESSAGES_DEBUG).
+ *
+ * The log domains used in libfprint are either `libfprint` or `libfprint-FP_COMPONENT`
+ * where `FP_COMPONENT` is defined in the source code for each driver, or component
+ * of the library. Starting with `all` and trimming down is advised.
+ *
+ * To enable debugging of libusb, for USB-based fingerprint reader drivers, use
+ * libusb's `LIBUSB_DEBUG` environment variable as explained in the
+ * [libusb-1.0 API Reference](http://libusb.sourceforge.net/api-1.0/#msglog).
+ *
+ * Example:
+ *
+ * ```
+ * LIBUSB_DEBUG=4 G_MESSAGES_DEBUG=all my-libfprint-application
+ * ```
+ *
  * Returns: 0 on success, non-zero on error.
  */
 API_EXPORTED int fp_init(void)
 {
-	char *dbg = getenv("LIBFPRINT_DEBUG");
 	int r;
 	G_DEBUG_HERE();
 
 	r = libusb_init(&fpi_usb_ctx);
 	if (r < 0)
 		return r;
-
-	if (dbg) {
-		log_level = atoi(dbg);
-		if (log_level) {
-			log_level_fixed = 1;
-			libusb_set_debug(fpi_usb_ctx, log_level);
-		}
-	}
 
 	register_drivers();
 	fpi_poll_init();

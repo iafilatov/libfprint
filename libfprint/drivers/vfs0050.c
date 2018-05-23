@@ -19,9 +19,10 @@
 
 #define FP_COMPONENT "vfs0050"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
-#include <fp_internal.h>
 #include <assembling.h>
 #include "driver_ids.h"
 

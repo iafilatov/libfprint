@@ -20,10 +20,11 @@
 
 #define FP_COMPONENT "elan"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <libusb.h>
 #include <assembling.h>
-#include <fp_internal.h>
 #include <fprint.h>
 
 #include "elan.h"

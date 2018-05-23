@@ -20,10 +20,11 @@
 
 #define FP_COMPONENT "upektc"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 #include <libusb.h>
-#include <fp_internal.h>
 
 #include "upektc.h"
 #include "driver_ids.h"

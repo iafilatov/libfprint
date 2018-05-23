@@ -19,10 +19,10 @@
 
 #define FP_COMPONENT "drv"
 
+#include "fp_internal.h"
+
 #include <config.h>
 #include <errno.h>
-
-#include "fp_internal.h"
 
 /* SSM: sequential state machine
  * Asynchronous driver design encourages some kind of state machine behind it.

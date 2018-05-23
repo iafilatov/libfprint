@@ -19,6 +19,8 @@
 
 #define FP_COMPONENT "aes1660"
 
+#include "fp_internal.h"
+
 #include <stdio.h>
 
 #include <errno.h>
@@ -26,7 +28,6 @@
 
 #include <libusb.h>
 
-#include <fp_internal.h>
 
 #include <assembling.h>
 #include <aeslib.h>

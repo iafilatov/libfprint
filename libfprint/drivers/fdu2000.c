@@ -17,14 +17,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#define FP_COMPONENT "fdu2000"
+
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <libusb.h>
-
-#define FP_COMPONENT "fdu2000"
-#include <fp_internal.h>
 
 #include "driver_ids.h"
 

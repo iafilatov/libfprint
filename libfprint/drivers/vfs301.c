@@ -21,6 +21,8 @@
 
 #define FP_COMPONENT "vfs301"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
@@ -31,8 +33,6 @@
 
 #include "vfs301_proto.h"
 #include <unistd.h>
-
-#include <fp_internal.h>
 
 #include "driver_ids.h"
 

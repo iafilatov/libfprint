@@ -19,13 +19,14 @@
 
 #define FP_COMPONENT "aeslib"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 
 #include <libusb.h>
 #include <glib.h>
 
-#include "fp_internal.h"
 #include "assembling.h"
 #include "aeslib.h"
 

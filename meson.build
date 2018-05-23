@@ -9,6 +9,7 @@ project('libfprint', [ 'c', 'cpp' ],
         meson_version: '>= 0.45.0')
 
 add_project_arguments([ '-D_GNU_SOURCE' ], language: 'c')
+add_project_arguments([ '-DG_LOG_DOMAIN="libfprint"' ], language: 'c')
 
 libfprint_conf = configuration_data()
 

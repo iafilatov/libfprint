@@ -36,13 +36,14 @@
 
 #define FP_COMPONENT "aes3k"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 
 #include <glib.h>
 #include <libusb.h>
 
 #include <aeslib.h>
-#include <fp_internal.h>
 
 #include "aes3k.h"
 

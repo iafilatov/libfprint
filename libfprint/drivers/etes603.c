@@ -33,6 +33,10 @@
  *
  */
 
+#define FP_COMPONENT "etes603"
+
+#include "fp_internal.h"
+
 #include <string.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -41,8 +45,6 @@
 #include <libusb.h>
 #include <glib.h>
 
-#define FP_COMPONENT "etes603"
-#include <fp_internal.h>
 #include "driver_ids.h"
 
 /* libusb defines */
