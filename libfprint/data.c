@@ -224,7 +224,7 @@ static struct fp_print_data *fpi_print_data_from_fp2_data(unsigned char *buf,
 
 		raw_item = (struct fpi_print_data_item_fp2 *)raw_buf;
 		item_len = GUINT32_FROM_LE(raw_item->length);
-		fp_dbg("item len %d, total_data_len %d", item_len, total_data_len);
+		fp_dbg("item len %d, total_data_len %d", (int) item_len, (int) total_data_len);
 		if (total_data_len < item_len) {
 			fp_err("corrupted fingerprint data");
 			break;

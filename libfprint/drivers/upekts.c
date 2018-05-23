@@ -1011,7 +1011,7 @@ static void e_handle_resp00(struct fp_dev *dev, unsigned char *data,
 	int result = 0;
 
 	if (data_len != 14) {
-		fp_err("received 3001 poll response of %d bytes?", data_len);
+		fp_err("received 3001 poll response of %lu bytes?", data_len);
 		fpi_drvcb_enroll_stage_completed(dev, -EPROTO, NULL, NULL);
 		return;
 	}
@@ -1083,7 +1083,7 @@ static void e_handle_resp02(struct fp_dev *dev, unsigned char *data,
 	int result = -EPROTO;
 
 	if (data_len < sizeof(scan_comp)) {
-		fp_err("fingerprint data too short (%d bytes)", data_len);
+		fp_err("fingerprint data too short (%lu bytes)", data_len);
 	} else if (memcmp(data, scan_comp, sizeof(scan_comp)) != 0) {
 		fp_err("unrecognised data prefix %x %x %x %x %x",
 			data[0], data[1], data[2], data[3], data[4]);
@@ -1288,7 +1288,7 @@ static void v_handle_resp00(struct fp_dev *dev, unsigned char *data,
 	int r = 0;
 
 	if (data_len != 14) {
-		fp_err("received 3001 poll response of %d bytes?", data_len);
+		fp_err("received 3001 poll response of %lu bytes?", data_len);
 		r = -EPROTO;
 		goto out;
 	}

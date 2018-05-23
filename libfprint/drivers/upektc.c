@@ -462,7 +462,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 		upekdev->sum_threshold = UPEKET_SUM_THRESHOLD;
 		break;
 	default:
-		fp_err("Device variant %d is not known\n", driver_data);
+		fp_err("Device variant %lu is not known\n", driver_data);
 		g_free(upekdev);
 		dev->priv = NULL;
 		return -ENODEV;

@@ -341,7 +341,7 @@ static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 		goto out;
 	}
 
-	fp_dbg("Got %d bytes of data", actual_len);
+	fp_dbg("Got %lu bytes of data", actual_len);
 	do {
 		copied = min(aesdev->buffer_max - aesdev->buffer_size, actual_len);
 		memcpy(aesdev->buffer + aesdev->buffer_size,
@@ -350,13 +350,13 @@ static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 		actual_len -= copied;
 		data += copied;
 		aesdev->buffer_size += copied;
-		fp_dbg("Copied %.4x bytes into internal buffer",
+		fp_dbg("Copied %.4lx bytes into internal buffer",
 			copied);
 		if (aesdev->buffer_size == aesdev->buffer_max) {
 			if (aesdev->buffer_max == AESX660_HEADER_SIZE) {
 				aesdev->buffer_max = aesdev->buffer[AESX660_RESPONSE_SIZE_LSB_OFFSET] +
 					(aesdev->buffer[AESX660_RESPONSE_SIZE_MSB_OFFSET] << 8) + AESX660_HEADER_SIZE;
-				fp_dbg("Got frame, type %.2x size %.4x",
+				fp_dbg("Got frame, type %.2x size %.4lx",
 					aesdev->buffer[AESX660_RESPONSE_TYPE_OFFSET],
 					aesdev->buffer_max);
 				continue;
@@ -402,7 +402,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			capture_read_stripe_data_cb);
 	break;
 	case CAPTURE_SET_IDLE:
-		fp_dbg("Got %d frames\n", aesdev->strips_len);
+		fp_dbg("Got %lu frames\n", aesdev->strips_len);
 		aesX660_send_cmd(ssm, set_idle_cmd, sizeof(set_idle_cmd),
 			capture_set_idle_cmd_cb);
 	break;

@@ -246,7 +246,7 @@ static void handoff_img(struct fp_img_dev *dev)
 
 	sdev->rows = g_slist_reverse(sdev->rows);
 
-	fp_dbg("%d rows", sdev->num_rows);
+	fp_dbg("%lu rows", sdev->num_rows);
 	img = fpi_assemble_lines(&assembling_ctx, sdev->rows, sdev->num_rows);
 
 	g_slist_free_full(sdev->rows, g_free);
@@ -312,7 +312,7 @@ static void row_complete(struct fp_img_dev *dev)
 			 */
 			if (sdev->num_blank > FINGER_REMOVED_THRESHOLD) {
 				sdev->finger_state = FINGER_REMOVED;
-				fp_dbg("detected finger removal. Blank rows: %d, Full rows: %d", sdev->num_blank, sdev->num_rows);
+				fp_dbg("detected finger removal. Blank rows: %d, Full rows: %lu", sdev->num_blank, sdev->num_rows);
 				handoff_img(dev);
 				return;
 			}

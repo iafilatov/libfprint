@@ -163,7 +163,7 @@ static int get_next_timeout_expiry(struct timeval *out,
 		timerclear(out);
 	} else {
 		timersub(&next_timeout->expiry, &tv, out);
-		fp_dbg("next timeout in %d.%06ds", out->tv_sec, out->tv_usec);
+		fp_dbg("next timeout in %ld.%06lds", out->tv_sec, out->tv_usec);
 	}
 
 	return 1;

@@ -266,7 +266,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 		response_size = ((data[5] & 0x0f) << 8) + data[6];
 		response_size += 9; /* 7 bytes for header, 2 for CRC */
 		if (response_size > transfer->actual_length) {
-			fp_dbg("response_size is %d, actual_length is %d\n",
+			fp_dbg("response_size is %lu, actual_length is %d\n",
 				response_size, transfer->actual_length);
 			fp_dbg("Waiting for rest of transfer");
 			BUG_ON(upekdev->response_rest);
@@ -331,7 +331,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 					upektc_img_process_image_frame(upekdev->image_bits + upekdev->image_size,
 						data);
 				BUG_ON(upekdev->image_size != IMAGE_SIZE);
-				fp_dbg("Image size is %d\n", upekdev->image_size);
+				fp_dbg("Image size is %lu\n", upekdev->image_size);
 				img = fpi_img_new(IMAGE_SIZE);
 				img->flags = FP_IMG_PARTIAL;
 				memcpy(img->data, upekdev->image_bits, IMAGE_SIZE);
