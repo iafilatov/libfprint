@@ -45,7 +45,7 @@ static void sync_open_cb(struct fp_dev *dev, int status, void *user_data)
  * to convert a #fp_dscv_dev discovered device into an actual device handle
  * that you can perform operations with.
  *
- * Returns: (transfer none): the opened device handle, or %NULL on error
+ * Returns: the opened device handle, or %NULL on error
  */
 API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 {
