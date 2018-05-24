@@ -301,7 +301,7 @@ static void msg_get_regs(struct etes603_dev *dev, int n_args, ... )
 	va_list ap;
 	int i;
 
-	assert(n_args > 0 && n_args <= REG_MAX);
+	g_assert(n_args > 0 && n_args <= REG_MAX);
 
 	msg_header_prepare(msg);
 	msg->cmd = CMD_READ_REG;
@@ -350,7 +350,7 @@ static void msg_set_regs(struct etes603_dev *dev, int n_args, ...)
 	va_list ap;
 	int i;
 
-	assert(n_args != 0 && n_args % 2 == 0 && n_args <= REG_MAX * 2);
+	g_assert(n_args != 0 && n_args % 2 == 0 && n_args <= REG_MAX * 2);
 
 	msg_header_prepare(msg);
 	msg->cmd = CMD_WRITE_REG;
@@ -1005,7 +1005,7 @@ static void m_tunevrb_state(struct fpi_ssm *ssm)
 	switch (ssm->cur_state) {
 	case TUNEVRB_INIT:
 		fp_dbg("Tuning of VRT/VRB");
-		assert(dev->dcoffset);
+		g_assert(dev->dcoffset);
 		/* VRT(reg E1)=0x0A and VRB(reg E2)=0x10 are starting values */
 		dev->vrt = 0x0A;
 		dev->vrb = 0x10;
@@ -1412,7 +1412,7 @@ static int dev_activate(struct fp_img_dev *idev, enum fp_imgdev_state state)
 	struct etes603_dev *dev = idev->priv;
 	struct fpi_ssm *ssm;
 
-	assert(dev);
+	g_assert(dev);
 
 	if (state != IMGDEV_STATE_AWAIT_FINGER_ON) {
 		fp_err("The driver is in an unexpected state: %d.", state);
