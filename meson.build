@@ -46,6 +46,7 @@ mathlib_dep = cc.find_library('m', required: false)
 # Drivers
 drivers = get_option('drivers').split(',')
 all_drivers = [ 'upekts', 'upektc', 'upeksonly', 'vcom5s', 'uru4000', 'aes1610', 'aes1660', 'aes2501', 'aes2550', 'aes2660', 'aes3500', 'aes4000', 'vfs101', 'vfs301', 'vfs5011', 'upektc_img', 'etes603', 'vfs0050', 'elan' ]
+primitive_drivers = [ 'upekts' ]
 
 if drivers == [ 'all' ]
     drivers = all_drivers
@@ -71,6 +72,21 @@ foreach driver: drivers
     endif
 endforeach
 
+# Export the drivers' structures to the core code
+drivers_struct_list = ''
+drivers_img_array = 'static struct fp_img_driver * const img_drivers[] = {\n'
+drivers_primitive_array = 'static struct fp_driver * const primitive_drivers[] = {\n'
+foreach driver: drivers
+    if primitive_drivers.contains(driver)
+        drivers_struct_list += 'extern struct fp_driver ' + driver + '_driver;\n'
+        drivers_primitive_array += '	&' + driver + '_driver,\n'
+    else
+        drivers_struct_list += 'extern struct fp_img_driver ' + driver + '_driver;\n'
+        drivers_img_array += '	&' + driver + '_driver,\n'
+    endif
+endforeach
+drivers_img_array += '};'
+drivers_primitive_array += '};'
 
 root_inc = include_directories('.')
 

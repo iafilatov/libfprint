@@ -222,66 +222,7 @@ struct fp_img_driver {
 	void (*deactivate)(struct fp_img_dev *dev);
 };
 
-#ifdef ENABLE_UPEKTS
-extern struct fp_driver upekts_driver;
-#endif
-#ifdef ENABLE_UPEKTC
-extern struct fp_img_driver upektc_driver;
-#endif
-#ifdef ENABLE_UPEKSONLY
-extern struct fp_img_driver upeksonly_driver;
-#endif
-#ifdef ENABLE_URU4000
-extern struct fp_img_driver uru4000_driver;
-#endif
-#ifdef ENABLE_AES1610
-extern struct fp_img_driver aes1610_driver;
-#endif
-#ifdef ENABLE_AES1660
-extern struct fp_img_driver aes1660_driver;
-#endif
-#ifdef ENABLE_AES2501
-extern struct fp_img_driver aes2501_driver;
-#endif
-#ifdef ENABLE_AES2550
-extern struct fp_img_driver aes2550_driver;
-#endif
-#ifdef ENABLE_AES2660
-extern struct fp_img_driver aes2660_driver;
-#endif
-#ifdef ENABLE_AES3500
-extern struct fp_img_driver aes3500_driver;
-#endif
-#ifdef ENABLE_AES4000
-extern struct fp_img_driver aes4000_driver;
-#endif
-#ifdef ENABLE_FDU2000
-extern struct fp_img_driver fdu2000_driver;
-#endif
-#ifdef ENABLE_VCOM5S
-extern struct fp_img_driver vcom5s_driver;
-#endif
-#ifdef ENABLE_VFS101
-extern struct fp_img_driver vfs101_driver;
-#endif
-#ifdef ENABLE_VFS301
-extern struct fp_img_driver vfs301_driver;
-#endif
-#ifdef ENABLE_VFS5011
-extern struct fp_img_driver vfs5011_driver;
-#endif
-#ifdef ENABLE_UPEKTC_IMG
-extern struct fp_img_driver upektc_img_driver;
-#endif
-#ifdef ENABLE_ETES603
-extern struct fp_img_driver etes603_driver;
-#endif
-#ifdef ENABLE_VFS0050
-extern struct fp_img_driver vfs0050_driver;
-#endif
-#ifdef ENABLE_ELAN
-extern struct fp_img_driver elan_driver;
-#endif
+#include "drivers_definitions.h"
 
 extern libusb_context *fpi_usb_ctx;
 extern GSList *opened_devices;

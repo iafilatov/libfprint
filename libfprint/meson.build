@@ -128,7 +128,6 @@ foreach driver: drivers
     if driver == 'elan'
         drivers_sources += [ 'drivers/elan.c', 'drivers/elan.h' ]
     endif
-    drivers_cflags += [ '-DENABLE_' + driver.to_upper() + '=1' ]
 endforeach
 
 if aeslib
@@ -145,6 +144,22 @@ other_sources = []
 if imaging_dep.found()
     other_sources += [ 'pixman.c' ]
 endif
+
+libfprint_sources += configure_file(input: 'empty_file',
+                                    output: 'drivers_definitions.h',
+                                    capture: true,
+                                    command: [
+                                      '/bin/echo',
+                                      drivers_struct_list
+                                    ])
+
+libfprint_sources += configure_file(input: 'empty_file',
+                                    output: 'drivers_arrays.h',
+                                    capture: true,
+                                    command: [
+                                      '/bin/echo',
+                                      drivers_primitive_array + '\n\n' + drivers_img_array
+                                    ])
 
 deps = [ mathlib_dep, glib_dep, libusb_dep, nss_dep, imaging_dep ]
 libfprint = library('fprint',

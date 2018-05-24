@@ -123,73 +123,7 @@ static void register_driver(struct fp_driver *drv)
 	fp_dbg("registered driver %s", drv->name);
 }
 
-static struct fp_driver * const primitive_drivers[] = {
-#ifdef ENABLE_UPEKTS
-	&upekts_driver,
-#endif
-};
-
-static struct fp_img_driver * const img_drivers[] = {
-#ifdef ENABLE_AES3500
-	&aes3500_driver,
-#endif
-#ifdef ENABLE_AES4000
-	&aes4000_driver,
-#endif
-#ifdef ENABLE_AES2501
-	&aes2501_driver,
-#endif
-#ifdef ENABLE_AES2550
-	&aes2550_driver,
-#endif
-#ifdef ENABLE_URU4000
-	&uru4000_driver,
-#endif
-#ifdef ENABLE_VCOM5S
-	&vcom5s_driver,
-#endif
-#ifdef ENABLE_UPEKSONLY
-	&upeksonly_driver,
-#endif
-
-#ifdef ENABLE_AES1610
-	&aes1610_driver,
-#endif
-#ifdef ENABLE_AES1660
-	&aes1660_driver,
-#endif
-#ifdef ENABLE_AES2660
-	&aes2660_driver,
-#endif
-#ifdef ENABLE_VFS101
-	&vfs101_driver,
-#endif
-#ifdef ENABLE_VFS301
-	&vfs301_driver,
-#endif
-#ifdef ENABLE_VFS5011
-	&vfs5011_driver,
-#endif
-#ifdef ENABLE_UPEKTC
-	&upektc_driver,
-#endif
-#ifdef ENABLE_UPEKTC_IMG
-	&upektc_img_driver,
-#endif
-#ifdef ENABLE_ETES603
-	&etes603_driver,
-#endif
-#ifdef ENABLE_VFS0050
-	&vfs0050_driver,
-#endif
-#ifdef ENABLE_ELAN
-	&elan_driver,
-#endif
-/*#ifdef ENABLE_FDU2000
-	&fdu2000_driver,
-#endif
-	*/
-};
+#include "drivers_arrays.h"
 
 static void register_drivers(void)
 {
