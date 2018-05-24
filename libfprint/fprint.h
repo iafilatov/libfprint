@@ -27,6 +27,8 @@ extern "C" {
 #include <stdint.h>
 #include <sys/time.h>
 
+#define LIBFPRINT_DEPRECATED __attribute__((__deprecated__))
+
 /**
  * fp_dscv_dev:
  *
