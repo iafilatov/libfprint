@@ -402,6 +402,8 @@ API_EXPORTED int fp_dscv_dev_supports_print_data(struct fp_dscv_dev *dev,
  * compatible with a discovered device.
  *
  * Returns: 1 if the print is compatible with the device, 0 otherwise
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED int fp_dscv_dev_supports_dscv_print(struct fp_dscv_dev *dev,
 	struct fp_dscv_print *print)
@@ -420,6 +422,8 @@ API_EXPORTED int fp_dscv_dev_supports_dscv_print(struct fp_dscv_dev *dev,
  *
  * Returns: the first discovered device that appears to support the print, or
  * %NULL if no apparently compatible devices could be found
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev **devs,
 	struct fp_print_data *print)
@@ -443,6 +447,8 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev *
  *
  * Returns: the first discovered device that appears to support the print, or
  * %NULL if no apparently compatible devices could be found
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev **devs,
 	struct fp_dscv_print *print)
@@ -522,6 +528,8 @@ API_EXPORTED int fp_dev_supports_print_data(struct fp_dev *dev,
  * with a certain device.
  *
  * Returns: 1 if the print is compatible with the device, 0 if not
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED int fp_dev_supports_dscv_print(struct fp_dev *dev,
 	struct fp_dscv_print *print)

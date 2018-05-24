@@ -138,19 +138,19 @@ uint32_t fp_dscv_dev_get_devtype(struct fp_dscv_dev *dev);
 int fp_dscv_dev_supports_print_data(struct fp_dscv_dev *dev,
 	struct fp_print_data *print);
 int fp_dscv_dev_supports_dscv_print(struct fp_dscv_dev *dev,
-	struct fp_dscv_print *print);
+	struct fp_dscv_print *print) LIBFPRINT_DEPRECATED;
 struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev **devs,
-	struct fp_print_data *print);
+	struct fp_print_data *print) LIBFPRINT_DEPRECATED;
 struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev **devs,
-	struct fp_dscv_print *print);
+	struct fp_dscv_print *print) LIBFPRINT_DEPRECATED;
 
 /* Print discovery */
-struct fp_dscv_print **fp_discover_prints(void);
-void fp_dscv_prints_free(struct fp_dscv_print **prints);
-uint16_t fp_dscv_print_get_driver_id(struct fp_dscv_print *print);
-uint32_t fp_dscv_print_get_devtype(struct fp_dscv_print *print);
-enum fp_finger fp_dscv_print_get_finger(struct fp_dscv_print *print);
-int fp_dscv_print_delete(struct fp_dscv_print *print);
+struct fp_dscv_print **fp_discover_prints(void) LIBFPRINT_DEPRECATED;
+void fp_dscv_prints_free(struct fp_dscv_print **prints) LIBFPRINT_DEPRECATED;
+uint16_t fp_dscv_print_get_driver_id(struct fp_dscv_print *print) LIBFPRINT_DEPRECATED;
+uint32_t fp_dscv_print_get_devtype(struct fp_dscv_print *print) LIBFPRINT_DEPRECATED;
+enum fp_finger fp_dscv_print_get_finger(struct fp_dscv_print *print) LIBFPRINT_DEPRECATED;
+int fp_dscv_print_delete(struct fp_dscv_print *print) LIBFPRINT_DEPRECATED;
 
 /* Device handling */
 struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev);
@@ -159,7 +159,7 @@ struct fp_driver *fp_dev_get_driver(struct fp_dev *dev);
 int fp_dev_get_nr_enroll_stages(struct fp_dev *dev);
 uint32_t fp_dev_get_devtype(struct fp_dev *dev);
 int fp_dev_supports_print_data(struct fp_dev *dev, struct fp_print_data *data);
-int fp_dev_supports_dscv_print(struct fp_dev *dev, struct fp_dscv_print *print);
+int fp_dev_supports_dscv_print(struct fp_dev *dev, struct fp_dscv_print *print) LIBFPRINT_DEPRECATED;
 
 /**
  * fp_capture_result:
@@ -268,7 +268,7 @@ int fp_identify_finger(struct fp_dev *dev,
 int fp_print_data_load(struct fp_dev *dev, enum fp_finger finger,
 	struct fp_print_data **data);
 int fp_print_data_from_dscv_print(struct fp_dscv_print *print,
-	struct fp_print_data **data);
+	struct fp_print_data **data) LIBFPRINT_DEPRECATED;
 int fp_print_data_save(struct fp_print_data *data, enum fp_finger finger);
 int fp_print_data_delete(struct fp_dev *dev, enum fp_finger finger);
 void fp_print_data_free(struct fp_print_data *data);
