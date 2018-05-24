@@ -141,12 +141,14 @@ int main(void)
 	int img_height;
 	int standardize = 0;
 
+	setenv ("G_MESSAGES_DEBUG", "all", 0);
+	setenv ("LIBUSB_DEBUG", "3", 0);
+
 	r = fp_init();
 	if (r < 0) {
 		fprintf(stderr, "Failed to initialize libfprint\n");
 		exit(1);
 	}
-	fp_set_debug(3);
 
 	discovered_devs = fp_discover_devs();
 	if (!discovered_devs) {
