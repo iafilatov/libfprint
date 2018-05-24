@@ -28,14 +28,6 @@
  * powerdown? does windows do anything special on exit?
  */
 
-#include <errno.h>
-#include <string.h>
-
-#include <glib.h>
-#include <libusb.h>
-
-#include "driver_ids.h"
-
 #define CTRL_IN 0xc0
 #define CTRL_OUT 0x40
 #define CTRL_TIMEOUT	1000

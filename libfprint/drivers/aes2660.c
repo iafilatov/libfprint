@@ -20,20 +20,9 @@
 #define FP_COMPONENT "aes2660"
 
 #include "fp_internal.h"
-
-#include <stdio.h>
-
-#include <errno.h>
-#include <string.h>
-
-#include <libusb.h>
-
-#include <assembling.h>
-#include <aeslib.h>
-
+#include "aeslib.h"
 #include "aesx660.h"
 #include "aes2660.h"
-#include "driver_ids.h"
 
 #define FRAME_WIDTH 192
 #define IMAGE_WIDTH	(FRAME_WIDTH + (FRAME_WIDTH / 2))

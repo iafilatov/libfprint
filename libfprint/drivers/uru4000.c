@@ -20,17 +20,10 @@
 
 #define FP_COMPONENT "uru4000"
 
-#include "fp_internal.h"
-
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-
 #include <nss.h>
 #include <pk11pub.h>
-#include <libusb.h>
 
-#include "driver_ids.h"
+#include "fp_internal.h"
 
 #define EP_INTR			(1 | LIBUSB_ENDPOINT_IN)
 #define EP_DATA			(2 | LIBUSB_ENDPOINT_IN)

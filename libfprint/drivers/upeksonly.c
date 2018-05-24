@@ -26,17 +26,7 @@
 #define FP_COMPONENT "upeksonly"
 
 #include "fp_internal.h"
-
-#include <errno.h>
-#include <string.h>
-
-#include <glib.h>
-#include <libusb.h>
-
-#include <assembling.h>
-
 #include "upeksonly.h"
-#include "driver_ids.h"
 
 #define CTRL_TIMEOUT	1000
 #define NUM_BULK_TRANSFERS 24

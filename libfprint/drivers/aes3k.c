@@ -37,14 +37,7 @@
 #define FP_COMPONENT "aes3k"
 
 #include "fp_internal.h"
-
-#include <errno.h>
-
-#include <glib.h>
-#include <libusb.h>
-
-#include <aeslib.h>
-
+#include "aeslib.h"
 #include "aes3k.h"
 
 #define CTRL_TIMEOUT	1000

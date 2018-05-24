@@ -21,14 +21,6 @@
 
 #include "fp_internal.h"
 
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-
-#include <libusb.h>
-
-#include "driver_ids.h"
-
 #ifndef HAVE_MEMMEM
 gpointer
 memmem(const gpointer haystack, size_t haystack_len, const gpointer needle, size_t needle_len) {

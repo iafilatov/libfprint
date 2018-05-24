@@ -29,14 +29,6 @@
 
 #include "fp_internal.h"
 
-#include <errno.h>
-#include <string.h>
-
-#include <glib.h>
-#include <libusb.h>
-
-#include "driver_ids.h"
-
 #define EP_IN (1 | LIBUSB_ENDPOINT_IN)
 #define EP_OUT (2 | LIBUSB_ENDPOINT_OUT)
 #define TIMEOUT 5000

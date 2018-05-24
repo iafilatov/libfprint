@@ -20,16 +20,8 @@
 #define FP_COMPONENT "upektc_img"
 
 #include "fp_internal.h"
-
-#include <errno.h>
-#include <string.h>
-
-#include <libusb.h>
-
-#include <aeslib.h>
-
+#include "aeslib.h"
 #include "upektc_img.h"
-#include "driver_ids.h"
 
 static void start_capture(struct fp_img_dev *dev);
 static void start_deactivation(struct fp_img_dev *dev);

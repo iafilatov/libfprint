@@ -21,12 +21,6 @@
 
 #include "fp_internal.h"
 
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "driver_ids.h"
-
 /* Input-Output usb endpoint */
 #define EP_IN(n)	(n | LIBUSB_ENDPOINT_IN)
 #define EP_OUT(n)	(n | LIBUSB_ENDPOINT_OUT)

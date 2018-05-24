@@ -21,13 +21,7 @@
 #define FP_COMPONENT "upektc"
 
 #include "fp_internal.h"
-
-#include <errno.h>
-#include <string.h>
-#include <libusb.h>
-
 #include "upektc.h"
-#include "driver_ids.h"
 
 #define UPEKTC_EP_IN (2 | LIBUSB_ENDPOINT_IN)
 #define UPEKTC_EP_OUT (3 | LIBUSB_ENDPOINT_OUT)

@@ -21,14 +21,7 @@
 #define FP_COMPONENT "elan"
 
 #include "fp_internal.h"
-
-#include <errno.h>
-#include <libusb.h>
-#include <assembling.h>
-#include <fprint.h>
-
 #include "elan.h"
-#include "driver_ids.h"
 
 unsigned char elan_get_pixel(struct fpi_frame_asmbl_ctx *ctx,
 			     struct fpi_frame *frame, unsigned int x,

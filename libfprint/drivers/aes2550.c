@@ -24,17 +24,8 @@
 #define FP_COMPONENT "aes2550"
 
 #include "fp_internal.h"
-
-#include <errno.h>
-#include <string.h>
-
-#include <libusb.h>
-
-#include <assembling.h>
-#include <aeslib.h>
-
 #include "aes2550.h"
-#include "driver_ids.h"
+#include "aeslib.h"
 
 static void start_capture(struct fp_img_dev *dev);
 static void complete_deactivation(struct fp_img_dev *dev);

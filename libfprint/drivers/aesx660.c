@@ -24,17 +24,7 @@
 #define FP_COMPONENT "aesX660"
 
 #include "fp_internal.h"
-
-#include <stdio.h>
-
-#include <errno.h>
-#include <string.h>
-
-#include <libusb.h>
-
-#include <assembling.h>
-#include <aeslib.h>
-
+#include "aeslib.h"
 #include "aesx660.h"
 
 static void start_capture(struct fp_img_dev *dev);

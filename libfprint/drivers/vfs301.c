@@ -22,19 +22,7 @@
 #define FP_COMPONENT "vfs301"
 
 #include "fp_internal.h"
-
-#include <errno.h>
-#include <signal.h>
-#include <string.h>
-#include <stdio.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <libusb-1.0/libusb.h>
-
 #include "vfs301_proto.h"
-#include <unistd.h>
-
-#include "driver_ids.h"
 
 /************************** GENERIC STUFF *************************************/
 
@@ -152,7 +140,7 @@ static void m_loop_state(struct fpi_ssm *ssm)
 	case M_READ_PRINT_POLL:
 		{
 		int rv = vfs301_proto_process_event_poll(dev->udev, vdev);
-		assert(rv != VFS301_FAILURE);
+		g_assert(rv != VFS301_FAILURE);
 		if (rv == VFS301_ONGOING)
 			fpi_ssm_jump_to_state(ssm, M_READ_PRINT_WAIT);
 		else
@@ -185,7 +173,7 @@ static void m_init_state(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 	vfs301_dev_t *vdev = dev->priv;
 
-	assert(ssm->cur_state == 0);
+	g_assert(ssm->cur_state == 0);
 
 	vfs301_proto_init(dev->udev, vdev);
 
