@@ -55,8 +55,12 @@
  * fp_handle_events_timeout() instead. If you wish to do a non-blocking
  * iteration, call fp_handle_events_timeout() with a zero timeout.
  *
- * FIXME: document how application is supposed to know when to call these
- * functions.
+ * How to integrate events handling depends on your main loop implementation.
+ * The sister fprintd project includes an implementation of main loop handling
+ * that integrates into GLib's main loop. The
+ * [libusb documentation](http://libusb.sourceforge.net/api-1.0/group__poll.html#details)
+ * also includes more details about how to integrate libfprint events into
+ * your main loop.
  */
 
 /* this is a singly-linked list of pending timers, sorted with the timer that
