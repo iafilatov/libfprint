@@ -53,7 +53,7 @@ static int connection = -1;
 static void grey2yuy2 (unsigned char *grey, char *YUV, int num) {
 	int i, j;
 	int y0, y1, u0, u1, v0, v1;
-	int gval;
+	uint64_t gval;
 
 	for (i = 0, j = 0; i < num; i += 2, j += 4)
 	{
