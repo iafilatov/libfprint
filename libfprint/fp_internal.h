@@ -47,7 +47,7 @@
 #define fp_warn g_warning
 #define fp_err g_error
 
-#define BUG_ON(condition) g_assert(!condition)
+#define BUG_ON(condition) g_assert(!(condition))
 #define BUG() g_assert_not_reached()
 
 enum fp_dev_state {
