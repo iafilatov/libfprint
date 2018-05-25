@@ -456,9 +456,13 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev *
 	struct fp_dscv_dev *ddev;
 	int i;
 
-	for (i = 0; (ddev = devs[i]); i++)
+	for (i = 0; (ddev = devs[i]); i++) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 		if (fp_dscv_dev_supports_dscv_print(ddev, print))
 			return ddev;
+#pragma GCC diagnostic pop
+	}
 	return NULL;
 }
 
