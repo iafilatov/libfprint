@@ -166,12 +166,14 @@ API_EXPORTED int fp_img_save_to_file(struct fp_img *img, char *path)
 
 	r = fprintf(fd, "P5 %d %d 255\n", img->width, img->height);
 	if (r < 0) {
+		fclose(fd);
 		fp_err("pgm header write failed, error %d", r);
 		return r;
 	}
 
 	r = fwrite(img->data, 1, write_size, fd);
 	if (r < write_size) {
+		fclose(fd);
 		fp_err("short write (%d)", r);
 		return -EIO;
 	}
