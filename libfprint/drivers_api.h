@@ -180,20 +180,6 @@ struct fp_img_driver {
 
 #include "drivers_definitions.h"
 
-struct fp_dscv_dev {
-	struct libusb_device *udev;
-	struct fp_driver *drv;
-	unsigned long driver_data;
-	uint32_t devtype;
-};
-
-struct fp_dscv_print {
-	uint16_t driver_id;
-	uint32_t devtype;
-	enum fp_finger finger;
-	char *path;
-};
-
 enum fp_print_data_type {
 	PRINT_DATA_RAW = 0, /* memset-imposed default */
 	PRINT_DATA_NBIS_MINUTIAE,
@@ -210,19 +196,6 @@ struct fp_print_data {
 	enum fp_print_data_type type;
 	GSList *prints;
 };
-
-struct fpi_print_data_fp2 {
-	char prefix[3];
-	uint16_t driver_id;
-	uint32_t devtype;
-	unsigned char data_type;
-	unsigned char data[0];
-} __attribute__((__packed__));
-
-struct fpi_print_data_item_fp2 {
-	uint32_t length;
-	unsigned char data[0];
-} __attribute__((__packed__));
 
 void fpi_data_exit(void);
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev);
