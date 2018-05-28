@@ -119,7 +119,7 @@ static void upektc_img_submit_req(struct fpi_ssm *ssm,
 	libusb_transfer_cb_fn cb)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
 
@@ -136,7 +136,7 @@ static void upektc_img_submit_req(struct fpi_ssm *ssm,
 	upektc_img_cmd_fix_seq(upekdev->cmd, seq);
 	upektc_img_cmd_update_crc(upekdev->cmd, buf_size);
 
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT, upekdev->cmd, buf_size,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, upekdev->cmd, buf_size,
 		cb, ssm, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -150,7 +150,7 @@ static void upektc_img_read_data(struct fpi_ssm *ssm, size_t buf_size, size_t bu
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 	int r;
 
 	if (!transfer) {
@@ -162,7 +162,7 @@ static void upektc_img_read_data(struct fpi_ssm *ssm, size_t buf_size, size_t bu
 
 	transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
 
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, upekdev->response + buf_offset, buf_size,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, upekdev->response + buf_offset, buf_size,
 		cb, ssm, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -226,7 +226,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = upekdev->response;
 	struct fp_img *img;
 	size_t response_size;
@@ -350,7 +350,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 static void capture_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_INIT_CAPTURE:
@@ -387,7 +387,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 static void capture_sm_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Capture completed, %d", err);
@@ -403,12 +403,12 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 
 static void start_capture(struct fp_img_dev *dev)
 {
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *ssm;
 
 	upekdev->image_size = 0;
 
-	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), capture_run_state, CAPTURE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
@@ -448,7 +448,7 @@ static void deactivate_read_data_cb(struct libusb_transfer *transfer)
 static void deactivate_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEACTIVATE_DEINIT:
@@ -465,7 +465,7 @@ static void deactivate_run_state(struct fpi_ssm *ssm)
 static void deactivate_sm_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Deactivate completed");
@@ -482,12 +482,12 @@ static void deactivate_sm_complete(struct fpi_ssm *ssm)
 
 static void start_deactivation(struct fp_img_dev *dev)
 {
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *ssm;
 
 	upekdev->image_size = 0;
 
-	ssm = fpi_ssm_new(dev->dev, deactivate_run_state, DEACTIVATE_NUM_STATES);
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), deactivate_run_state, DEACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, deactivate_sm_complete);
 }
@@ -547,7 +547,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 {
 	struct libusb_transfer *transfer;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct upektc_img_dev *upekdev = idev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(idev);
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
@@ -622,8 +622,8 @@ static void activate_sm_complete(struct fpi_ssm *ssm)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct upektc_img_dev *upekdev = dev->priv;
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, activate_run_state,
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
+	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
 		ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	upekdev->seq = 0;
@@ -633,7 +633,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 static void dev_deactivate(struct fp_img_dev *dev)
 {
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
 
 	upekdev->deactivating = TRUE;
 }
@@ -642,22 +642,25 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
 	/* TODO check that device has endpoints we're using */
 	int r;
+	struct upektc_img_dev *upekdev;
 
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
 	}
 
-	dev->priv = g_malloc0(sizeof(struct upektc_img_dev));
+	upekdev = g_malloc0(sizeof(struct upektc_img_dev));
+	fpi_imgdev_set_user_data(dev, upekdev);
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	g_free(dev->priv);
-	libusb_release_interface(dev->udev, 0);
+	struct upektc_img_dev *upekdev = fpi_imgdev_get_user_data(dev);
+	g_free(upekdev);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

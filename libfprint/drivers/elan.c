@@ -76,7 +76,7 @@ static void elan_dev_reset(struct elan_dev *elandev)
 
 static void elan_save_frame(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 	unsigned char raw_height = elandev->frame_width;
 	unsigned char raw_width = elandev->raw_frame_width;
 	unsigned short *frame =
@@ -137,7 +137,7 @@ static void elan_process_frame(unsigned short *raw_frame, GSList ** frames)
 
 static void elan_submit_image(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 	GSList *frames = NULL;
 	struct fp_img *img;
 
@@ -162,7 +162,7 @@ static void elan_submit_image(struct fp_img_dev *dev)
 static void elan_cmd_done(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
@@ -177,7 +177,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
@@ -219,7 +219,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 static void elan_cmd_read(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 	int response_len = elandev->cmds[elandev->cmd_idx].response_len;
 
 	G_DEBUG_HERE();
@@ -239,7 +239,7 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 	g_free(elandev->last_read);
 	elandev->last_read = g_malloc(response_len);
 
-	libusb_fill_bulk_transfer(transfer, dev->udev,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev),
 				  elandev->cmds[elandev->cmd_idx].response_in,
 				  elandev->last_read, response_len, elan_cmd_cb,
 				  ssm, elandev->cmd_timeout);
@@ -252,7 +252,7 @@ static void elan_cmd_read(struct fpi_ssm *ssm)
 static void elan_run_next_cmd(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
@@ -263,7 +263,7 @@ static void elan_run_next_cmd(struct fpi_ssm *ssm)
 	}
 	elandev->cur_transfer = transfer;
 
-	libusb_fill_bulk_transfer(transfer, dev->udev, ELAN_EP_CMD_OUT,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), ELAN_EP_CMD_OUT,
 				  (unsigned char *)elandev->cmds[elandev->
 								 cmd_idx].cmd,
 				  ELAN_CMD_LEN, elan_cmd_cb, ssm,
@@ -279,7 +279,7 @@ static void elan_run_cmds(struct fpi_ssm *ssm, const struct elan_cmd *cmds,
 			  size_t cmds_len, int cmd_timeout)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
@@ -315,13 +315,13 @@ static void deactivate_complete(struct fpi_ssm *ssm)
 
 static void elan_deactivate(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, elan_deactivate_run_state,
+	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), elan_deactivate_run_state,
 					  DEACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, deactivate_complete);
@@ -338,7 +338,7 @@ enum capture_states {
 static void elan_capture_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_START:
@@ -378,7 +378,7 @@ static void elan_capture_async(void *data)
 static void capture_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
@@ -406,7 +406,7 @@ static void capture_complete(struct fpi_ssm *ssm)
 	 * completed, so we need to keep feeding it images till it's had enough.
 	 * But after that it can't finalize enrollemnt until this callback exits.
 	 * That's why we schedule elan_capture instead of running it directly. */
-	if (fpi_dev_get_dev_state(dev->dev) == DEV_STATE_ENROLLING
+	if (fpi_dev_get_dev_state(fpi_imgdev_get_dev(dev)) == DEV_STATE_ENROLLING
 	    && !fpi_timeout_add(10, elan_capture_async, dev))
 		fpi_imgdev_session_error(dev, -ETIME);
 
@@ -415,13 +415,13 @@ static void capture_complete(struct fpi_ssm *ssm)
 
 static void elan_capture(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm =
-	    fpi_ssm_new(dev->dev, elan_capture_run_state, CAPTURE_NUM_STATES);
+	    fpi_ssm_new(fpi_imgdev_get_dev(dev), elan_capture_run_state, CAPTURE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_complete);
 }
@@ -458,7 +458,7 @@ static void elan_calibrate_run_state(struct fpi_ssm *ssm)
 static void calibrate_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
@@ -475,12 +475,12 @@ static void calibrate_complete(struct fpi_ssm *ssm)
 
 static void elan_calibrate(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, elan_calibrate_run_state,
+	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), elan_calibrate_run_state,
 					  CALIBRATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, calibrate_complete);
@@ -498,7 +498,7 @@ enum activate_states {
 static void elan_activate_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case ACTIVATE_GET_SENSOR_DIM:
@@ -528,7 +528,7 @@ static void elan_activate_run_state(struct fpi_ssm *ssm)
 static void activate_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
@@ -543,13 +543,13 @@ static void activate_complete(struct fpi_ssm *ssm)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 	struct fpi_ssm *ssm =
-	    fpi_ssm_new(dev->dev, elan_activate_run_state, ACTIVATE_NUM_STATES);
+	    fpi_ssm_new(fpi_imgdev_get_dev(dev), elan_activate_run_state, ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, activate_complete);
 
@@ -563,32 +563,33 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	G_DEBUG_HERE();
 
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
 	}
 
-	dev->priv = elandev = g_malloc0(sizeof(struct elan_dev));
+	elandev = g_malloc0(sizeof(struct elan_dev));
+	fpi_imgdev_set_user_data(dev, elandev);
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
 	elan_dev_reset(elandev);
 	g_free(elandev);
-	libusb_release_interface(dev->udev, 0);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	fpi_imgdev_close_complete(dev);
 }
 
 static void dev_deactivate(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = dev->priv;
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 

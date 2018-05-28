@@ -184,7 +184,7 @@ static int result_code(struct fp_img_dev *dev, int result)
 		return result;
 
 	/* Return result code */
-	if (dev->action == IMG_ACTION_ENROLL)
+	if (fpi_imgdev_get_action(dev) == IMG_ACTION_ENROLL)
 		return result_codes[0][result];
 	else
 		return result_codes[1][result];
@@ -201,7 +201,7 @@ static void async_send_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	/* Cleanup transfer */
 	vdev->transfer = NULL;
@@ -245,7 +245,7 @@ out:
 static void async_send(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 	int r;
 
 	/* Allocation of transfer */
@@ -265,7 +265,7 @@ static void async_send(struct fpi_ssm *ssm)
 	vdev->buffer[1] = byte(1, vdev->seqnum);
 
 	/* Prepare bulk transfer */
-	libusb_fill_bulk_transfer(vdev->transfer, dev->udev, EP_OUT(1), vdev->buffer, vdev->length, async_send_cb, ssm, BULK_TIMEOUT);
+	libusb_fill_bulk_transfer(vdev->transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT(1), vdev->buffer, vdev->length, async_send_cb, ssm, BULK_TIMEOUT);
 
 	/* Submit transfer */
 	r = libusb_submit_transfer(vdev->transfer);
@@ -285,7 +285,7 @@ static void async_recv_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	/* Cleanup transfer */
 	vdev->transfer = NULL;
@@ -332,7 +332,7 @@ out:
 static void async_recv(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 	int r;
 
 	/* Allocation of transfer */
@@ -347,7 +347,7 @@ static void async_recv(struct fpi_ssm *ssm)
 	}
 
 	/* Prepare bulk transfer */
-	libusb_fill_bulk_transfer(vdev->transfer, dev->udev, EP_IN(1), vdev->buffer, 0x0f, async_recv_cb, ssm, BULK_TIMEOUT);
+	libusb_fill_bulk_transfer(vdev->transfer, fpi_imgdev_get_usb_dev(dev), EP_IN(1), vdev->buffer, 0x0f, async_recv_cb, ssm, BULK_TIMEOUT);
 
 	/* Submit transfer */
 	r = libusb_submit_transfer(vdev->transfer);
@@ -369,7 +369,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	/* Cleanup transfer */
 	vdev->transfer = NULL;
@@ -433,7 +433,7 @@ out:
 static void async_load(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *buffer;
 	int r;
 
@@ -452,7 +452,7 @@ static void async_load(struct fpi_ssm *ssm)
 	buffer = vdev->buffer + vdev->length;
 
 	/* Prepare bulk transfer */
-	libusb_fill_bulk_transfer(vdev->transfer, dev->udev, EP_IN(2), buffer, VFS_BLOCK_SIZE, async_load_cb, ssm, BULK_TIMEOUT);
+	libusb_fill_bulk_transfer(vdev->transfer, fpi_imgdev_get_usb_dev(dev), EP_IN(2), buffer, VFS_BLOCK_SIZE, async_load_cb, ssm, BULK_TIMEOUT);
 
 	/* Submit transfer */
 	r = libusb_submit_transfer(vdev->transfer);
@@ -472,7 +472,7 @@ static void async_sleep_cb(void *data)
 {
 	struct fpi_ssm *ssm = data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	/* Cleanup timeout */
 	vdev->timeout = NULL;
@@ -484,7 +484,7 @@ static void async_sleep_cb(void *data)
 static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	/* Add timeout */
 	vdev->timeout = fpi_timeout_add(msec, async_sleep_cb, ssm);
@@ -527,7 +527,7 @@ static void m_swap_state(struct fpi_ssm *ssm)
 static void m_swap(struct fpi_ssm *ssm, unsigned char *data, size_t length)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *subsm;
 
 	/* Prepare data for sending */
@@ -536,7 +536,7 @@ static void m_swap(struct fpi_ssm *ssm, unsigned char *data, size_t length)
 	vdev->length = length;
 
 	/* Start swap ssm */
-	subsm = fpi_ssm_new(dev->dev, m_swap_state, M_SWAP_NUM_STATES);
+	subsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), m_swap_state, M_SWAP_NUM_STATES);
 	fpi_ssm_set_user_data(subsm, dev);
 	fpi_ssm_start_subsm(ssm, subsm);
 }
@@ -626,7 +626,7 @@ static void vfs_get_finger_state(struct fpi_ssm *ssm)
 static void vfs_img_load(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 
@@ -644,10 +644,10 @@ static void vfs_img_load(struct fpi_ssm *ssm)
 /* Check if action is completed */
 static int action_completed(struct fp_img_dev *dev)
 {
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
-	if ((dev->action == IMG_ACTION_ENROLL) &&
-		(vdev->enroll_stage < fpi_dev_get_nr_enroll_stages(dev->dev)))
+	if ((fpi_imgdev_get_action(dev) == IMG_ACTION_ENROLL) &&
+		(vdev->enroll_stage < fpi_dev_get_nr_enroll_stages(fpi_imgdev_get_dev(dev))))
 		/* Enroll not completed, return false */
 		return FALSE;
 
@@ -757,7 +757,7 @@ static void img_copy(struct vfs101_dev *vdev, struct fp_img *img)
 static void img_extract(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 	struct fp_img *img;
 
 	/* Screen image to remove noise and find top and bottom line */
@@ -787,28 +787,28 @@ static void img_extract(struct fpi_ssm *ssm)
 	fpi_imgdev_image_captured(dev, img);
 
 	/* Check captured result */
-	if (dev->action_result >= 0 &&
-		dev->action_result != FP_ENROLL_RETRY &&
-		dev->action_result != FP_VERIFY_RETRY)
+	if (fpi_imgdev_get_action_result(dev) >= 0 &&
+		fpi_imgdev_get_action_result(dev) != FP_ENROLL_RETRY &&
+		fpi_imgdev_get_action_result(dev) != FP_VERIFY_RETRY)
 	{
 		/* Image captured, increase enroll stage */
 		vdev->enroll_stage++;
 
 		/* Check if action is completed */
 		if (!action_completed(dev))
-			dev->action_result = FP_ENROLL_PASS;
+			fpi_imgdev_set_action_result(dev, FP_ENROLL_PASS);
 	}
 	else
 	{
 		/* Image capture failed */
-		if (dev->action == IMG_ACTION_ENROLL)
+		if (fpi_imgdev_get_action(dev) == IMG_ACTION_ENROLL)
 			/* Return retry */
-			dev->action_result = result_code(dev, RESULT_RETRY);
+			fpi_imgdev_set_action_result(dev, result_code(dev, RESULT_RETRY));
 		else
 		{
 			/* Return no match */
 			vdev->enroll_stage++;
-			dev->action_result = FP_VERIFY_NO_MATCH;
+			fpi_imgdev_set_action_result(dev, FP_VERIFY_NO_MATCH);
 		}
 	}
 
@@ -915,7 +915,7 @@ enum
 static void m_loop_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	/* Check action state */
 	if (!vdev->active)
@@ -1179,7 +1179,7 @@ enum
 static void m_init_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	/* Check action state */
 	if (!vdev->active)
@@ -1420,7 +1420,7 @@ static void m_init_state(struct fpi_ssm *ssm)
 static void m_init_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *ssm_loop;
 
 	if (!fpi_ssm_get_error(ssm) && vdev->active)
@@ -1429,7 +1429,7 @@ static void m_init_complete(struct fpi_ssm *ssm)
 		fpi_imgdev_activate_complete(dev, 0);
 
 		/* Start loop ssm */
-		ssm_loop = fpi_ssm_new(dev->dev, m_loop_state, M_LOOP_NUM_STATES);
+		ssm_loop = fpi_ssm_new(fpi_imgdev_get_dev(dev), m_loop_state, M_LOOP_NUM_STATES);
 		fpi_ssm_set_user_data(ssm_loop, dev);
 		fpi_ssm_start(ssm_loop, m_loop_complete);
 	}
@@ -1441,7 +1441,7 @@ static void m_init_complete(struct fpi_ssm *ssm)
 /* Activate device */
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *ssm;
 
 	/* Check if already active */
@@ -1464,7 +1464,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	vdev->enroll_stage = 0;
 
 	/* Start init ssm */
-	ssm = fpi_ssm_new(dev->dev, m_init_state, M_INIT_NUM_STATES);
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), m_init_state, M_INIT_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, m_init_complete);
 
@@ -1474,7 +1474,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 /* Deactivate device */
 static void dev_deactivate(struct fp_img_dev *dev)
 {
-	struct vfs101_dev *vdev = dev->priv;
+	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	/* Reset active state */
 	vdev->active = FALSE;
@@ -1494,7 +1494,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	/* Claim usb interface */
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0)
 	{
 		/* Interface not claimed, return error */
@@ -1505,7 +1505,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	/* Initialize private structure */
 	vdev = g_malloc0(sizeof(struct vfs101_dev));
 	vdev->seqnum = -1;
-	dev->priv = vdev;
+	fpi_imgdev_set_user_data(dev, vdev);
 
 	/* Notify open complete */
 	fpi_imgdev_open_complete(dev, 0);
@@ -1516,11 +1516,14 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 /* Close device */
 static void dev_close(struct fp_img_dev *dev)
 {
+	struct vfs101_dev *vdev;
+
 	/* Release private structure */
-	g_free(dev->priv);
+	vdev = fpi_imgdev_get_user_data(dev);
+	g_free(vdev);
 
 	/* Release usb interface */
-	libusb_release_interface(dev->udev, 0);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 
 	/* Notify close complete */
 	fpi_imgdev_close_complete(dev);

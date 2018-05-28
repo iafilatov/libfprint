@@ -101,7 +101,7 @@ static void sm_write_reg(struct fpi_ssm *ssm, unsigned char reg,
 	fp_dbg("set %02x=%02x", reg, value);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE);
 	libusb_fill_control_setup(data, CTRL_OUT, reg, value, 0, 0);
-	libusb_fill_control_transfer(transfer, dev->udev, data, sm_write_reg_cb,
+	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev), data, sm_write_reg_cb,
 		ssm, CTRL_TIMEOUT);
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
@@ -140,7 +140,7 @@ static void sm_exec_cmd(struct fpi_ssm *ssm, unsigned char cmd,
 	fp_dbg("cmd %02x param %02x", cmd, param);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE);
 	libusb_fill_control_setup(data, CTRL_IN, cmd, param, 0, 0);
-	libusb_fill_control_transfer(transfer, dev->udev, data, sm_exec_cmd_cb,
+	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev), data, sm_exec_cmd_cb,
 		ssm, CTRL_TIMEOUT);
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
@@ -193,7 +193,7 @@ static void capture_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct v5s_dev *vdev = dev->priv;
+	struct v5s_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_mark_aborted(ssm, -EIO);
@@ -221,7 +221,7 @@ out:
 static void capture_iterate(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct v5s_dev *vdev = dev->priv;
+	struct v5s_dev *vdev = fpi_imgdev_get_user_data(dev);
 	int iteration = vdev->capture_iteration;
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
@@ -231,7 +231,7 @@ static void capture_iterate(struct fpi_ssm *ssm)
 		return;
 	}
 
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN,
 		vdev->capture_img->data + (RQ_SIZE * iteration), RQ_SIZE,
 		capture_cb, ssm, CTRL_TIMEOUT);
 	transfer->flags = LIBUSB_TRANSFER_SHORT_NOT_OK;
@@ -246,7 +246,7 @@ static void capture_iterate(struct fpi_ssm *ssm)
 static void sm_do_capture(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct v5s_dev *vdev = dev->priv;
+	struct v5s_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	G_DEBUG_HERE();
 	vdev->capture_img = fpi_img_new_for_imgdev(dev);
@@ -268,7 +268,7 @@ enum loop_states {
 static void loop_run_state(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct v5s_dev *vdev = dev->priv;
+	struct v5s_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case LOOP_SET_CONTRAST:
@@ -296,7 +296,7 @@ static void loop_run_state(struct fpi_ssm *ssm)
 static void loopsm_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct v5s_dev *vdev = dev->priv;
+	struct v5s_dev *vdev = fpi_imgdev_get_user_data(dev);
 	int r = fpi_ssm_get_error(ssm);
 
 	fpi_ssm_free(ssm);
@@ -313,8 +313,8 @@ static void loopsm_complete(struct fpi_ssm *ssm)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct v5s_dev *vdev = dev->priv;
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, loop_run_state,
+	struct v5s_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), loop_run_state,
 		LOOP_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	vdev->deactivating = FALSE;
@@ -326,7 +326,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 static void dev_deactivate(struct fp_img_dev *dev)
 {
-	struct v5s_dev *vdev = dev->priv;
+	struct v5s_dev *vdev = fpi_imgdev_get_user_data(dev);
 	if (vdev->loop_running)
 		vdev->deactivating = TRUE;
 	else
@@ -336,9 +336,12 @@ static void dev_deactivate(struct fp_img_dev *dev)
 static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
 	int r;
-	dev->priv = g_malloc0(sizeof(struct v5s_dev));
+	struct v5s_dev *v5s_dev;
 
-	r = libusb_claim_interface(dev->udev, 0);
+	v5s_dev = g_malloc0(sizeof(struct v5s_dev));
+	fpi_imgdev_set_user_data(dev, v5s_dev);
+
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0)
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 
@@ -350,8 +353,10 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	g_free(dev->priv);
-	libusb_release_interface(dev->udev, 0);
+	struct v5s_dev *v5s_dev;
+	v5s_dev = fpi_imgdev_get_user_data(dev);
+	g_free(v5s_dev);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

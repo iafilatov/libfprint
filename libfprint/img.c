@@ -536,6 +536,56 @@ API_EXPORTED struct fp_minutia **fp_img_get_minutiae(struct fp_img *img,
 	return img->minutiae->list;
 }
 
+libusb_device_handle *
+fpi_imgdev_get_usb_dev(struct fp_img_dev *dev)
+{
+	return dev->udev;
+}
+
+void
+fpi_imgdev_set_user_data(struct fp_img_dev *imgdev,
+	void *user_data)
+{
+	imgdev->priv = user_data;
+}
+
+void *
+fpi_imgdev_get_user_data(struct fp_img_dev *imgdev)
+{
+	return imgdev->priv;
+}
+
+struct fp_dev *
+fpi_imgdev_get_dev(struct fp_img_dev *imgdev)
+{
+	return imgdev->dev;
+}
+
+enum fp_imgdev_enroll_state
+fpi_imgdev_get_action_state(struct fp_img_dev *imgdev)
+{
+	return imgdev->action_state;
+}
+
+enum fp_imgdev_action
+fpi_imgdev_get_action(struct fp_img_dev *imgdev)
+{
+	return imgdev->action;
+}
+
+int
+fpi_imgdev_get_action_result(struct fp_img_dev *imgdev)
+{
+	return imgdev->action_result;
+}
+
+void
+fpi_imgdev_set_action_result(struct fp_img_dev *imgdev,
+	int action_result)
+{
+	imgdev->action_result = action_result;
+}
+
 /* Calculate squared standand deviation */
 int fpi_std_sq_dev(const unsigned char *buf, int size)
 {

@@ -110,24 +110,16 @@ enum fp_imgdev_verify_state {
 	IMG_VERIFY_STATE_ACTIVATING
 };
 
-struct fp_img_dev {
-	struct fp_dev *dev;
-	libusb_device_handle *udev;
-	enum fp_imgdev_action action;
-	int action_state;
-
-	struct fp_print_data *acquire_data;
-	struct fp_print_data *enroll_data;
-	struct fp_img *acquire_img;
-	int enroll_stage;
-	int action_result;
-
-	/* FIXME: better place to put this? */
-	size_t identify_match_offset;
-
-	void *priv;
-};
-
+struct fp_img_dev;
+libusb_device_handle *fpi_imgdev_get_usb_dev(struct fp_img_dev *dev);
+void fpi_imgdev_set_user_data(struct fp_img_dev *imgdev,
+	void *user_data);
+void *fpi_imgdev_get_user_data(struct fp_img_dev *imgdev);
+struct fp_dev *fpi_imgdev_get_dev(struct fp_img_dev *imgdev);
+enum fp_imgdev_enroll_state fpi_imgdev_get_action_state(struct fp_img_dev *imgdev);
+enum fp_imgdev_action fpi_imgdev_get_action(struct fp_img_dev *imgdev);
+int fpi_imgdev_get_action_result(struct fp_img_dev *imgdev);
+void fpi_imgdev_set_action_result(struct fp_img_dev *imgdev, int action_result);
 int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev);
 int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev);
 

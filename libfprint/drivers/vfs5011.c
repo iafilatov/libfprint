@@ -196,7 +196,7 @@ static void usbexchange_loop(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, data->device->udev,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(data->device),
 					  action->endpoint, action->data,
 					  action->size, async_send_cb, ssm,
 					  data->timeout);
@@ -212,7 +212,7 @@ static void usbexchange_loop(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, data->device->udev,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(data->device),
 					  action->endpoint, data->receive_buf,
 					  action->size, async_recv_cb, ssm,
 					  data->timeout);
@@ -236,7 +236,7 @@ static void usbexchange_loop(struct fpi_ssm *ssm)
 static void usb_exchange_async(struct fpi_ssm *ssm,
 			       struct usbexchange_data *data)
 {
-	struct fpi_ssm *subsm = fpi_ssm_new(data->device->dev,
+	struct fpi_ssm *subsm = fpi_ssm_new(fpi_imgdev_get_dev(data->device),
 					    usbexchange_loop,
 					    data->stepcount);
 	fpi_ssm_set_user_data(subsm, data);
@@ -416,7 +416,9 @@ static void chunk_capture_callback(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = (struct fpi_ssm *)transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+	struct vfs5011_data *data;
+
+	data = fpi_imgdev_get_user_data(dev);
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) ||
 	    (transfer->status == LIBUSB_TRANSFER_TIMED_OUT)) {
@@ -660,9 +662,11 @@ static void activate_loop(struct fpi_ssm *ssm)
 	enum {READ_TIMEOUT = 0};
 
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+	struct vfs5011_data *data;
 	int r;
 	struct fpi_timeout *timeout;
+
+	data = fpi_imgdev_get_user_data(dev);
 
 	fp_dbg("main_loop: state %d", fpi_ssm_get_cur_state(ssm));
 
@@ -695,7 +699,7 @@ static void activate_loop(struct fpi_ssm *ssm)
 		break;
 
 	case DEV_ACTIVATE_READ_DATA:
-		r = capture_chunk_async(data, dev->udev, CAPTURE_LINES,
+		r = capture_chunk_async(data, fpi_imgdev_get_usb_dev(dev), CAPTURE_LINES,
 					READ_TIMEOUT, ssm);
 		if (r != 0) {
 			fp_err("Failed to capture data");
@@ -733,8 +737,10 @@ static void activate_loop(struct fpi_ssm *ssm)
 static void activate_loop_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+	struct vfs5011_data *data;
 	int r = fpi_ssm_get_error(ssm);
+
+	data = fpi_imgdev_get_user_data(dev);
 
 	fp_dbg("finishing");
 	if (data->init_sequence.receive_buf != NULL)
@@ -761,7 +767,9 @@ static void activate_loop_complete(struct fpi_ssm *ssm)
 static void open_loop(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+	struct vfs5011_data *data;
+
+	data = fpi_imgdev_get_user_data(dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEV_OPEN_START:
@@ -780,8 +788,9 @@ static void open_loop(struct fpi_ssm *ssm)
 static void open_loop_complete(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+	struct vfs5011_data *data;
 
+	data = fpi_imgdev_get_user_data(dev);
 	g_free(data->init_sequence.receive_buf);
 	data->init_sequence.receive_buf = NULL;
 
@@ -798,22 +807,22 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	data = (struct vfs5011_data *)g_malloc0(sizeof(*data));
 	data->capture_buffer =
 		(unsigned char *)g_malloc0(CAPTURE_LINES * VFS5011_LINE_SIZE);
-	dev->priv = data;
+	fpi_imgdev_set_user_data(dev, data);
 
-	r = libusb_reset_device(dev->udev);
+	r = libusb_reset_device(fpi_imgdev_get_usb_dev(dev));
 	if (r != 0) {
 		fp_err("Failed to reset the device");
 		return r;
 	}
 
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r != 0) {
 		fp_err("Failed to claim interface: %s", libusb_error_name(r));
 		return r;
 	}
 
 	struct fpi_ssm *ssm;
-	ssm = fpi_ssm_new(dev->dev, open_loop, DEV_OPEN_NUM_STATES);
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), open_loop, DEV_OPEN_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, open_loop_complete);
 
@@ -822,8 +831,9 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_close(struct fp_img_dev *dev)
 {
-	libusb_release_interface(dev->udev, 0);
-	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	struct vfs5011_data *data;
+	data = fpi_imgdev_get_user_data(dev);
 	if (data != NULL) {
 		g_free(data->capture_buffer);
 		g_slist_free_full(data->rows, g_free);
@@ -834,12 +844,13 @@ static void dev_close(struct fp_img_dev *dev)
 
 static void start_scan(struct fp_img_dev *dev)
 {
-	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+	struct vfs5011_data *data;
 	struct fpi_ssm *ssm;
 
+	data = fpi_imgdev_get_user_data(dev);
 	data->loop_running = TRUE;
 	fp_dbg("creating ssm");
-	ssm = fpi_ssm_new(dev->dev, activate_loop, DEV_ACTIVATE_NUM_STATES);
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_loop, DEV_ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fp_dbg("starting ssm");
 	fpi_ssm_start(ssm, activate_loop_complete);
@@ -848,8 +859,9 @@ static void start_scan(struct fp_img_dev *dev)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
+	struct vfs5011_data *data;
 
+	data = fpi_imgdev_get_user_data(dev);
 	fp_dbg("device initialized");
 	data->deactivating = FALSE;
 
@@ -861,7 +873,9 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 static void dev_deactivate(struct fp_img_dev *dev)
 {
 	int r;
-	struct vfs5011_data *data = dev->priv;
+	struct vfs5011_data *data;
+
+	data = fpi_imgdev_get_user_data(dev);
 	if (data->loop_running) {
 		data->deactivating = TRUE;
 		if (data->flying_transfer) {

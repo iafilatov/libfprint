@@ -40,13 +40,14 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 	struct aesX660_dev *aesdev;
 
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
 	}
 
-	dev->priv = aesdev = g_malloc0(sizeof(struct aesX660_dev));
+	aesdev = g_malloc0(sizeof(struct aesX660_dev));
+	fpi_imgdev_set_user_data(dev, aesdev);
 	aesdev->buffer = g_malloc0(AES1660_FRAME_SIZE + AESX660_HEADER_SIZE);
 	aesdev->init_seqs[0] = aes1660_init_1;
 	aesdev->init_seqs_len[0] = array_n_elements(aes1660_init_1);
@@ -63,10 +64,10 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	struct aesX660_dev *aesdev = dev->priv;
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	g_free(aesdev->buffer);
 	g_free(aesdev);
-	libusb_release_interface(dev->udev, 0);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	fpi_imgdev_close_complete(dev);
 }
 
