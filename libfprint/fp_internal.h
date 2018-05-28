@@ -399,16 +399,5 @@ void fpi_drvcb_report_capture_result(struct fp_dev *dev, int result,
 	struct fp_img *img);
 void fpi_drvcb_capture_stopped(struct fp_dev *dev);
 
-/* for image drivers */
-void fpi_imgdev_open_complete(struct fp_img_dev *imgdev, int status);
-void fpi_imgdev_close_complete(struct fp_img_dev *imgdev);
-void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status);
-void fpi_imgdev_deactivate_complete(struct fp_img_dev *imgdev);
-void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
-	gboolean present);
-void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img);
-void fpi_imgdev_abort_scan(struct fp_img_dev *imgdev, int result);
-void fpi_imgdev_session_error(struct fp_img_dev *imgdev, int error);
-
 #endif
 
