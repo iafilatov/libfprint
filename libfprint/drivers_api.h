@@ -39,10 +39,6 @@
 
 #define array_n_elements(array) G_N_ELEMENTS(array)
 
-#define container_of(ptr, type, member) ({                      \
-        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-        (type *)( (char *)__mptr - offsetof(type,member) );})
-
 #define fp_dbg g_debug
 #define fp_info g_debug
 #define fp_warn g_warning
@@ -232,9 +228,6 @@ extern libusb_context *fpi_usb_ctx;
 extern GSList *opened_devices;
 
 void fpi_img_driver_setup(struct fp_img_driver *idriver);
-
-#define fpi_driver_to_img_driver(drv) \
-	container_of((drv), struct fp_img_driver, driver)
 
 struct fp_dscv_dev {
 	struct libusb_device *udev;
