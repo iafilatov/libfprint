@@ -180,11 +180,6 @@ struct fp_img_driver {
 
 #include "drivers_definitions.h"
 
-extern libusb_context *fpi_usb_ctx;
-extern GSList *opened_devices;
-
-void fpi_img_driver_setup(struct fp_img_driver *idriver);
-
 struct fp_dscv_dev {
 	struct libusb_device *udev;
 	struct fp_driver *drv;
@@ -290,9 +285,6 @@ int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
 
 /* polling and timeouts */
-
-void fpi_poll_init(void);
-void fpi_poll_exit(void);
 
 typedef void (*fpi_timeout_fn)(void *data);
 
