@@ -33,7 +33,6 @@
 #include <libusb.h>
 
 #include "fprint.h"
-#include "assembling.h"
 #include "drivers/driver_ids.h"
 
 #define array_n_elements(array) G_N_ELEMENTS(array)
