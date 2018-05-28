@@ -37,7 +37,7 @@ static void async_sleep_cb(void *data)
 /* Submit asynchronous sleep */
 static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fpi_timeout *timeout;
 
 	/* Add timeout */
@@ -53,7 +53,7 @@ static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
 
 static int submit_image(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	vfs301_dev_t *vdev = dev->priv;
 	int height;
 	struct fp_img *img;
@@ -105,10 +105,10 @@ enum
 /* Exec loop sequential state machine */
 static void m_loop_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	vfs301_dev_t *vdev = dev->priv;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case M_REQUEST_PRINT:
 		vfs301_proto_request_fingerprint(dev->udev, vdev);
 		fpi_ssm_next_state(ssm);
@@ -170,10 +170,10 @@ static void m_loop_complete(struct fpi_ssm *ssm)
 /* Exec init sequential state machine */
 static void m_init_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	vfs301_dev_t *vdev = dev->priv;
 
-	g_assert(ssm->cur_state == 0);
+	g_assert(fpi_ssm_get_cur_state(ssm) == 0);
 
 	vfs301_proto_init(dev->udev, vdev);
 
@@ -183,16 +183,16 @@ static void m_init_state(struct fpi_ssm *ssm)
 /* Complete init sequential state machine */
 static void m_init_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fpi_ssm *ssm_loop;
 
-	if (!ssm->error) {
+	if (!fpi_ssm_get_error(ssm)) {
 		/* Notify activate complete */
 		fpi_imgdev_activate_complete(dev, 0);
 
 		/* Start loop ssm */
 		ssm_loop = fpi_ssm_new(dev->dev, m_loop_state, M_LOOP_NUM_STATES);
-		ssm_loop->priv = dev;
+		fpi_ssm_set_user_data(ssm_loop, dev);
 		fpi_ssm_start(ssm_loop, m_loop_complete);
 	}
 
@@ -207,7 +207,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 	/* Start init ssm */
 	ssm = fpi_ssm_new(dev->dev, m_init_state, 1);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, m_init_complete);
 
 	return 0;

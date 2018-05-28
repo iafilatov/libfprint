@@ -354,18 +354,6 @@ typedef void (*ssm_handler_fn)(struct fpi_ssm *ssm);
 /* sequential state machine: state machine that iterates sequentially over
  * a predefined series of states. can be aborted by either completion or
  * abortion error conditions. */
-struct fpi_ssm {
-	struct fp_dev *dev;
-	struct fpi_ssm *parentsm;
-	void *priv;
-	int nr_states;
-	int cur_state;
-	gboolean completed;
-	int error;
-	ssm_completed_fn callback;
-	ssm_handler_fn handler;
-};
-
 
 /* for library and drivers */
 struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
@@ -380,6 +368,12 @@ void fpi_ssm_next_state(struct fpi_ssm *machine);
 void fpi_ssm_jump_to_state(struct fpi_ssm *machine, int state);
 void fpi_ssm_mark_completed(struct fpi_ssm *machine);
 void fpi_ssm_mark_aborted(struct fpi_ssm *machine, int error);
+struct fp_dev *fpi_ssm_get_dev(struct fpi_ssm *machine);
+void fpi_ssm_set_user_data(struct fpi_ssm *machine,
+	void *user_data);
+void *fpi_ssm_get_user_data(struct fpi_ssm *machine);
+int fpi_ssm_get_error(struct fpi_ssm *machine);
+int fpi_ssm_get_cur_state(struct fpi_ssm *machine);
 
 void fpi_drvcb_open_complete(struct fp_dev *dev, int status);
 void fpi_drvcb_close_complete(struct fp_dev *dev);

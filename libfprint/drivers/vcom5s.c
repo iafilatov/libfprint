@@ -88,7 +88,7 @@ static void sm_write_reg_cb(struct libusb_transfer *transfer)
 static void sm_write_reg(struct fpi_ssm *ssm, unsigned char reg,
 	unsigned char value)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
@@ -127,7 +127,7 @@ static void sm_exec_cmd_cb(struct libusb_transfer *transfer)
 static void sm_exec_cmd(struct fpi_ssm *ssm, unsigned char cmd,
 	unsigned char param)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
@@ -192,7 +192,7 @@ static void capture_iterate(struct fpi_ssm *ssm);
 static void capture_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct v5s_dev *vdev = dev->priv;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
@@ -220,7 +220,7 @@ out:
 
 static void capture_iterate(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct v5s_dev *vdev = dev->priv;
 	int iteration = vdev->capture_iteration;
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
@@ -245,7 +245,7 @@ static void capture_iterate(struct fpi_ssm *ssm)
 
 static void sm_do_capture(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct v5s_dev *vdev = dev->priv;
 
 	G_DEBUG_HERE();
@@ -267,10 +267,10 @@ enum loop_states {
 
 static void loop_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct v5s_dev *vdev = dev->priv;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case LOOP_SET_CONTRAST:
 		sm_write_reg(ssm, REG_CONTRAST, 0x01);
 		break;
@@ -295,9 +295,9 @@ static void loop_run_state(struct fpi_ssm *ssm)
 
 static void loopsm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct v5s_dev *vdev = dev->priv;
-	int r = ssm->error;
+	int r = fpi_ssm_get_error(ssm);
 
 	fpi_ssm_free(ssm);
 	fp_img_free(vdev->capture_img);
@@ -316,7 +316,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	struct v5s_dev *vdev = dev->priv;
 	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, loop_run_state,
 		LOOP_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	vdev->deactivating = FALSE;
 	fpi_ssm_start(ssm, loopsm_complete);
 	vdev->loop_running = TRUE;

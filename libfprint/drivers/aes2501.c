@@ -209,6 +209,7 @@ static void generic_read_ignore_data(struct fpi_ssm *ssm, size_t bytes)
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
 	if (!transfer) {
@@ -217,7 +218,7 @@ static void generic_read_ignore_data(struct fpi_ssm *ssm, size_t bytes)
 	}
 
 	data = g_malloc(bytes);
-	libusb_fill_bulk_transfer(transfer, ssm->dev->udev, EP_IN, data, bytes,
+	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, bytes,
 		generic_ignore_data_cb, ssm, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -436,7 +437,7 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 {
 	unsigned char *stripdata;
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2501_dev *aesdev = dev->priv;
 	unsigned char *data = transfer->buffer;
 	int sum;
@@ -521,11 +522,11 @@ out:
 
 static void capture_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2501_dev *aesdev = dev->priv;
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_WRITE_REQS_1:
 		aes_write_regv(dev, capture_reqs_1, G_N_ELEMENTS(capture_reqs_1),
 			generic_write_regv_cb, ssm);
@@ -572,14 +573,14 @@ static void capture_run_state(struct fpi_ssm *ssm)
 
 static void capture_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2501_dev *aesdev = dev->priv;
 
 	G_DEBUG_HERE();
 	if (aesdev->deactivating)
 		complete_deactivation(dev);
-	else if (ssm->error)
-		fpi_imgdev_session_error(dev, ssm->error);
+	else if (fpi_ssm_get_error(ssm))
+		fpi_imgdev_session_error(dev, fpi_ssm_get_error(ssm));
 	else
 		start_finger_detection(dev);
 	fpi_ssm_free(ssm);
@@ -600,7 +601,7 @@ static void start_capture(struct fp_img_dev *dev)
 	strip_scan_reqs[4].value = AES2501_ADREFHI_MAX_VALUE;
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
 	G_DEBUG_HERE();
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
 
@@ -738,7 +739,7 @@ static void activate_init3_cb(struct fp_img_dev *dev, int result,
 
 static void activate_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 
 	/* This state machine isn't as linear as it may appear. After doing init1
 	 * and init2 register configuration writes, we have to poll a register
@@ -759,7 +760,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	   aes_write_regv(init_4);
 	*/
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case WRITE_INIT_1:
 		aes_write_regv(dev, init_1, G_N_ELEMENTS(init_1),
 			generic_write_regv_cb, ssm);
@@ -792,11 +793,11 @@ static void activate_run_state(struct fpi_ssm *ssm)
 
 static void activate_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	fp_dbg("status %d", ssm->error);
-	fpi_imgdev_activate_complete(dev, ssm->error);
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	fp_dbg("status %d", fpi_ssm_get_error(ssm));
+	fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
 
-	if (!ssm->error)
+	if (!fpi_ssm_get_error(ssm))
 		start_finger_detection(dev);
 	fpi_ssm_free(ssm);
 }
@@ -806,7 +807,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	struct aes2501_dev *aesdev = dev->priv;
 	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, activate_run_state,
 		ACTIVATE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	aesdev->read_regs_retry_count = 0;
 	fpi_ssm_start(ssm, activate_sm_complete);
 	return 0;

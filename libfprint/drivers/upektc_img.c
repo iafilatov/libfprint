@@ -118,7 +118,7 @@ static void upektc_img_submit_req(struct fpi_ssm *ssm,
 	const unsigned char *buf, size_t buf_size, unsigned char seq,
 	libusb_transfer_cb_fn cb)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = dev->priv;
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
@@ -149,7 +149,7 @@ static void upektc_img_submit_req(struct fpi_ssm *ssm,
 static void upektc_img_read_data(struct fpi_ssm *ssm, size_t buf_size, size_t buf_offset, libusb_transfer_cb_fn cb)
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = dev->priv;
 	int r;
 
@@ -194,7 +194,7 @@ static void capture_reqs_cb(struct libusb_transfer *transfer)
 		fpi_ssm_mark_aborted(ssm, -EIO);
 		return;
 	}
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_ACK_00_28_TERM:
 		fpi_ssm_jump_to_state(ssm, CAPTURE_READ_DATA_TERM);
 		break;
@@ -225,7 +225,7 @@ static int upektc_img_process_image_frame(unsigned char *image_buf, unsigned cha
 static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = dev->priv;
 	unsigned char *data = upekdev->response;
 	struct fp_img *img;
@@ -245,11 +245,11 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 
 	fp_dbg("request completed, len: %.4x", transfer->actual_length);
 	if (transfer->actual_length == 0) {
-		fpi_ssm_jump_to_state(ssm, ssm->cur_state);
+		fpi_ssm_jump_to_state(ssm, fpi_ssm_get_cur_state(ssm));
 		return;
 	}
 
-	if (ssm->cur_state == CAPTURE_READ_DATA_TERM) {
+	if (fpi_ssm_get_cur_state(ssm) == CAPTURE_READ_DATA_TERM) {
 		fp_dbg("Terminating SSM\n");
 		fpi_ssm_mark_completed(ssm);
 		return;
@@ -349,10 +349,10 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 
 static void capture_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = dev->priv;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_INIT_CAPTURE:
 		upektc_img_submit_req(ssm, upek2020_init_capture, sizeof(upek2020_init_capture),
 			upekdev->seq, capture_reqs_cb);
@@ -386,9 +386,9 @@ static void capture_run_state(struct fpi_ssm *ssm)
 
 static void capture_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = dev->priv;
-	int err = ssm->error;
+	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Capture completed, %d", err);
 	fpi_ssm_free(ssm);
@@ -409,7 +409,7 @@ static void start_capture(struct fp_img_dev *dev)
 	upekdev->image_size = 0;
 
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
 
@@ -447,10 +447,10 @@ static void deactivate_read_data_cb(struct libusb_transfer *transfer)
 
 static void deactivate_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = dev->priv;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEACTIVATE_DEINIT:
 		upektc_img_submit_req(ssm, upek2020_deinit, sizeof(upek2020_deinit),
 			upekdev->seq, deactivate_reqs_cb);
@@ -464,9 +464,9 @@ static void deactivate_run_state(struct fpi_ssm *ssm)
 
 static void deactivate_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = dev->priv;
-	int err = ssm->error;
+	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Deactivate completed");
 	fpi_ssm_free(ssm);
@@ -488,7 +488,7 @@ static void start_deactivation(struct fp_img_dev *dev)
 	upekdev->image_size = 0;
 
 	ssm = fpi_ssm_new(dev->dev, deactivate_run_state, DEACTIVATE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, deactivate_sm_complete);
 }
 
@@ -546,11 +546,12 @@ static void init_read_data_cb(struct libusb_transfer *transfer)
 static void activate_run_state(struct fpi_ssm *ssm)
 {
 	struct libusb_transfer *transfer;
-	struct fp_img_dev *dev = ssm->priv;
-	struct upektc_img_dev *upekdev = dev->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
+	struct upektc_img_dev *upekdev = idev->priv;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case ACTIVATE_CONTROL_REQ_1:
 	case ACTIVATE_CONTROL_REQ_2:
 	{
@@ -567,7 +568,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		data = g_malloc0(LIBUSB_CONTROL_SETUP_SIZE + 1);
 		libusb_fill_control_setup(data,
 			LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE, 0x0c, 0x100, 0x0400, 1);
-		libusb_fill_control_transfer(transfer, ssm->dev->udev, data,
+		libusb_fill_control_transfer(transfer, dev->udev, data,
 			init_reqs_ctrl_cb, ssm, CTRL_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
@@ -608,8 +609,8 @@ static void activate_run_state(struct fpi_ssm *ssm)
 
 static void activate_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	int err = ssm->error;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	int err = fpi_ssm_get_error(ssm);
 
 	fpi_ssm_free(ssm);
 	fp_dbg("%s status %d", __func__, err);
@@ -624,7 +625,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	struct upektc_img_dev *upekdev = dev->priv;
 	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, activate_run_state,
 		ACTIVATE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	upekdev->seq = 0;
 	fpi_ssm_start(ssm, activate_sm_complete);
 	return 0;

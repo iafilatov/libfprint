@@ -58,7 +58,7 @@ enum activate_states {
 
 static void upektc_next_init_cmd(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = dev->priv;
 
 	upekdev->init_idx += 1;
@@ -71,7 +71,7 @@ static void upektc_next_init_cmd(struct fpi_ssm *ssm)
 static void write_init_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = dev->priv;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
@@ -100,11 +100,11 @@ static void read_init_data_cb(struct libusb_transfer *transfer)
 
 static void activate_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = dev->priv;
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case WRITE_INIT:
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
@@ -150,11 +150,11 @@ static void activate_run_state(struct fpi_ssm *ssm)
 
 static void activate_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	fp_dbg("status %d", ssm->error);
-	fpi_imgdev_activate_complete(dev, ssm->error);
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	fp_dbg("status %d", fpi_ssm_get_error(ssm));
+	fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
 
-	if (!ssm->error)
+	if (!fpi_ssm_get_error(ssm))
 		start_finger_detection(dev);
 	fpi_ssm_free(ssm);
 }
@@ -297,7 +297,7 @@ static void capture_cmd_cb(struct libusb_transfer *transfer)
 static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	unsigned char *data = transfer->buffer;
 	struct fp_img *img;
 
@@ -323,11 +323,11 @@ out:
 
 static void capture_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = dev->priv;
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_WRITE_CMD:
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
@@ -372,14 +372,14 @@ static void capture_run_state(struct fpi_ssm *ssm)
 
 static void capture_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = dev->priv;
 
 	fp_dbg("Capture completed");
 	if (upekdev->deactivating)
 		complete_deactivation(dev);
-	else if (ssm->error)
-		fpi_imgdev_session_error(dev, ssm->error);
+	else if (fpi_ssm_get_error(ssm))
+		fpi_imgdev_session_error(dev, fpi_ssm_get_error(ssm));
 	else
 		start_finger_detection(dev);
 	fpi_ssm_free(ssm);
@@ -397,7 +397,7 @@ static void start_capture(struct fp_img_dev *dev)
 
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
 	G_DEBUG_HERE();
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
 
@@ -406,7 +406,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	struct upektc_dev *upekdev = dev->priv;
 	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, activate_run_state,
 		ACTIVATE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	upekdev->init_idx = 0;
 	fpi_ssm_start(ssm, activate_sm_complete);
 	return 0;

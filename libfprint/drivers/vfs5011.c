@@ -76,17 +76,17 @@ static void start_scan(struct fp_img_dev *dev);
 static void async_send_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct usbexchange_data *data = (struct usbexchange_data *)ssm->priv;
+	struct usbexchange_data *data = fpi_ssm_get_user_data(ssm);
 	struct usb_action *action;
 
-	if (ssm->cur_state >= data->stepcount) {
+	if (fpi_ssm_get_cur_state(ssm) >= data->stepcount) {
 		fp_err("Radiation detected!");
 		fpi_imgdev_session_error(data->device, -EINVAL);
 		fpi_ssm_mark_aborted(ssm, -EINVAL);
 		goto out;
 	}
 
-	action = &data->actions[ssm->cur_state];
+	action = &data->actions[fpi_ssm_get_cur_state(ssm)];
 	if (action->type != ACTION_SEND) {
 		fp_err("Radiation detected!");
 		fpi_imgdev_session_error(data->device, -EINVAL);
@@ -120,7 +120,7 @@ out:
 static void async_recv_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct usbexchange_data *data = (struct usbexchange_data *)ssm->priv;
+	struct usbexchange_data *data = fpi_ssm_get_user_data(ssm);
 	struct usb_action *action;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
@@ -131,14 +131,14 @@ static void async_recv_cb(struct libusb_transfer *transfer)
 		goto out;
 	}
 
-	if (ssm->cur_state >= data->stepcount) {
+	if (fpi_ssm_get_cur_state(ssm) >= data->stepcount) {
 		fp_err("Radiation detected!");
 		fpi_imgdev_session_error(data->device, -EINVAL);
 		fpi_ssm_mark_aborted(ssm, -EINVAL);
 		goto out;
 	}
 
-	action = &data->actions[ssm->cur_state];
+	action = &data->actions[fpi_ssm_get_cur_state(ssm)];
 	if (action->type != ACTION_RECEIVE) {
 		fp_err("Radiation detected!");
 		fpi_imgdev_session_error(data->device, -EINVAL);
@@ -173,16 +173,16 @@ out:
 
 static void usbexchange_loop(struct fpi_ssm *ssm)
 {
-	struct usbexchange_data *data = (struct usbexchange_data *)ssm->priv;
-	if (ssm->cur_state >= data->stepcount) {
+	struct usbexchange_data *data = fpi_ssm_get_user_data(ssm);
+	if (fpi_ssm_get_cur_state(ssm) >= data->stepcount) {
 		fp_err("Bug detected: state %d out of range, only %d steps",
-				ssm->cur_state, data->stepcount);
+				fpi_ssm_get_cur_state(ssm), data->stepcount);
 		fpi_imgdev_session_error(data->device, -EINVAL);
 		fpi_ssm_mark_aborted(ssm, -EINVAL);
 		return;
 	}
 
-	struct usb_action *action = &data->actions[ssm->cur_state];
+	struct usb_action *action = &data->actions[fpi_ssm_get_cur_state(ssm)];
 	struct libusb_transfer *transfer;
 	int ret = -EINVAL;
 
@@ -239,7 +239,7 @@ static void usb_exchange_async(struct fpi_ssm *ssm,
 	struct fpi_ssm *subsm = fpi_ssm_new(data->device->dev,
 					    usbexchange_loop,
 					    data->stepcount);
-	subsm->priv = data;
+	fpi_ssm_set_user_data(subsm, data);
 	fpi_ssm_start_subsm(ssm, subsm);
 }
 
@@ -397,7 +397,7 @@ static int process_chunk(struct vfs5011_data *data, int transferred)
 
 void submit_image(struct fpi_ssm *ssm, struct vfs5011_data *data)
 {
-	struct fp_img_dev *dev = (struct fp_img_dev *)ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fp_img *img;
 
 	data->rows = g_slist_reverse(data->rows);
@@ -415,7 +415,7 @@ void submit_image(struct fpi_ssm *ssm, struct vfs5011_data *data)
 static void chunk_capture_callback(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = (struct fpi_ssm *)transfer->user_data;
-	struct fp_img_dev *dev = (struct fp_img_dev *)ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) ||
@@ -659,12 +659,12 @@ static void activate_loop(struct fpi_ssm *ssm)
 {
 	enum {READ_TIMEOUT = 0};
 
-	struct fp_img_dev *dev = (struct fp_img_dev *)ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
 	int r;
 	struct fpi_timeout *timeout;
 
-	fp_dbg("main_loop: state %d", ssm->cur_state);
+	fp_dbg("main_loop: state %d", fpi_ssm_get_cur_state(ssm));
 
 	if (data->deactivating) {
 		fp_dbg("deactivating, marking completed");
@@ -672,7 +672,7 @@ static void activate_loop(struct fpi_ssm *ssm)
 		return;
 	}
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEV_ACTIVATE_REQUEST_FPRINT:
 		data->init_sequence.stepcount =
 			array_n_elements(vfs5011_initiate_capture);
@@ -732,9 +732,9 @@ static void activate_loop(struct fpi_ssm *ssm)
 
 static void activate_loop_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = (struct fp_img_dev *)ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
-	int r = ssm->error;
+	int r = fpi_ssm_get_error(ssm);
 
 	fp_dbg("finishing");
 	if (data->init_sequence.receive_buf != NULL)
@@ -760,10 +760,10 @@ static void activate_loop_complete(struct fpi_ssm *ssm)
 
 static void open_loop(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = (struct fp_img_dev *)ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEV_OPEN_START:
 		data->init_sequence.stepcount =
 			array_n_elements(vfs5011_initialization);
@@ -779,7 +779,7 @@ static void open_loop(struct fpi_ssm *ssm)
 
 static void open_loop_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = (struct fp_img_dev *)ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data = (struct vfs5011_data *)dev->priv;
 
 	g_free(data->init_sequence.receive_buf);
@@ -814,7 +814,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 
 	struct fpi_ssm *ssm;
 	ssm = fpi_ssm_new(dev->dev, open_loop, DEV_OPEN_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, open_loop_complete);
 
 	return 0;
@@ -840,7 +840,7 @@ static void start_scan(struct fp_img_dev *dev)
 	data->loop_running = TRUE;
 	fp_dbg("creating ssm");
 	ssm = fpi_ssm_new(dev->dev, activate_loop, DEV_ACTIVATE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fp_dbg("starting ssm");
 	fpi_ssm_start(ssm, activate_loop_complete);
 	fp_dbg("ssm done, getting out");

@@ -670,7 +670,7 @@ static int async_tx(struct fp_img_dev *idev, unsigned int ep, void *cb,
 static void async_tx_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
@@ -701,10 +701,10 @@ static void async_tx_cb(struct libusb_transfer *transfer)
 
 static void m_exit_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case EXIT_SET_REGS_REQ:
 		msg_set_regs(dev, 4, REG_VCO_CONTROL, REG_VCO_IDLE,
 			     REG_MODE_CONTROL, REG_MODE_SLEEP);
@@ -717,7 +717,7 @@ static void m_exit_state(struct fpi_ssm *ssm)
 		fpi_ssm_mark_completed(ssm);
 		break;
 	default:
-		fp_err("Unknown state %d", ssm->cur_state);
+		fp_err("Unknown state %d", fpi_ssm_get_cur_state(ssm));
 		goto err;
 		break;
 	}
@@ -729,9 +729,9 @@ err:
 
 static void m_exit_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
-	if (ssm->error) {
+	if (fpi_ssm_get_error(ssm)) {
 		fp_err("Error switching the device to idle state");
 	} else {
 		fp_dbg("The device is now in idle state");
@@ -745,13 +745,13 @@ static void m_exit_start(struct fp_img_dev *idev)
 	struct fpi_ssm *ssm = fpi_ssm_new(idev->dev, m_exit_state,
 					  EXIT_NUM_STATES);
 	fp_dbg("Switching device to idle mode");
-	ssm->priv = idev;
+	fpi_ssm_set_user_data(ssm, idev);
 	fpi_ssm_start(ssm, m_exit_complete);
 }
 
 static void m_capture_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 
 	if (dev->is_active == FALSE) {
@@ -759,7 +759,7 @@ static void m_capture_state(struct fpi_ssm *ssm)
 		return;
 	}
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAP_FP_INIT_SET_REG10_REQ:
 		/* Reset fingerprint */
 		fp_dbg("Capturing a fingerprint...");
@@ -820,7 +820,7 @@ static void m_capture_state(struct fpi_ssm *ssm)
 		}
 		break;
 	default:
-		fp_err("Unknown state %d", ssm->cur_state);
+		fp_err("Unknown state %d", fpi_ssm_get_cur_state(ssm));
 		goto err;
 		break;
 	}
@@ -832,14 +832,14 @@ err:
 
 static void m_capture_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 
-	if (ssm->error) {
+	if (fpi_ssm_get_error(ssm)) {
 		if (idev->action_state != IMG_ACQUIRE_STATE_DEACTIVATING) {
 			fp_err("Error while capturing fingerprint "
-				"(ssm->error=%d)", ssm->error);
-			fpi_imgdev_session_error(idev, ssm->error);
+				"(fpi_ssm_get_error(ssm)=%d)", fpi_ssm_get_error(ssm));
+			fpi_imgdev_session_error(idev, fpi_ssm_get_error(ssm));
 		}
 	}
 	fpi_ssm_free(ssm);
@@ -854,7 +854,7 @@ static void m_capture_complete(struct fpi_ssm *ssm)
 
 static void m_finger_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 
 	if (dev->is_active == FALSE) {
@@ -862,7 +862,7 @@ static void m_finger_state(struct fpi_ssm *ssm)
 		return;
 	}
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case FGR_FPA_INIT_SET_MODE_SLEEP_REQ:
 		msg_set_mode_control(dev, REG_MODE_SLEEP);
 		if (async_tx(idev, EP_OUT, async_tx_cb, ssm))
@@ -938,7 +938,7 @@ static void m_finger_state(struct fpi_ssm *ssm)
 		}
 		break;
 	default:
-		fp_err("Unknown state %d", ssm->cur_state);
+		fp_err("Unknown state %d", fpi_ssm_get_cur_state(ssm));
 		goto err;
 		break;
 	}
@@ -950,19 +950,19 @@ err:
 
 static void m_finger_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 
-	if (!ssm->error) {
+	if (!fpi_ssm_get_error(ssm)) {
 		struct fpi_ssm *ssm_cap;
 		ssm_cap = fpi_ssm_new(idev->dev, m_capture_state,
 				CAP_NUM_STATES);
-		ssm_cap->priv = idev;
+		fpi_ssm_set_user_data(ssm_cap, idev);
 		fpi_ssm_start(ssm_cap, m_capture_complete);
 	} else {
 		if (idev->action_state != IMG_ACQUIRE_STATE_DEACTIVATING) {
 			fp_err("Error while capturing fingerprint "
-				"(ssm->error=%d)", ssm->error);
+				"(fpi_ssm_get_error(ssm)=%d)", fpi_ssm_get_error(ssm));
 			fpi_imgdev_session_error(idev, -4);
 		}
 		dev->is_active = FALSE;
@@ -975,7 +975,7 @@ static void m_start_fingerdetect(struct fp_img_dev *idev)
 {
 	struct fpi_ssm *ssmf;
 	ssmf = fpi_ssm_new(idev->dev, m_finger_state, FGR_NUM_STATES);
-	ssmf->priv = idev;
+	fpi_ssm_set_user_data(ssmf, idev);
 	fpi_ssm_start(ssmf, m_finger_complete);
 }
 
@@ -984,7 +984,7 @@ static void m_start_fingerdetect(struct fp_img_dev *idev)
  */
 static void m_tunevrb_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 	float hist[5];
 
@@ -993,7 +993,7 @@ static void m_tunevrb_state(struct fpi_ssm *ssm)
 		return;
 	}
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case TUNEVRB_INIT:
 		fp_dbg("Tuning of VRT/VRB");
 		g_assert(dev->dcoffset);
@@ -1124,7 +1124,7 @@ static void m_tunevrb_state(struct fpi_ssm *ssm)
 		fpi_ssm_mark_completed(ssm);
 		break;
 	default:
-		fp_err("Unknown state %d", ssm->cur_state);
+		fp_err("Unknown state %d", fpi_ssm_get_cur_state(ssm));
 		goto err;
 		break;
 	}
@@ -1136,10 +1136,10 @@ err:
 
 static void m_tunevrb_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
-	fpi_imgdev_activate_complete(idev, ssm->error != 0);
-	if (!ssm->error) {
+	fpi_imgdev_activate_complete(idev, fpi_ssm_get_error(ssm) != 0);
+	if (!fpi_ssm_get_error(ssm)) {
 		fp_dbg("Tuning is done. Starting finger detection.");
 		m_start_fingerdetect(idev);
 	} else {
@@ -1158,7 +1158,7 @@ static void m_tunevrb_complete(struct fpi_ssm *ssm)
  */
 static void m_tunedc_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 
 	if (dev->is_active == FALSE) {
@@ -1170,7 +1170,7 @@ static void m_tunedc_state(struct fpi_ssm *ssm)
 	 * captured traffic to make sure that the value is correct. */
 	/* The default gain should work but it may reach a DCOffset limit so in
 	 * this case we decrease the gain. */
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case TUNEDC_INIT:
 		/* reg_e0 = 0x23 is sensor normal/small gain */
 		dev->gain = GAIN_SMALL_INIT;
@@ -1248,7 +1248,7 @@ static void m_tunedc_state(struct fpi_ssm *ssm)
 		fpi_ssm_mark_completed(ssm);
 		break;
 	default:
-		fp_err("Unknown state %d", ssm->cur_state);
+		fp_err("Unknown state %d", fpi_ssm_get_cur_state(ssm));
 		goto err;
 		break;
 	}
@@ -1261,12 +1261,12 @@ err:
 
 static void m_tunedc_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
-	if (!ssm->error) {
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
+	if (!fpi_ssm_get_error(ssm)) {
 		struct fpi_ssm *ssm_tune;
 		ssm_tune = fpi_ssm_new(idev->dev, m_tunevrb_state,
 					TUNEVRB_NUM_STATES);
-		ssm_tune->priv = idev;
+		fpi_ssm_set_user_data(ssm_tune, idev);
 		fpi_ssm_start(ssm_tune, m_tunevrb_complete);
 	} else {
 		struct etes603_dev *dev = idev->priv;
@@ -1280,7 +1280,7 @@ static void m_tunedc_complete(struct fpi_ssm *ssm)
 
 static void m_init_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = idev->priv;
 
 	if (dev->is_active == FALSE) {
@@ -1288,7 +1288,7 @@ static void m_init_state(struct fpi_ssm *ssm)
 		return;
 	}
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case INIT_CHECK_INFO_REQ:
 		msg_get_regs(dev, 4, REG_INFO0, REG_INFO1, REG_INFO2,
 			     REG_INFO3);
@@ -1368,7 +1368,7 @@ static void m_init_state(struct fpi_ssm *ssm)
 		fpi_ssm_mark_completed(ssm);
 		break;
 	default:
-		fp_err("Unknown state %d", ssm->cur_state);
+		fp_err("Unknown state %d", fpi_ssm_get_cur_state(ssm));
 		goto err;
 		break;
 	}
@@ -1381,12 +1381,12 @@ err:
 
 static void m_init_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *idev = ssm->priv;
-	if (!ssm->error) {
+	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
+	if (!fpi_ssm_get_error(ssm)) {
 		struct fpi_ssm *ssm_tune;
 		ssm_tune = fpi_ssm_new(idev->dev, m_tunedc_state,
 					TUNEDC_NUM_STATES);
-		ssm_tune->priv = idev;
+		fpi_ssm_set_user_data(ssm_tune, idev);
 		fpi_ssm_start(ssm_tune, m_tunedc_complete);
 	} else {
 		struct etes603_dev *dev = idev->priv;
@@ -1417,7 +1417,7 @@ static int dev_activate(struct fp_img_dev *idev, enum fp_imgdev_state state)
 	if (dev->dcoffset == 0) {
 		fp_dbg("Tuning device...");
 		ssm = fpi_ssm_new(idev->dev, m_init_state, INIT_NUM_STATES);
-		ssm->priv = idev;
+		fpi_ssm_set_user_data(ssm, idev);
 		fpi_ssm_start(ssm, m_init_complete);
 	} else {
 		fp_dbg("Using previous tuning (DCOFFSET=0x%02X,VRT=0x%02X,"
@@ -1425,7 +1425,7 @@ static int dev_activate(struct fp_img_dev *idev, enum fp_imgdev_state state)
 			dev->vrb, dev->gain);
 		fpi_imgdev_activate_complete(idev, 0);
 		ssm = fpi_ssm_new(idev->dev, m_finger_state, FGR_NUM_STATES);
-		ssm->priv = idev;
+		fpi_ssm_set_user_data(ssm, idev);
 		fpi_ssm_start(ssm, m_finger_complete);
 	}
 	return 0;

@@ -529,23 +529,23 @@ static void initsm_read_msg_response_cb(struct fpi_ssm *ssm,
 	enum read_msg_status status, uint8_t seq,
 	unsigned char expect_subcmd, unsigned char subcmd)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = dev->priv;
 
 	if (status != READ_MSG_RESPONSE) {
 		fp_err("expected response, got %d seq=%x in state %d", status, seq,
-			ssm->cur_state);
+			fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 	} else if (subcmd != expect_subcmd) {
 		fp_warn("expected response to subcmd 0x%02x, got response to %02x in "
-			"state %d", expect_subcmd, subcmd, ssm->cur_state);
+			"state %d", expect_subcmd, subcmd, fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 	} else if (seq != upekdev->seq) {
 		fp_err("expected response to cmd seq=%02x, got response to %02x "
-			"in state %d", upekdev->seq, seq, ssm->cur_state);
+			"in state %d", upekdev->seq, seq, fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 	} else {
-		fp_dbg("state %d completed", ssm->cur_state);
+		fp_dbg("state %d completed", fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_next_state(ssm);
 	}
 }
@@ -593,7 +593,7 @@ static void read28_06_cb(struct fp_dev *dev, enum read_msg_status status,
 static void initsm_read_msg_cmd_cb(struct fpi_ssm *ssm,
 	enum read_msg_status status, uint8_t expect_seq, uint8_t seq)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = dev->priv;
 
 	if (status == READ_MSG_ERROR) {
@@ -601,14 +601,14 @@ static void initsm_read_msg_cmd_cb(struct fpi_ssm *ssm,
 		return;
 	} else if (status != READ_MSG_CMD) {
 		fp_err("expected command, got %d seq=%x in state %d", status, seq,
-			ssm->cur_state);
+			fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 		return;
 	}
 	upekdev->seq = seq;
 	if (seq != expect_seq) {
 		fp_err("expected seq=%x, got %x in state %d", expect_seq, seq,
-			ssm->cur_state);
+			fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 		return;
 	}
@@ -645,9 +645,9 @@ static void ctrl400_cb(struct libusb_transfer *transfer)
 static void initsm_read_msg_handler(struct fpi_ssm *ssm,
 	read_msg_cb_fn callback)
 {
-	int r = read_msg_async(ssm->dev, callback, ssm);
+	int r = read_msg_async(fpi_ssm_get_dev(ssm), callback, ssm);
 	if (r < 0) {
-		fp_err("async read msg failed in state %d", ssm->cur_state);
+		fp_err("async read msg failed in state %d", fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, r);
 	}
 }
@@ -657,10 +657,10 @@ static void initsm_send_msg_cb(struct libusb_transfer *transfer)
 	struct fpi_ssm *ssm = transfer->user_data;
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED
 			&& transfer->length == transfer->actual_length) {
-		fp_dbg("state %d completed", ssm->cur_state);
+		fp_dbg("state %d completed", fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_next_state(ssm);
 	} else {
-		fp_err("failed, state=%d rqlength=%d actual_length=%d", ssm->cur_state,
+		fp_err("failed, state=%d rqlength=%d actual_length=%d", fpi_ssm_get_cur_state(ssm),
 			transfer->length, transfer->actual_length);
 		fpi_ssm_mark_aborted(ssm, -1);
 	}
@@ -670,7 +670,7 @@ static void initsm_send_msg_cb(struct libusb_transfer *transfer)
 static void initsm_send_msg28_handler(struct fpi_ssm *ssm,
 	unsigned char subcmd, const unsigned char *data, uint16_t innerlen)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct libusb_transfer *transfer;
 	int r;
 
@@ -683,7 +683,7 @@ static void initsm_send_msg28_handler(struct fpi_ssm *ssm,
 
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
-		fp_err("urb submission failed error %d in state %d", r, ssm->cur_state);
+		fp_err("urb submission failed error %d in state %d", r, fpi_ssm_get_cur_state(ssm));
 		g_free(transfer->buffer);
 		libusb_free_transfer(transfer);
 		fpi_ssm_mark_aborted(ssm, -EIO);
@@ -692,12 +692,12 @@ static void initsm_send_msg28_handler(struct fpi_ssm *ssm,
 
 static void initsm_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = dev->priv;
 	struct libusb_transfer *transfer;
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case WRITE_CTRL400: ;
 		unsigned char *data;
 
@@ -710,7 +710,7 @@ static void initsm_run_state(struct fpi_ssm *ssm)
 		data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 		libusb_fill_control_setup(data,
 			LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE, 0x0c, 0x100, 0x0400, 1);
-		libusb_fill_control_transfer(transfer, ssm->dev->udev, data,
+		libusb_fill_control_transfer(transfer, dev->udev, data,
 			ctrl400_cb, ssm, TIMEOUT);
 
 		r = libusb_submit_transfer(transfer);
@@ -827,10 +827,10 @@ static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
 
 static void deinitsm_state_handler(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case SEND_RESP07: ;
 		struct libusb_transfer *transfer;
 		unsigned char dummy = 0;
@@ -909,8 +909,8 @@ enum enroll_start_sm_states {
 /* Called when the device initialization state machine completes */
 static void enroll_start_sm_cb_initsm(struct fpi_ssm *initsm)
 {
-	struct fpi_ssm *enroll_start_ssm = initsm->priv;
-	int error = initsm->error;
+	struct fpi_ssm *enroll_start_ssm = fpi_ssm_get_user_data(initsm);
+	int error = fpi_ssm_get_error(initsm);
 
 	fpi_ssm_free(initsm);
 	if (error)
@@ -957,13 +957,13 @@ static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
 
 static void enroll_start_sm_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case RUN_INITSM: ;
 		struct fpi_ssm *initsm = initsm_new(dev);
-		initsm->priv = ssm;
+		fpi_ssm_set_user_data(initsm, ssm);
 		fpi_ssm_start(initsm, enroll_start_sm_cb_initsm);
 		break;
 	case ENROLL_INIT: ;
@@ -1150,10 +1150,10 @@ static void enroll_iterate(struct fp_dev *dev)
 
 static void enroll_started(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
-	fpi_drvcb_enroll_started(dev, ssm->error);
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
+	fpi_drvcb_enroll_started(dev, fpi_ssm_get_error(ssm));
 
-	if (!ssm->error)
+	if (!fpi_ssm_get_error(ssm))
 		enroll_iterate(dev);
 
 	fpi_ssm_free(ssm);
@@ -1175,7 +1175,7 @@ static int enroll_start(struct fp_dev *dev)
 static void enroll_stop_deinit_cb(struct fpi_ssm *ssm)
 {
 	/* don't really care about errors */
-	fpi_drvcb_enroll_stopped(ssm->dev);
+	fpi_drvcb_enroll_stopped(fpi_ssm_get_dev(ssm));
 	fpi_ssm_free(ssm);
 }
 
@@ -1189,7 +1189,7 @@ static int enroll_stop(struct fp_dev *dev)
 static void verify_stop_deinit_cb(struct fpi_ssm *ssm)
 {
 	/* don't really care about errors */
-	fpi_drvcb_verify_stopped(ssm->dev);
+	fpi_drvcb_verify_stopped(fpi_ssm_get_dev(ssm));
 	fpi_ssm_free(ssm);
 }
 
@@ -1214,9 +1214,12 @@ enum {
 /* Called when the device initialization state machine completes */
 static void verify_start_sm_cb_initsm(struct fpi_ssm *initsm)
 {
-	struct fpi_ssm *verify_start_ssm = initsm->priv;
-	if (initsm->error)
-		fpi_ssm_mark_aborted(verify_start_ssm, initsm->error);
+	struct fpi_ssm *verify_start_ssm = fpi_ssm_get_user_data(initsm);
+	int err;
+
+	err = fpi_ssm_get_error(initsm);
+	if (err)
+		fpi_ssm_mark_aborted(verify_start_ssm, err);
 	else
 		fpi_ssm_next_state(verify_start_ssm);
 	fpi_ssm_free(initsm);
@@ -1236,13 +1239,13 @@ static void verify_init_2803_cb(struct libusb_transfer *transfer)
 
 static void verify_start_sm_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case VERIFY_RUN_INITSM: ;
 		struct fpi_ssm *initsm = initsm_new(dev);
-		initsm->priv = ssm;
+		fpi_ssm_set_user_data(initsm, ssm);
 		fpi_ssm_start(initsm, verify_start_sm_cb_initsm);
 		break;
 	case VERIFY_INIT: ;
@@ -1426,11 +1429,11 @@ static void verify_iterate(struct fp_dev *dev)
 
 static void verify_started(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = dev->priv;
 
-	fpi_drvcb_verify_started(dev, ssm->error);
-	if (!ssm->error) {
+	fpi_drvcb_verify_started(dev, fpi_ssm_get_error(ssm));
+	if (!fpi_ssm_get_error(ssm)) {
 		upekdev->first_verify_iteration = TRUE;
 		verify_iterate(dev);
 	}

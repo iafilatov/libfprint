@@ -40,7 +40,7 @@ static void complete_deactivation(struct fp_img_dev *dev);
 static void aesX660_send_cmd_timeout(struct fpi_ssm *ssm, const unsigned char *cmd,
 	size_t cmd_len, libusb_transfer_cb_fn callback, int timeout)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
 
@@ -69,7 +69,7 @@ static void aesX660_send_cmd(struct fpi_ssm *ssm, const unsigned char *cmd,
 static void aesX660_read_response(struct fpi_ssm *ssm, size_t buf_len,
 	libusb_transfer_cb_fn callback)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
@@ -144,7 +144,7 @@ enum finger_det_states {
 static void finger_det_read_fd_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
 	unsigned char *data = transfer->buffer;
 
@@ -197,9 +197,9 @@ static void finger_det_set_idle_cmd_cb(struct libusb_transfer *transfer)
 
 static void finger_det_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
-	int err = ssm->error;
+	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Finger detection completed");
 	fpi_imgdev_report_finger_status(dev, TRUE);
@@ -217,7 +217,7 @@ static void finger_det_sm_complete(struct fpi_ssm *ssm)
 
 static void finger_det_run_state(struct fpi_ssm *ssm)
 {
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case FINGER_DET_SEND_LED_CMD:
 		aesX660_send_cmd(ssm, led_blink_cmd, sizeof(led_blink_cmd),
 			aesX660_send_cmd_cb);
@@ -248,7 +248,7 @@ static void start_finger_detection(struct fp_img_dev *dev)
 	}
 
 	ssm = fpi_ssm_new(dev->dev, finger_det_run_state, FINGER_DET_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, finger_det_sm_complete);
 }
 
@@ -267,7 +267,7 @@ static int process_stripe_data(struct fpi_ssm *ssm, unsigned char *data)
 {
 	struct fpi_frame *stripe;
 	unsigned char *stripdata;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
 
 	stripe = g_malloc(aesdev->assembling_ctx->frame_width * FRAME_HEIGHT / 2 + sizeof(struct fpi_frame)); /* 4 bpp */
@@ -295,7 +295,7 @@ static int process_stripe_data(struct fpi_ssm *ssm, unsigned char *data)
 static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
@@ -321,7 +321,7 @@ static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
 static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
 	unsigned char *data = transfer->buffer;
 	int finger_missing = 0;
@@ -373,10 +373,10 @@ out:
 
 static void capture_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_SEND_LED_CMD:
 		aesX660_send_cmd(ssm, led_solid_cmd, sizeof(led_solid_cmd),
 			aesX660_send_cmd_cb);
@@ -402,9 +402,9 @@ static void capture_run_state(struct fpi_ssm *ssm)
 
 static void capture_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
-	int err = ssm->error;
+	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Capture completed");
 	fpi_ssm_free(ssm);
@@ -429,7 +429,7 @@ static void start_capture(struct fp_img_dev *dev)
 
 	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
 	G_DEBUG_HERE();
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
 
@@ -449,7 +449,7 @@ enum activate_states {
 static void activate_read_id_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
 	unsigned char *data = transfer->buffer;
 
@@ -500,7 +500,7 @@ out:
 static void activate_read_init_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
 	unsigned char *data = transfer->buffer;
 
@@ -536,10 +536,10 @@ out:
 
 static void activate_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = dev->priv;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case ACTIVATE_SET_IDLE:
 		aesdev->init_seq_idx = 0;
 		fp_dbg("Activate: set idle\n");
@@ -582,8 +582,8 @@ static void activate_run_state(struct fpi_ssm *ssm)
 
 static void activate_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	int err = ssm->error;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	int err = fpi_ssm_get_error(ssm);
 	fp_dbg("status %d", err);
 	fpi_imgdev_activate_complete(dev, err);
 	fpi_ssm_free(ssm);
@@ -596,7 +596,7 @@ int aesX660_dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, activate_run_state,
 		ACTIVATE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, activate_sm_complete);
 	return 0;
 }
