@@ -19,7 +19,7 @@
 
 #define FP_COMPONENT "vcom5s"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 
 /* TODO:
  * calibration?

@@ -20,7 +20,7 @@
 
 #define FP_COMPONENT "upektc"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "upektc.h"
 
 #define UPEKTC_EP_IN (2 | LIBUSB_ENDPOINT_IN)

@@ -23,7 +23,7 @@
 
 #define FP_COMPONENT "aes2550"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "aes2550.h"
 #include "aeslib.h"
 

@@ -23,7 +23,7 @@
 #include <nss.h>
 #include <pk11pub.h>
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 
 #define EP_INTR			(1 | LIBUSB_ENDPOINT_IN)
 #define EP_DATA			(2 | LIBUSB_ENDPOINT_IN)

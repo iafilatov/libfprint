@@ -25,7 +25,7 @@
 
 #define FP_COMPONENT "aes1610"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "aeslib.h"
 
 static void start_capture(struct fp_img_dev *dev);

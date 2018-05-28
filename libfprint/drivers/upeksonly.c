@@ -25,7 +25,7 @@
 
 #define FP_COMPONENT "upeksonly"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "upeksonly.h"
 
 #define CTRL_TIMEOUT	1000

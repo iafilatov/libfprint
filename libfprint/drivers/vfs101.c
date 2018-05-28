@@ -19,7 +19,7 @@
 
 #define FP_COMPONENT "vfs101"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 
 /* Input-Output usb endpoint */
 #define EP_IN(n)	(n | LIBUSB_ENDPOINT_IN)

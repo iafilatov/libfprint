@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "vfs5011_proto.h"
 
 /* =================== sync/async USB transfer sequence ==================== */

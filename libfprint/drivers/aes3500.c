@@ -29,7 +29,7 @@
 
 #define FP_COMPONENT "aes3500"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "aeslib.h"
 #include "aes3k.h"
 

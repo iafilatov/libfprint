@@ -36,7 +36,7 @@
 
 #define FP_COMPONENT "aes3k"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "aeslib.h"
 #include "aes3k.h"
 

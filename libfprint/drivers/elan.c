@@ -20,7 +20,7 @@
 
 #define FP_COMPONENT "elan"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "elan.h"
 
 unsigned char elan_get_pixel(struct fpi_frame_asmbl_ctx *ctx,

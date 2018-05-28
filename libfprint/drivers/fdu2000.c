@@ -19,7 +19,7 @@
 
 #define FP_COMPONENT "fdu2000"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 
 #ifndef HAVE_MEMMEM
 gpointer

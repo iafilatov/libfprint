@@ -19,7 +19,7 @@
 
 #define FP_COMPONENT "vfs0050"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "vfs0050.h"
 
 /* USB functions */

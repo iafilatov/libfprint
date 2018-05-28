@@ -21,7 +21,7 @@
 
 #define FP_COMPONENT "vfs301"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "vfs301_proto.h"
 
 /************************** GENERIC STUFF *************************************/

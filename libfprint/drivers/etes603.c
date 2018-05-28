@@ -35,7 +35,7 @@
 
 #define FP_COMPONENT "etes603"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "driver_ids.h"
 
 /* libusb defines */

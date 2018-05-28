@@ -19,7 +19,7 @@
 
 #define FP_COMPONENT "upektc_img"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "aeslib.h"
 #include "upektc_img.h"
 

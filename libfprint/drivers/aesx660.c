@@ -23,7 +23,7 @@
 
 #define FP_COMPONENT "aesX660"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "aeslib.h"
 #include "aesx660.h"
 

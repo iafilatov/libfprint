@@ -27,7 +27,7 @@
 
 #define FP_COMPONENT "upekts"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 
 #define EP_IN (1 | LIBUSB_ENDPOINT_IN)
 #define EP_OUT (2 | LIBUSB_ENDPOINT_OUT)

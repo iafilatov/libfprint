@@ -19,7 +19,7 @@
 
 #define FP_COMPONENT "aes2660"
 
-#include "fp_internal.h"
+#include "drivers_api.h"
 #include "aeslib.h"
 #include "aesx660.h"
 #include "aes2660.h"
