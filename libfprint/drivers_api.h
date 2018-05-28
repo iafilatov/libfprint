@@ -178,8 +178,6 @@ struct fp_img_driver {
 	void (*deactivate)(struct fp_img_dev *dev);
 };
 
-#include "drivers_definitions.h"
-
 enum fp_print_data_type {
 	PRINT_DATA_RAW = 0, /* memset-imposed default */
 	PRINT_DATA_NBIS_MINUTIAE,

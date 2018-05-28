@@ -1328,47 +1328,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	return 0;
 }
 
-static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
-{
-	int r;
-	struct sonly_dev *sdev;
-
-	r = libusb_set_configuration(fpi_imgdev_get_usb_dev(dev), 1);
-	if (r < 0) {
-		fp_err("could not set configuration 1");
-		return r;
-	}
-
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
-	if (r < 0) {
-		fp_err("could not claim interface 0: %s", libusb_error_name(r));
-		return r;
-	}
-
-	sdev = g_malloc0(sizeof(struct sonly_dev));
-	fpi_imgdev_set_user_data(dev, sdev);
-	sdev->dev_model = (int)driver_data;
-	switch (driver_data) {
-	case UPEKSONLY_1000:
-		sdev->img_width = IMG_WIDTH_1000;
-		upeksonly_driver.img_width = IMG_WIDTH_1000;
-		assembling_ctx.line_width = IMG_WIDTH_1000;
-		break;
-	case UPEKSONLY_1001:
-		sdev->img_width = IMG_WIDTH_1001;
-		upeksonly_driver.img_width = IMG_WIDTH_1001;
-		upeksonly_driver.bz3_threshold = 25;
-		assembling_ctx.line_width = IMG_WIDTH_1001;
-		break;
-	case UPEKSONLY_2016:
-		sdev->img_width = IMG_WIDTH_2016;
-		upeksonly_driver.img_width = IMG_WIDTH_2016;
-		assembling_ctx.line_width = IMG_WIDTH_2016;
-		break;
-	}
-	fpi_imgdev_open_complete(dev, 0);
-	return 0;
-}
+static int dev_init(struct fp_img_dev *dev, unsigned long driver_data);
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
@@ -1421,4 +1381,47 @@ struct fp_img_driver upeksonly_driver = {
 	.activate = dev_activate,
 	.deactivate = dev_deactivate,
 };
+
+static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
+{
+	int r;
+	struct sonly_dev *sdev;
+
+	r = libusb_set_configuration(fpi_imgdev_get_usb_dev(dev), 1);
+	if (r < 0) {
+		fp_err("could not set configuration 1");
+		return r;
+	}
+
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	if (r < 0) {
+		fp_err("could not claim interface 0: %s", libusb_error_name(r));
+		return r;
+	}
+
+	sdev = g_malloc0(sizeof(struct sonly_dev));
+	fpi_imgdev_set_user_data(dev, sdev);
+	sdev->dev_model = (int)driver_data;
+	switch (driver_data) {
+	case UPEKSONLY_1000:
+		sdev->img_width = IMG_WIDTH_1000;
+		upeksonly_driver.img_width = IMG_WIDTH_1000;
+		assembling_ctx.line_width = IMG_WIDTH_1000;
+		break;
+	case UPEKSONLY_1001:
+		sdev->img_width = IMG_WIDTH_1001;
+		upeksonly_driver.img_width = IMG_WIDTH_1001;
+		upeksonly_driver.bz3_threshold = 25;
+		assembling_ctx.line_width = IMG_WIDTH_1001;
+		break;
+	case UPEKSONLY_2016:
+		sdev->img_width = IMG_WIDTH_2016;
+		upeksonly_driver.img_width = IMG_WIDTH_2016;
+		assembling_ctx.line_width = IMG_WIDTH_2016;
+		break;
+	}
+	fpi_imgdev_open_complete(dev, 0);
+	return 0;
+}
+
 
