@@ -664,7 +664,7 @@ static int calc_dev2(struct uru4k_image *img)
 	uint8_t *b[2] = { NULL, NULL };
 	int res = 0, mean = 0, i, r, j, idx;
 
-	for (i = r = idx = 0; i < array_n_elements(img->block_info) && idx < 2; i++) {
+	for (i = r = idx = 0; i < G_N_ELEMENTS(img->block_info) && idx < 2; i++) {
 		if (img->block_info[i].flags & BLOCKF_NOT_PRESENT)
 			continue;
 		for (j = 0; j < img->block_info[i].num_lines && idx < 2; j++)
@@ -747,7 +747,7 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 		key ^= urudev->img_enc_seed;
 
 		fp_dbg("encryption id %02x -> key %08x", img->key_number, key);
-		while (urudev->img_block < array_n_elements(img->block_info) &&
+		while (urudev->img_block < G_N_ELEMENTS(img->block_info) &&
 				urudev->img_lines_done < img->num_lines) {
 			flags = img->block_info[urudev->img_block].flags;
 			num_lines = img->block_info[urudev->img_block].num_lines;
@@ -785,7 +785,7 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 		fpimg = fpi_img_new_for_imgdev(dev);
 
 		to = r = 0;
-		for (i = 0; i < array_n_elements(img->block_info) && r < img->num_lines; i++) {
+		for (i = 0; i < G_N_ELEMENTS(img->block_info) && r < img->num_lines; i++) {
 			flags = img->block_info[i].flags;
 			num_lines = img->block_info[i].num_lines;
 			if (num_lines == 0)

@@ -61,7 +61,7 @@ static const struct elan_cmd get_sensor_dim_cmds[] = {
 };
 
 static const size_t get_sensor_dim_cmds_len =
-array_n_elements(get_sensor_dim_cmds);
+G_N_ELEMENTS(get_sensor_dim_cmds);
 
 static const struct elan_cmd init_start_cmds[] = {
 	{
@@ -76,7 +76,7 @@ static const struct elan_cmd init_start_cmds[] = {
 	 },
 };
 
-static const size_t init_start_cmds_len = array_n_elements(init_start_cmds);
+static const size_t init_start_cmds_len = G_N_ELEMENTS(init_start_cmds);
 
 static const struct elan_cmd read_cmds[] = {
 	/* raw frame sizes are calculated from image dimesions reported by the
@@ -88,7 +88,7 @@ static const struct elan_cmd read_cmds[] = {
 	 },
 };
 
-const size_t read_cmds_len = array_n_elements(read_cmds);
+const size_t read_cmds_len = G_N_ELEMENTS(read_cmds);
 
 /* issued after data reads during init and calibration */
 static const struct elan_cmd init_end_cmds[] = {
@@ -99,7 +99,7 @@ static const struct elan_cmd init_end_cmds[] = {
 	 },
 };
 
-static const size_t init_end_cmds_len = array_n_elements(init_end_cmds);
+static const size_t init_end_cmds_len = G_N_ELEMENTS(init_end_cmds);
 
 /* same command 2 times
  * original driver may observe return value to determine how many times it
@@ -118,7 +118,7 @@ static const struct elan_cmd calibrate_start_cmds[] = {
 };
 
 static const size_t calibrate_start_cmds_len =
-array_n_elements(calibrate_start_cmds);
+G_N_ELEMENTS(calibrate_start_cmds);
 
 /* issued after data reads during init and calibration */
 static const struct elan_cmd calibrate_end_cmds[] = {
@@ -130,7 +130,7 @@ static const struct elan_cmd calibrate_end_cmds[] = {
 };
 
 static const size_t calibrate_end_cmds_len =
-array_n_elements(calibrate_end_cmds);
+G_N_ELEMENTS(calibrate_end_cmds);
 
 static const struct elan_cmd capture_start_cmds[] = {
 	/* led on */
@@ -141,7 +141,7 @@ static const struct elan_cmd capture_start_cmds[] = {
 	 },
 };
 
-static size_t capture_start_cmds_len = array_n_elements(capture_start_cmds);
+static size_t capture_start_cmds_len = G_N_ELEMENTS(capture_start_cmds);
 
 static const struct elan_cmd capture_wait_finger_cmds[] = {
 	/* wait for finger
@@ -154,7 +154,7 @@ static const struct elan_cmd capture_wait_finger_cmds[] = {
 };
 
 static size_t capture_wait_finger_cmds_len =
-array_n_elements(capture_wait_finger_cmds);
+G_N_ELEMENTS(capture_wait_finger_cmds);
 
 static const struct elan_cmd deactivate_cmds[] = {
 	/* led off */
@@ -165,7 +165,7 @@ static const struct elan_cmd deactivate_cmds[] = {
 	 },
 };
 
-static const size_t deactivate_cmds_len = array_n_elements(deactivate_cmds);
+static const size_t deactivate_cmds_len = G_N_ELEMENTS(deactivate_cmds);
 
 static void elan_cmd_cb(struct libusb_transfer *transfer);
 static void elan_cmd_read(struct fpi_ssm *ssm);

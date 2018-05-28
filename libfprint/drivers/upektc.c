@@ -447,14 +447,14 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 		upekdev->ep_in = UPEKTC_EP_IN;
 		upekdev->ep_out = UPEKTC_EP_OUT;
 		upekdev->setup_commands = upektc_setup_commands;
-		upekdev->setup_commands_len = array_n_elements(upektc_setup_commands);
+		upekdev->setup_commands_len = G_N_ELEMENTS(upektc_setup_commands);
 		upekdev->sum_threshold = UPEKTC_SUM_THRESHOLD;
 		break;
 	case UPEKTC_3001:
 		upekdev->ep_in = UPEKET_EP_IN;
 		upekdev->ep_out = UPEKET_EP_OUT;
 		upekdev->setup_commands = upeket_setup_commands;
-		upekdev->setup_commands_len = array_n_elements(upeket_setup_commands);
+		upekdev->setup_commands_len = G_N_ELEMENTS(upeket_setup_commands);
 		upekdev->sum_threshold = UPEKET_SUM_THRESHOLD;
 		break;
 	default:

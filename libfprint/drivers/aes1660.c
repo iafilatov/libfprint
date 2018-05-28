@@ -50,9 +50,9 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	fpi_imgdev_set_user_data(dev, aesdev);
 	aesdev->buffer = g_malloc0(AES1660_FRAME_SIZE + AESX660_HEADER_SIZE);
 	aesdev->init_seqs[0] = aes1660_init_1;
-	aesdev->init_seqs_len[0] = array_n_elements(aes1660_init_1);
+	aesdev->init_seqs_len[0] = G_N_ELEMENTS(aes1660_init_1);
 	aesdev->init_seqs[1] = aes1660_init_2;
-	aesdev->init_seqs_len[1] = array_n_elements(aes1660_init_2);
+	aesdev->init_seqs_len[1] = G_N_ELEMENTS(aes1660_init_2);
 	aesdev->start_imaging_cmd = (unsigned char *)aes1660_start_imaging_cmd;
 	aesdev->start_imaging_cmd_len = sizeof(aes1660_start_imaging_cmd);
 	aesdev->assembling_ctx = &assembling_ctx;

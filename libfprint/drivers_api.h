@@ -37,8 +37,6 @@
 #include "assembling.h"
 #include "drivers/driver_ids.h"
 
-#define array_n_elements(array) G_N_ELEMENTS(array)
-
 #define fp_dbg g_debug
 #define fp_info g_debug
 #define fp_warn g_warning

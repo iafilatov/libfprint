@@ -51,9 +51,9 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	aesdev->buffer = g_malloc0(AES2660_FRAME_SIZE + AESX660_HEADER_SIZE);
 	/* No scaling for AES2660 */
 	aesdev->init_seqs[0] = aes2660_init_1;
-	aesdev->init_seqs_len[0] = array_n_elements(aes2660_init_1);
+	aesdev->init_seqs_len[0] = G_N_ELEMENTS(aes2660_init_1);
 	aesdev->init_seqs[1] = aes2660_init_2;
-	aesdev->init_seqs_len[1] = array_n_elements(aes2660_init_2);
+	aesdev->init_seqs_len[1] = G_N_ELEMENTS(aes2660_init_2);
 	aesdev->start_imaging_cmd = (unsigned char *)aes2660_start_imaging_cmd;
 	aesdev->start_imaging_cmd_len = sizeof(aes2660_start_imaging_cmd);
 	aesdev->assembling_ctx = &assembling_ctx;

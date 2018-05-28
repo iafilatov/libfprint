@@ -679,7 +679,7 @@ static void activate_loop(struct fpi_ssm *ssm)
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEV_ACTIVATE_REQUEST_FPRINT:
 		data->init_sequence.stepcount =
-			array_n_elements(vfs5011_initiate_capture);
+			G_N_ELEMENTS(vfs5011_initiate_capture);
 		data->init_sequence.actions = vfs5011_initiate_capture;
 		data->init_sequence.device = dev;
 		if (data->init_sequence.receive_buf == NULL)
@@ -721,7 +721,7 @@ static void activate_loop(struct fpi_ssm *ssm)
 
 	case DEV_ACTIVATE_PREPARE_NEXT_CAPTURE:
 		data->init_sequence.stepcount =
-			array_n_elements(vfs5011_initiate_capture);
+			G_N_ELEMENTS(vfs5011_initiate_capture);
 		data->init_sequence.actions = vfs5011_initiate_capture;
 		data->init_sequence.device = dev;
 		if (data->init_sequence.receive_buf == NULL)
@@ -774,7 +774,7 @@ static void open_loop(struct fpi_ssm *ssm)
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEV_OPEN_START:
 		data->init_sequence.stepcount =
-			array_n_elements(vfs5011_initialization);
+			G_N_ELEMENTS(vfs5011_initialization);
 		data->init_sequence.actions = vfs5011_initialization;
 		data->init_sequence.device = dev;
 		data->init_sequence.receive_buf =
