@@ -140,7 +140,7 @@ static void generic_read_ignore_data(struct fpi_ssm *ssm, size_t bytes)
 
 	data = g_malloc(bytes);
 	dev = fpi_ssm_get_dev(ssm);
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, bytes,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(dev), EP_IN, data, bytes,
 		generic_ignore_data_cb, ssm, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);

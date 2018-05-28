@@ -647,7 +647,7 @@ static int action_completed(struct fp_img_dev *dev)
 	struct vfs101_dev *vdev = dev->priv;
 
 	if ((dev->action == IMG_ACTION_ENROLL) &&
-		(vdev->enroll_stage < dev->dev->nr_enroll_stages))
+		(vdev->enroll_stage < fpi_dev_get_nr_enroll_stages(dev->dev)))
 		/* Enroll not completed, return false */
 		return FALSE;
 

@@ -406,7 +406,7 @@ static void capture_complete(struct fpi_ssm *ssm)
 	 * completed, so we need to keep feeding it images till it's had enough.
 	 * But after that it can't finalize enrollemnt until this callback exits.
 	 * That's why we schedule elan_capture instead of running it directly. */
-	if (dev->dev->state == DEV_STATE_ENROLLING
+	if (fpi_dev_get_dev_state(dev->dev) == DEV_STATE_ENROLLING
 	    && !fpi_timeout_add(10, elan_capture_async, dev))
 		fpi_imgdev_session_error(dev, -ETIME);
 

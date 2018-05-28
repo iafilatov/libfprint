@@ -591,7 +591,8 @@ static void sm_write_regs(struct fpi_ssm *ssm,
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 	libusb_fill_control_setup(data, 0x40, 0x0c, 0, 0, 1);
 	dev = fpi_ssm_get_dev(ssm);
-	libusb_fill_control_transfer(wrdata->transfer, dev->udev, data,
+	libusb_fill_control_transfer(wrdata->transfer,
+		fpi_dev_get_usb_dev(dev), data,
 		write_regs_cb, wrdata, CTRL_TIMEOUT);
 	wrdata->transfer->flags = LIBUSB_TRANSFER_SHORT_NOT_OK;
 

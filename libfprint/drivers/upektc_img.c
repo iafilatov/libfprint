@@ -568,7 +568,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		data = g_malloc0(LIBUSB_CONTROL_SETUP_SIZE + 1);
 		libusb_fill_control_setup(data,
 			LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE, 0x0c, 0x100, 0x0400, 1);
-		libusb_fill_control_transfer(transfer, dev->udev, data,
+		libusb_fill_control_transfer(transfer, fpi_dev_get_usb_dev(dev), data,
 			init_reqs_ctrl_cb, ssm, CTRL_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {

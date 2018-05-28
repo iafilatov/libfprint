@@ -71,48 +71,14 @@ enum fp_dev_state {
 	DEV_STATE_CAPTURE_STOPPING,
 };
 
-struct fp_dev {
-	struct fp_driver *drv;
-	libusb_device_handle *udev;
-	uint32_t devtype;
-	void *priv;
-
-	int nr_enroll_stages;
-
-	/* read-only to drivers */
-	struct fp_print_data *verify_data;
-
-	/* drivers should not mess with any of the below */
-	enum fp_dev_state state;
-	int __enroll_stage;
-	int unconditional_capture;
-
-	/* async I/O callbacks and data */
-	/* FIXME: convert this to generic state operational data mechanism? */
-	fp_dev_open_cb open_cb;
-	void *open_cb_data;
-	fp_operation_stop_cb close_cb;
-	void *close_cb_data;
-	fp_enroll_stage_cb enroll_stage_cb;
-	void *enroll_stage_cb_data;
-	fp_operation_stop_cb enroll_stop_cb;
-	void *enroll_stop_cb_data;
-	fp_img_operation_cb verify_cb;
-	void *verify_cb_data;
-	fp_operation_stop_cb verify_stop_cb;
-	void *verify_stop_cb_data;
-	fp_identify_cb identify_cb;
-	void *identify_cb_data;
-	fp_operation_stop_cb identify_stop_cb;
-	void *identify_stop_cb_data;
-	fp_img_operation_cb capture_cb;
-	void *capture_cb_data;
-	fp_operation_stop_cb capture_stop_cb;
-	void *capture_stop_cb_data;
-
-	/* FIXME: better place to put this? */
-	struct fp_print_data **identify_gallery;
-};
+struct fp_dev;
+libusb_device_handle *fpi_dev_get_usb_dev(struct fp_dev *dev);
+void *fpi_dev_get_user_data (struct fp_dev *dev);
+void fpi_dev_set_user_data (struct fp_dev *dev, void *user_data);
+int fpi_dev_get_nr_enroll_stages(struct fp_dev *dev);
+void fpi_dev_set_nr_enroll_stages(struct fp_dev *dev, int nr_enroll_stages);
+struct fp_print_data *fpi_dev_get_verify_data(struct fp_dev *dev);
+enum fp_dev_state fpi_dev_get_dev_state(struct fp_dev *dev);
 
 enum fp_imgdev_state {
 	IMGDEV_STATE_INACTIVE,
