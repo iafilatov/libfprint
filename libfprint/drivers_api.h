@@ -227,13 +227,6 @@ struct fp_img {
 struct fp_img *fpi_img_new(size_t length);
 struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *dev);
 struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
-gboolean fpi_img_is_sane(struct fp_img *img);
-int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
-	struct fp_print_data **ret);
-int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
-	struct fp_print_data *new_print);
-int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
-	struct fp_print_data **gallery, int match_threshold, size_t *match_offset);
 struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
 
 /* polling and timeouts */
