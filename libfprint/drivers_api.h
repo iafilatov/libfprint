@@ -231,26 +231,7 @@ gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
 	enum fp_print_data_type type1, uint16_t driver_id2, uint32_t devtype2,
 	enum fp_print_data_type type2);
 
-struct fp_minutia {
-	int x;
-	int y;
-	int ex;
-	int ey;
-	int direction;
-	double reliability;
-	int type;
-	int appearing;
-	int feature_id;
-	int *nbrs;
-	int *ridge_counts;
-	int num_nbrs;
-};
-
-struct fp_minutiae {
-	int alloc;
-	int num;
-	struct fp_minutia **list;
-};
+struct fp_minutiae;
 
 /* bit values for fp_img.flags */
 #define FP_IMG_V_FLIPPED	(1<<0)
