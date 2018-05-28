@@ -35,8 +35,6 @@
 #include "fprint.h"
 #include "drivers/driver_ids.h"
 
-#define array_n_elements(array) G_N_ELEMENTS(array)
-
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)( (char *)__mptr - offsetof(type,member) );})
