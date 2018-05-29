@@ -54,12 +54,12 @@ static void async_write_callback(struct libusb_transfer *transfer)
 static void async_write(struct fpi_ssm *ssm, void *data, int len)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct libusb_device_handle *udev = fpi_imgdev_get_usb_dev(idev);
+	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
 
 	vdev->transfer = libusb_alloc_transfer(0);
 	vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
-	libusb_fill_bulk_transfer(vdev->transfer, udev, 0x01, data, len,
+	libusb_fill_bulk_transfer(vdev->transfer, usb_dev, 0x01, data, len,
 				  async_write_callback, ssm, VFS_USB_TIMEOUT);
 	libusb_submit_transfer(vdev->transfer);
 }
@@ -96,7 +96,7 @@ static void async_read_callback(struct libusb_transfer *transfer)
 static void async_read(struct fpi_ssm *ssm, int ep, void *data, int len)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct libusb_device_handle *udev = fpi_imgdev_get_usb_dev(idev);
+	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
 
 	ep |= LIBUSB_ENDPOINT_IN;
@@ -106,11 +106,11 @@ static void async_read(struct fpi_ssm *ssm, int ep, void *data, int len)
 
 	/* 0x83 is the only interrupt endpoint */
 	if (ep == EP3_IN)
-		libusb_fill_interrupt_transfer(vdev->transfer, udev, ep, data,
+		libusb_fill_interrupt_transfer(vdev->transfer, usb_dev, ep, data,
 					       len, async_read_callback, ssm,
 					       VFS_USB_TIMEOUT);
 	else
-		libusb_fill_bulk_transfer(vdev->transfer, udev, ep, data, len,
+		libusb_fill_bulk_transfer(vdev->transfer, usb_dev, ep, data, len,
 					  async_read_callback, ssm,
 					  VFS_USB_TIMEOUT);
 	libusb_submit_transfer(vdev->transfer);
@@ -150,7 +150,7 @@ static void async_abort_callback(struct libusb_transfer *transfer)
 static void async_abort(struct fpi_ssm *ssm, int ep)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct libusb_device_handle *udev = fpi_imgdev_get_usb_dev(idev);
+	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
 
 	int len = VFS_USB_BUFFER_SIZE;
@@ -164,11 +164,11 @@ static void async_abort(struct fpi_ssm *ssm, int ep)
 
 	/* 0x83 is the only interrupt endpoint */
 	if (ep == EP3_IN)
-		libusb_fill_interrupt_transfer(vdev->transfer, udev, ep, data,
+		libusb_fill_interrupt_transfer(vdev->transfer, usb_dev, ep, data,
 					       len, async_abort_callback, ssm,
 					       VFS_USB_ABORT_TIMEOUT);
 	else
-		libusb_fill_bulk_transfer(vdev->transfer, udev, ep, data, len,
+		libusb_fill_bulk_transfer(vdev->transfer, usb_dev, ep, data, len,
 					  async_abort_callback, ssm,
 					  VFS_USB_ABORT_TIMEOUT);
 	libusb_submit_transfer(vdev->transfer);
@@ -521,7 +521,7 @@ static void scan_completed(void *data)
 static void activate_ssm(struct fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct libusb_device_handle *udev = fpi_imgdev_get_usb_dev(idev);
+	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -577,7 +577,7 @@ static void activate_ssm(struct fpi_ssm *ssm)
 		/* Asyncronously enquire an interrupt */
 		vdev->transfer = libusb_alloc_transfer(0);
 		vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
-		libusb_fill_interrupt_transfer(vdev->transfer, udev, 0x83,
+		libusb_fill_interrupt_transfer(vdev->transfer, usb_dev, 0x83,
 					       vdev->interrupt,
 					       VFS_INTERRUPT_SIZE,
 					       interrupt_callback, ssm, 0);
@@ -627,7 +627,7 @@ static void activate_ssm(struct fpi_ssm *ssm)
 		/* Receive chunk of data */
 		vdev->transfer = libusb_alloc_transfer(0);
 		vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
-		libusb_fill_bulk_transfer(vdev->transfer, udev, 0x82,
+		libusb_fill_bulk_transfer(vdev->transfer, usb_dev, 0x82,
 					  (void *)vdev->lines_buffer +
 					  vdev->bytes, VFS_USB_BUFFER_SIZE,
 					  receive_callback, ssm,
