@@ -156,8 +156,6 @@ struct fp_driver {
 	int (*capture_stop)(struct fp_dev *dev);
 };
 
-enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv);
-
 /* flags for fp_img_driver.flags */
 #define FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE (1 << 0)
 
@@ -193,7 +191,6 @@ struct fp_print_data {
 	GSList *prints;
 };
 
-void fpi_data_exit(void);
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev);
 struct fp_print_data_item *fpi_print_data_item_new(size_t length);
 gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
