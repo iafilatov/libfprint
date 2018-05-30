@@ -400,6 +400,14 @@ void submit_image(struct fpi_ssm *ssm, struct vfs5011_data *data)
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fp_img *img;
 
+	if (data->lines_recorded == 0) {
+		/* == FP_ENROLL_RETRY_TOO_SHORT */
+		fpi_imgdev_session_error(dev, FP_VERIFY_RETRY_TOO_SHORT);
+		return;
+	}
+
+	g_assert (data->rows != NULL);
+
 	data->rows = g_slist_reverse(data->rows);
 
 	img = fpi_assemble_lines(&assembling_ctx, data->rows, data->lines_recorded);
