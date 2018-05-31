@@ -114,18 +114,14 @@ API_EXPORTED void fp_async_dev_close(struct fp_dev *dev,
 
 	drv = dev->drv;
 
+	g_return_if_fail (drv->close != NULL);
+
 	if (g_slist_index(opened_devices, (gconstpointer) dev) == -1)
 		fp_err("device %p not in opened list!", dev);
 	opened_devices = g_slist_remove(opened_devices, (gconstpointer) dev);
 
 	dev->close_cb = callback;
 	dev->close_cb_data = user_data;
-
-	if (!drv->close) {
-		fpi_drvcb_close_complete(dev);
-		return;
-	}
-
 	dev->state = DEV_STATE_DEINITIALIZING;
 	drv->close(dev);
 }
