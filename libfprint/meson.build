@@ -178,7 +178,7 @@ libfprint = library('fprint',
 libfprint_dep = declare_dependency(link_with: libfprint,
                                    include_directories: root_inc)
 
-install_headers(['fprint.h'])
+install_headers(['fprint.h'], subdir: 'libfprint')
 
 udev_rules = executable('fprint-list-udev-rules',
                         'fprint-list-udev-rules.c',
