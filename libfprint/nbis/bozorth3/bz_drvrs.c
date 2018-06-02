@@ -23,7 +23,7 @@ Do not remove this notice.
  * 734.3(b)(3)(i). libfprint qualifies as publicly available technology as per
  * the definition in section 734.7(a)(1).
  *
- * For further information, see http://reactivated.net/fprint/US_export_control
+ * For further information, see https://fprint.freedesktop.org/us-export-control.html
  */
 
 /*******************************************************************************
