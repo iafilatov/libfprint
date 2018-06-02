@@ -73,8 +73,8 @@
     <para>
     Each driver is assigned a unique ID by the project maintainer. These
     assignments are
-    <ulink url="http://www.reactivated.net/fprint/Driver_ID_assignments">
-    documented on the wiki</ulink> and will never change.
+    <ulink url="https://gitlab.freedesktop.org/libfprint/libfprint/blob/master/libfprint/drivers/driver_ids.h">
+    documented in the sources</ulink> and will never change.
     </para>
 
     <para>
