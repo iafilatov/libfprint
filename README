@@ -2,7 +2,7 @@ libfprint
 =========
 
 libfprint is part of the fprint project:
-http://www.reactivated.net/fprint
+https://fprint.freedesktop.org/
 
 libfprint was originally developed as part of an academic project at the
 University of Manchester with the aim of hiding differences between different
@@ -22,7 +22,7 @@ university computers and the project is not hosted at the university either.
 
 For more information on libfprint, supported devices, API documentation, etc.,
 see the homepage:
-http://www.reactivated.net/fprint/Libfprint
+https://fprint.freedesktop.org/
 
 libfprint is licensed under the GNU LGPL version 2.1. See the COPYING file
 for the license text.
@@ -37,5 +37,5 @@ libfprint includes code from NIST's NBIS software distribution:
 http://fingerprint.nist.gov/NBIS/index.html
 We include bozorth3 from the US export controlled distribution. We have
 determined that it is fine to ship bozorth3 in an open source project,
-see http://reactivated.net/fprint/wiki/US_export_control
+see https://fprint.freedesktop.org/us-export-control.html
 
