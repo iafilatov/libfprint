@@ -209,15 +209,3 @@ configure_file(input: 'drivers_arrays.h',
                output: 'supported-devices.md',
                capture: true,
                command: [ supported_devices.full_path() ])
-
-# MOSTLYCLEANFILES = $(udev_rules_DATA)
-
-# EXTRA_DIST = \
-#	60-fprint-autosuspend.rules
-
-# udev_rules_DATA = 60-fprint-autosuspend.rules
-
-# if ENABLE_UDEV_RULES
-# $(udev_rules_DATA): fprint-list-udev-rules
-#	$(builddir)/fprint-list-udev-rules > $@
-#endif
