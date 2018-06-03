@@ -197,6 +197,19 @@ if get_option('udev_rules')
                   install_dir: udev_rules_dir)
 endif
 
+supported_devices = executable('fprint-list-supported-devices',
+                               'fprint-list-supported-devices.c',
+                               include_directories: [
+                                 root_inc,
+                               ],
+                               dependencies: [ deps, libfprint_dep ],
+                               install: false)
+
+configure_file(input: 'drivers_arrays.h',
+               output: 'supported-devices.md',
+               capture: true,
+               command: [ supported_devices.full_path() ])
+
 # MOSTLYCLEANFILES = $(udev_rules_DATA)
 
 # EXTRA_DIST = \
