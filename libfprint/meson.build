@@ -204,8 +204,3 @@ supported_devices = executable('fprint-list-supported-devices',
                                ],
                                dependencies: [ deps, libfprint_dep ],
                                install: false)
-
-# configure_file(input: 'drivers_arrays.h',
-#               output: 'supported-devices.md',
-#               capture: true,
-#               command: [ supported_devices.full_path() ])
