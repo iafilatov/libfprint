@@ -25,7 +25,8 @@
 
 GHashTable *printed = NULL;
 
-static void print_driver (struct fp_driver *driver)
+static GList *insert_driver (GList *list,
+			   struct fp_driver *driver)
 {
     int i;
 
@@ -41,18 +42,26 @@ static void print_driver (struct fp_driver *driver)
 
 	g_hash_table_insert (printed, key, GINT_TO_POINTER (1));
 
-	g_print ("%s | %s\n", key, driver->full_name);
+	list = g_list_prepend (list, g_strdup_printf ("%s | %s\n", key, driver->full_name));
     }
+
+    return list;
 }
 
 int main (int argc, char **argv)
 {
-    struct fp_driver **list;
+    struct fp_driver **driver_list;
     guint i;
+    GList *list, *l;
 
-    list = fprint_get_drivers ();
+    driver_list = fprint_get_drivers ();
 
     printed = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+    g_print ("%% Fingerprint reader support\n");
+    g_print ("%% Bastien Nocera, Daniel Drake\n");
+    g_print ("%% 2018\n");
+    g_print ("\n");
 
     g_print ("# Supported Devices\n");
     g_print ("\n");
@@ -61,10 +70,15 @@ int main (int argc, char **argv)
     g_print ("USB ID | Driver\n");
     g_print ("------------ | ------------\n");
 
-    for (i = 0; list[i] != NULL; i++) {
-	print_driver (list[i]);
-    }
+    list = NULL;
+    for (i = 0; driver_list[i] != NULL; i++)
+	list = insert_driver (list, driver_list[i]);
 
+    list = g_list_sort (list, (GCompareFunc) g_strcmp0);
+    for (l = list; l != NULL; l = l->next)
+        g_print ("%s", (char *) l->data);
+
+    g_list_free_full (list, g_free);
     g_hash_table_destroy (printed);
 
     return 0;
