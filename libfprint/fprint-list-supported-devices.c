@@ -20,6 +20,7 @@
 
 #include <config.h>
 #include <stdio.h>
+#include <locale.h>
 
 #include "fp_internal.h"
 
@@ -53,6 +54,8 @@ int main (int argc, char **argv)
     struct fp_driver **driver_list;
     guint i;
     GList *list, *l;
+
+    setlocale (LC_ALL, "");
 
     driver_list = fprint_get_drivers ();
 
