@@ -68,6 +68,8 @@ int main (int argc, char **argv)
 
     g_print ("# Supported Devices\n");
     g_print ("\n");
+    g_print ("This is a list of supported devices in libfprint's development version. Those drivers might not all be available in the stable, released version. If in doubt, contact your distribution or systems integrator for details.\n");
+    g_print ("\n");
     g_print ("## USB devices\n");
     g_print ("\n");
     g_print ("USB ID | Driver\n");
