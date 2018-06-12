@@ -1,6 +1,10 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2018-06-12: v0.8.1 release
+- Brown paperbag release to install the udev rules file in the correct
+  directory if the udev pkg-config file doesn't have a trailing slash
+
 2018-06-12: v0.8.0 release
 - Port to meson as the build system
 - Port documentation to gtk-doc
