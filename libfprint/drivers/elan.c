@@ -102,7 +102,7 @@ static void elan_save_frame(struct fp_img_dev *dev)
 	elandev->num_frames += 1;
 }
 
-/* Transform raw sesnsor data to normalized 8-bit grayscale image. */
+/* Transform raw sensor data to normalized 8-bit grayscale image. */
 static void elan_process_frame(unsigned short *raw_frame, GSList ** frames)
 {
 	unsigned int frame_size =
