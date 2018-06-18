@@ -11,7 +11,7 @@
       <para>This document is the API reference for the libfprint library.</para>
       <para>
         The latest version of libfprint, as well as the latest version of
-        this API reference, is <ulink role="online-location" url="https://www.freedesktop.org/wiki/Software/fprint/libfprint/">available online</ulink>.
+        this API reference, is <ulink role="online-location" url="https://fprint.freedesktop.org/libfprint-dev/">available online</ulink>.
       </para>
     </releaseinfo>
   </bookinfo>
