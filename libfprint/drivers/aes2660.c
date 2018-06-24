@@ -19,21 +19,10 @@
 
 #define FP_COMPONENT "aes2660"
 
-#include <stdio.h>
-
-#include <errno.h>
-#include <string.h>
-
-#include <libusb.h>
-
-#include <fp_internal.h>
-
-#include <assembling.h>
-#include <aeslib.h>
-
+#include "drivers_api.h"
+#include "aeslib.h"
 #include "aesx660.h"
 #include "aes2660.h"
-#include "driver_ids.h"
 
 #define FRAME_WIDTH 192
 #define IMAGE_WIDTH	(FRAME_WIDTH + (FRAME_WIDTH / 2))
@@ -51,19 +40,20 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 	struct aesX660_dev *aesdev;
 
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
 	}
 
-	dev->priv = aesdev = g_malloc0(sizeof(struct aesX660_dev));
+	aesdev = g_malloc0(sizeof(struct aesX660_dev));
+	fpi_imgdev_set_user_data(dev, aesdev);
 	aesdev->buffer = g_malloc0(AES2660_FRAME_SIZE + AESX660_HEADER_SIZE);
 	/* No scaling for AES2660 */
 	aesdev->init_seqs[0] = aes2660_init_1;
-	aesdev->init_seqs_len[0] = array_n_elements(aes2660_init_1);
+	aesdev->init_seqs_len[0] = G_N_ELEMENTS(aes2660_init_1);
 	aesdev->init_seqs[1] = aes2660_init_2;
-	aesdev->init_seqs_len[1] = array_n_elements(aes2660_init_2);
+	aesdev->init_seqs_len[1] = G_N_ELEMENTS(aes2660_init_2);
 	aesdev->start_imaging_cmd = (unsigned char *)aes2660_start_imaging_cmd;
 	aesdev->start_imaging_cmd_len = sizeof(aes2660_start_imaging_cmd);
 	aesdev->assembling_ctx = &assembling_ctx;
@@ -75,10 +65,11 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	struct aesX660_dev *aesdev = dev->priv;
+	struct aesX660_dev *aesdev;
+	aesdev = fpi_imgdev_get_user_data(dev);
 	g_free(aesdev->buffer);
 	g_free(aesdev);
-	libusb_release_interface(dev->udev, 0);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

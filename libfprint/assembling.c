@@ -21,13 +21,14 @@
 
 #define FP_COMPONENT "assembling"
 
+#include "fp_internal.h"
+
 #include <errno.h>
 #include <string.h>
 
 #include <libusb.h>
 #include <glib.h>
 
-#include "fp_internal.h"
 #include "assembling.h"
 
 static unsigned int calc_error(struct fpi_frame_asmbl_ctx *ctx,
@@ -364,7 +365,10 @@ struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
 	unsigned char *output = g_malloc0(ctx->line_width * ctx->max_height);
 	struct fp_img *img;
 
-	fp_dbg("%llu", g_get_real_time());
+	g_return_val_if_fail (lines != NULL, NULL);
+	g_return_val_if_fail (lines_len > 0, NULL);
+
+	fp_dbg("%"G_GINT64_FORMAT, g_get_real_time());
 
 	row1 = lines;
 	for (i = 0; (i < lines_len - 1) && row1; i += 2) {
@@ -395,7 +399,7 @@ struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
 
 	median_filter(offsets, (lines_len / 2) - 1, ctx->median_filter_size);
 
-	fp_dbg("offsets_filtered: %llu", g_get_real_time());
+	fp_dbg("offsets_filtered: %"G_GINT64_FORMAT, g_get_real_time());
 	for (i = 0; i <= (lines_len / 2) - 1; i++)
 		fp_dbg("%d", offsets[i]);
 	row1 = lines;

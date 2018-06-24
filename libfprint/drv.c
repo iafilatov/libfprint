@@ -19,10 +19,10 @@
 
 #define FP_COMPONENT "drv"
 
+#include "fp_internal.h"
+
 #include <config.h>
 #include <errno.h>
-
-#include "fp_internal.h"
 
 /* SSM: sequential state machine
  * Asynchronous driver design encourages some kind of state machine behind it.
@@ -81,6 +81,25 @@ struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
 	machine->dev = dev;
 	machine->completed = TRUE;
 	return machine;
+}
+
+struct fp_dev *
+fpi_ssm_get_dev(struct fpi_ssm *machine)
+{
+	return machine->dev;
+}
+
+void
+fpi_ssm_set_user_data(struct fpi_ssm *machine,
+	void *user_data)
+{
+	machine->priv = user_data;
+}
+
+void *
+fpi_ssm_get_user_data(struct fpi_ssm *machine)
+{
+	return machine->priv;
 }
 
 /* Free a ssm */
@@ -169,3 +188,12 @@ void fpi_ssm_jump_to_state(struct fpi_ssm *machine, int state)
 	__ssm_call_handler(machine);
 }
 
+int fpi_ssm_get_cur_state(struct fpi_ssm *machine)
+{
+	return machine->cur_state;
+}
+
+int fpi_ssm_get_error(struct fpi_ssm *machine)
+{
+	return machine->error;
+}

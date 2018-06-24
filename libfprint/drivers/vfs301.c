@@ -21,20 +21,8 @@
 
 #define FP_COMPONENT "vfs301"
 
-#include <errno.h>
-#include <signal.h>
-#include <string.h>
-#include <stdio.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <libusb-1.0/libusb.h>
-
+#include "drivers_api.h"
 #include "vfs301_proto.h"
-#include <unistd.h>
-
-#include <fp_internal.h>
-
-#include "driver_ids.h"
 
 /************************** GENERIC STUFF *************************************/
 
@@ -49,7 +37,7 @@ static void async_sleep_cb(void *data)
 /* Submit asynchronous sleep */
 static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fpi_timeout *timeout;
 
 	/* Add timeout */
@@ -65,8 +53,8 @@ static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
 
 static int submit_image(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	vfs301_dev_t *vdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
 	int height;
 	struct fp_img *img;
 
@@ -117,12 +105,12 @@ enum
 /* Exec loop sequential state machine */
 static void m_loop_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	vfs301_dev_t *vdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case M_REQUEST_PRINT:
-		vfs301_proto_request_fingerprint(dev->udev, vdev);
+		vfs301_proto_request_fingerprint(fpi_imgdev_get_usb_dev(dev), vdev);
 		fpi_ssm_next_state(ssm);
 		break;
 
@@ -132,7 +120,7 @@ static void m_loop_state(struct fpi_ssm *ssm)
 		break;
 
 	case M_CHECK_PRINT:
-		if (!vfs301_proto_peek_event(dev->udev, vdev))
+		if (!vfs301_proto_peek_event(fpi_imgdev_get_usb_dev(dev), vdev))
 			fpi_ssm_jump_to_state(ssm, M_WAIT_PRINT);
 		else
 			fpi_ssm_next_state(ssm);
@@ -140,7 +128,7 @@ static void m_loop_state(struct fpi_ssm *ssm)
 
 	case M_READ_PRINT_START:
 		fpi_imgdev_report_finger_status(dev, TRUE);
-		vfs301_proto_process_event_start(dev->udev, vdev);
+		vfs301_proto_process_event_start(fpi_imgdev_get_usb_dev(dev), vdev);
 		fpi_ssm_next_state(ssm);
 		break;
 
@@ -151,8 +139,8 @@ static void m_loop_state(struct fpi_ssm *ssm)
 
 	case M_READ_PRINT_POLL:
 		{
-		int rv = vfs301_proto_process_event_poll(dev->udev, vdev);
-		assert(rv != VFS301_FAILURE);
+		int rv = vfs301_proto_process_event_poll(fpi_imgdev_get_usb_dev(dev), vdev);
+		g_assert(rv != VFS301_FAILURE);
 		if (rv == VFS301_ONGOING)
 			fpi_ssm_jump_to_state(ssm, M_READ_PRINT_WAIT);
 		else
@@ -182,12 +170,12 @@ static void m_loop_complete(struct fpi_ssm *ssm)
 /* Exec init sequential state machine */
 static void m_init_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	vfs301_dev_t *vdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
 
-	assert(ssm->cur_state == 0);
+	g_assert(fpi_ssm_get_cur_state(ssm) == 0);
 
-	vfs301_proto_init(dev->udev, vdev);
+	vfs301_proto_init(fpi_imgdev_get_usb_dev(dev), vdev);
 
 	fpi_ssm_mark_completed(ssm);
 }
@@ -195,16 +183,16 @@ static void m_init_state(struct fpi_ssm *ssm)
 /* Complete init sequential state machine */
 static void m_init_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fpi_ssm *ssm_loop;
 
-	if (!ssm->error) {
+	if (!fpi_ssm_get_error(ssm)) {
 		/* Notify activate complete */
 		fpi_imgdev_activate_complete(dev, 0);
 
 		/* Start loop ssm */
-		ssm_loop = fpi_ssm_new(dev->dev, m_loop_state, M_LOOP_NUM_STATES);
-		ssm_loop->priv = dev;
+		ssm_loop = fpi_ssm_new(fpi_imgdev_get_dev(dev), m_loop_state, M_LOOP_NUM_STATES);
+		fpi_ssm_set_user_data(ssm_loop, dev);
 		fpi_ssm_start(ssm_loop, m_loop_complete);
 	}
 
@@ -218,8 +206,8 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	struct fpi_ssm *ssm;
 
 	/* Start init ssm */
-	ssm = fpi_ssm_new(dev->dev, m_init_state, 1);
-	ssm->priv = dev;
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), m_init_state, 1);
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, m_init_complete);
 
 	return 0;
@@ -237,7 +225,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	/* Claim usb interface */
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0) {
 		/* Interface not claimed, return error */
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
@@ -246,7 +234,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 
 	/* Initialize private structure */
 	vdev = g_malloc0(sizeof(vfs301_dev_t));
-	dev->priv = vdev;
+	fpi_imgdev_set_user_data(dev, vdev);
 
 	vdev->scanline_buf = malloc(0);
 	vdev->scanline_count = 0;
@@ -259,12 +247,15 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_close(struct fp_img_dev *dev)
 {
+	vfs301_dev_t *vdev;
+
 	/* Release private structure */
-	free(((vfs301_dev_t*)dev->priv)->scanline_buf);
-	g_free(dev->priv);
+	vdev = fpi_imgdev_get_user_data(dev);
+	free(vdev->scanline_buf);
+	g_free(vdev);
 
 	/* Release usb interface */
-	libusb_release_interface(dev->udev, 0);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 
 	/* Notify close complete */
 	fpi_imgdev_close_complete(dev);

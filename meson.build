@@ -1,5 +1,5 @@
 project('libfprint', [ 'c', 'cpp' ],
-        version: '0.7.0',
+        version: '0.8.1',
         license: 'LGPLv2.1+',
         default_options: [
           'buildtype=debugoptimized',
@@ -9,6 +9,7 @@ project('libfprint', [ 'c', 'cpp' ],
         meson_version: '>= 0.45.0')
 
 add_project_arguments([ '-D_GNU_SOURCE' ], language: 'c')
+add_project_arguments([ '-DG_LOG_DOMAIN="libfprint"' ], language: 'c')
 
 libfprint_conf = configuration_data()
 
@@ -45,6 +46,7 @@ mathlib_dep = cc.find_library('m', required: false)
 # Drivers
 drivers = get_option('drivers').split(',')
 all_drivers = [ 'upekts', 'upektc', 'upeksonly', 'vcom5s', 'uru4000', 'aes1610', 'aes1660', 'aes2501', 'aes2550', 'aes2660', 'aes3500', 'aes4000', 'vfs101', 'vfs301', 'vfs5011', 'upektc_img', 'etes603', 'vfs0050', 'elan' ]
+primitive_drivers = [ 'upekts' ]
 
 if drivers == [ 'all' ]
     drivers = all_drivers
@@ -70,6 +72,21 @@ foreach driver: drivers
     endif
 endforeach
 
+# Export the drivers' structures to the core code
+drivers_struct_list = ''
+drivers_img_array = 'static struct fp_img_driver * const img_drivers[] = {\n'
+drivers_primitive_array = 'static struct fp_driver * const primitive_drivers[] = {\n'
+foreach driver: drivers
+    if primitive_drivers.contains(driver)
+        drivers_struct_list += 'extern struct fp_driver ' + driver + '_driver;\n'
+        drivers_primitive_array += '	&' + driver + '_driver,\n'
+    else
+        drivers_struct_list += 'extern struct fp_img_driver ' + driver + '_driver;\n'
+        drivers_img_array += '	&' + driver + '_driver,\n'
+    endif
+endforeach
+drivers_img_array += '};'
+drivers_primitive_array += '};'
 
 root_inc = include_directories('.')
 
@@ -78,7 +95,7 @@ if get_option('udev_rules')
 
     if udev_rules_dir == 'auto'
         udev_dep = dependency('udev')
-        udev_rules_dir = udev_dep.get_pkgconfig_variable('udevdir') + 'rules.d'
+        udev_rules_dir = udev_dep.get_pkgconfig_variable('udevdir') + '/rules.d'
     endif
 endif
 
@@ -88,14 +105,6 @@ if get_option('x11-examples')
     if not xv_dep.found()
         error('XV is required for X11 examples')
     endif
-endif
-
-# Message logging
-if get_option('log')
-    libfprint_conf.set('ENABLE_LOGGING', '1')
-endif
-if get_option('debug_log')
-    libfprint_conf.set('ENABLE_DEBUG_LOGGING', '1')
 endif
 
 libfprint_conf.set('API_EXPORTED', '__attribute__((visibility("default")))')

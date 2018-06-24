@@ -11,7 +11,7 @@
       <para>This document is the API reference for the libfprint library.</para>
       <para>
         The latest version of libfprint, as well as the latest version of
-        this API reference, is <ulink role="online-location" url="https://www.freedesktop.org/wiki/Software/fprint/libfprint/">available online</ulink>.
+        this API reference, is <ulink role="online-location" url="https://fprint.freedesktop.org/libfprint-dev/">available online</ulink>.
       </para>
     </releaseinfo>
   </bookinfo>
@@ -31,8 +31,8 @@
     <xi:include href="xml/drv.xml"/>
     <xi:include href="xml/dev.xml"/>
     <xi:include href="xml/print_data.xml"/>
-    <!-- https://bugs.freedesktop.org/show_bug.cgi?id=106550
-    <xi:include href="xml/dscv_print.xml"/> -->
+    <!-- FIXME https://bugs.freedesktop.org/show_bug.cgi?id=106550 -->
+    <xi:include href="xml/dscv_print.xml"/>
     <xi:include href="xml/img.xml"/>
   </part>
 

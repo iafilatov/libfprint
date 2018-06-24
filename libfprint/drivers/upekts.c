@@ -27,15 +27,7 @@
 
 #define FP_COMPONENT "upekts"
 
-#include <errno.h>
-#include <string.h>
-
-#include <glib.h>
-#include <libusb.h>
-
-#include <fp_internal.h>
-
-#include "driver_ids.h"
+#include "drivers_api.h"
 
 #define EP_IN (1 | LIBUSB_ENDPOINT_IN)
 #define EP_OUT (2 | LIBUSB_ENDPOINT_OUT)
@@ -141,6 +133,7 @@ static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	uint16_t crc;
+	const char *ciao = "Ciao";
 
 	/* 9 bytes extra for: 4 byte 'Ciao', 1 byte A, 1 byte B | lenHI,
 	 * 1 byte lenLO, 2 byte CRC */
@@ -158,7 +151,7 @@ static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 	buf = g_malloc(urblen);
 
 	/* Write header */
-	strncpy(buf, "Ciao", 4);
+	memcpy(buf, ciao, strlen(ciao));
 	len = GUINT16_TO_LE(len);
 	buf[4] = seq_a;
 	buf[5] = seq_b | ((len & 0xf00) >> 8);
@@ -173,7 +166,7 @@ static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 	buf[urblen - 2] = crc >> 8;
 	buf[urblen - 1] = crc & 0xff;
 
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT, buf, urblen,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(dev), EP_OUT, buf, urblen,
 		callback, user_data, TIMEOUT);
 	return transfer;
 }
@@ -185,7 +178,7 @@ static struct libusb_transfer *alloc_send_cmd28_transfer(struct fp_dev *dev,
 	uint16_t _innerlen = innerlen;
 	size_t len = innerlen + 6;
 	unsigned char *buf = g_malloc0(len);
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 	uint8_t seq = upekdev->seq + CMD_SEQ_INCREMENT;
 	struct libusb_transfer *ret;
 
@@ -424,7 +417,7 @@ static void read_msg_cb(struct libusb_transfer *transfer)
 		fp_dbg("didn't fit in buffer, need to extend by %d bytes", needed);
 		data = g_realloc((gpointer) data, MSG_READ_BUF_SIZE + needed);
 
-		libusb_fill_bulk_transfer(etransfer, udata->dev->udev, EP_IN,
+		libusb_fill_bulk_transfer(etransfer, fpi_dev_get_usb_dev(udata->dev), EP_IN,
 			data + MSG_READ_BUF_SIZE, needed, read_msg_extend_cb, udata,
 			TIMEOUT);
 
@@ -463,7 +456,7 @@ static int __read_msg_async(struct read_msg_data *udata)
 		return -ENOMEM;
 	}
 
-	libusb_fill_bulk_transfer(transfer, udata->dev->udev, EP_IN, buf,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(udata->dev), EP_IN, buf,
 		MSG_READ_BUF_SIZE, read_msg_cb, udata, TIMEOUT);
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
@@ -536,23 +529,23 @@ static void initsm_read_msg_response_cb(struct fpi_ssm *ssm,
 	enum read_msg_status status, uint8_t seq,
 	unsigned char expect_subcmd, unsigned char subcmd)
 {
-	struct fp_dev *dev = ssm->dev;
-	struct upekts_dev *upekdev = dev->priv;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	if (status != READ_MSG_RESPONSE) {
 		fp_err("expected response, got %d seq=%x in state %d", status, seq,
-			ssm->cur_state);
+			fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 	} else if (subcmd != expect_subcmd) {
 		fp_warn("expected response to subcmd 0x%02x, got response to %02x in "
-			"state %d", expect_subcmd, subcmd, ssm->cur_state);
+			"state %d", expect_subcmd, subcmd, fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 	} else if (seq != upekdev->seq) {
 		fp_err("expected response to cmd seq=%02x, got response to %02x "
-			"in state %d", upekdev->seq, seq, ssm->cur_state);
+			"in state %d", upekdev->seq, seq, fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 	} else {
-		fp_dbg("state %d completed", ssm->cur_state);
+		fp_dbg("state %d completed", fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_next_state(ssm);
 	}
 }
@@ -600,22 +593,22 @@ static void read28_06_cb(struct fp_dev *dev, enum read_msg_status status,
 static void initsm_read_msg_cmd_cb(struct fpi_ssm *ssm,
 	enum read_msg_status status, uint8_t expect_seq, uint8_t seq)
 {
-	struct fp_dev *dev = ssm->dev;
-	struct upekts_dev *upekdev = dev->priv;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	if (status == READ_MSG_ERROR) {
 		fpi_ssm_mark_aborted(ssm, -1);
 		return;
 	} else if (status != READ_MSG_CMD) {
 		fp_err("expected command, got %d seq=%x in state %d", status, seq,
-			ssm->cur_state);
+			fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 		return;
 	}
 	upekdev->seq = seq;
 	if (seq != expect_seq) {
 		fp_err("expected seq=%x, got %x in state %d", expect_seq, seq,
-			ssm->cur_state);
+			fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, -1);
 		return;
 	}
@@ -652,9 +645,9 @@ static void ctrl400_cb(struct libusb_transfer *transfer)
 static void initsm_read_msg_handler(struct fpi_ssm *ssm,
 	read_msg_cb_fn callback)
 {
-	int r = read_msg_async(ssm->dev, callback, ssm);
+	int r = read_msg_async(fpi_ssm_get_dev(ssm), callback, ssm);
 	if (r < 0) {
-		fp_err("async read msg failed in state %d", ssm->cur_state);
+		fp_err("async read msg failed in state %d", fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_aborted(ssm, r);
 	}
 }
@@ -664,10 +657,10 @@ static void initsm_send_msg_cb(struct libusb_transfer *transfer)
 	struct fpi_ssm *ssm = transfer->user_data;
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED
 			&& transfer->length == transfer->actual_length) {
-		fp_dbg("state %d completed", ssm->cur_state);
+		fp_dbg("state %d completed", fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_next_state(ssm);
 	} else {
-		fp_err("failed, state=%d rqlength=%d actual_length=%d", ssm->cur_state,
+		fp_err("failed, state=%d rqlength=%d actual_length=%d", fpi_ssm_get_cur_state(ssm),
 			transfer->length, transfer->actual_length);
 		fpi_ssm_mark_aborted(ssm, -1);
 	}
@@ -677,7 +670,7 @@ static void initsm_send_msg_cb(struct libusb_transfer *transfer)
 static void initsm_send_msg28_handler(struct fpi_ssm *ssm,
 	unsigned char subcmd, const unsigned char *data, uint16_t innerlen)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct libusb_transfer *transfer;
 	int r;
 
@@ -690,7 +683,7 @@ static void initsm_send_msg28_handler(struct fpi_ssm *ssm,
 
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
-		fp_err("urb submission failed error %d in state %d", r, ssm->cur_state);
+		fp_err("urb submission failed error %d in state %d", r, fpi_ssm_get_cur_state(ssm));
 		g_free(transfer->buffer);
 		libusb_free_transfer(transfer);
 		fpi_ssm_mark_aborted(ssm, -EIO);
@@ -699,12 +692,12 @@ static void initsm_send_msg28_handler(struct fpi_ssm *ssm,
 
 static void initsm_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
-	struct upekts_dev *upekdev = dev->priv;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 	struct libusb_transfer *transfer;
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case WRITE_CTRL400: ;
 		unsigned char *data;
 
@@ -717,7 +710,7 @@ static void initsm_run_state(struct fpi_ssm *ssm)
 		data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 		libusb_fill_control_setup(data,
 			LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE, 0x0c, 0x100, 0x0400, 1);
-		libusb_fill_control_transfer(transfer, ssm->dev->udev, data,
+		libusb_fill_control_transfer(transfer, fpi_dev_get_usb_dev(dev), data,
 			ctrl400_cb, ssm, TIMEOUT);
 
 		r = libusb_submit_transfer(transfer);
@@ -812,7 +805,7 @@ static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
 	void *user_data)
 {
 	struct fpi_ssm *ssm = user_data;
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	if (status == READ_MSG_ERROR) {
 		fpi_ssm_mark_aborted(ssm, -1);
@@ -834,10 +827,10 @@ static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
 
 static void deinitsm_state_handler(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case SEND_RESP07: ;
 		struct libusb_transfer *transfer;
 		unsigned char dummy = 0;
@@ -874,7 +867,7 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 	struct upekts_dev *upekdev = NULL;
 	int r;
 
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(dev), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
@@ -882,8 +875,8 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 
 	upekdev = g_malloc(sizeof(*upekdev));
 	upekdev->seq = 0xf0; /* incremented to 0x00 before first cmd */
-	dev->priv = upekdev;
-	dev->nr_enroll_stages = 3;
+	fpi_dev_set_user_data(dev, upekdev);
+	fpi_dev_set_nr_enroll_stages(dev, 3);
 
 	fpi_drvcb_open_complete(dev, 0);
 	return 0;
@@ -891,8 +884,10 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 
 static void dev_exit(struct fp_dev *dev)
 {
-	libusb_release_interface(dev->udev, 0);
-	g_free(dev->priv);
+	void *user_data;
+	libusb_release_interface(fpi_dev_get_usb_dev(dev), 0);
+	user_data = fpi_dev_get_user_data(dev);
+	g_free(user_data);
 	fpi_drvcb_close_complete(dev);
 }
 
@@ -916,8 +911,8 @@ enum enroll_start_sm_states {
 /* Called when the device initialization state machine completes */
 static void enroll_start_sm_cb_initsm(struct fpi_ssm *initsm)
 {
-	struct fpi_ssm *enroll_start_ssm = initsm->priv;
-	int error = initsm->error;
+	struct fpi_ssm *enroll_start_ssm = fpi_ssm_get_user_data(initsm);
+	int error = fpi_ssm_get_error(initsm);
 
 	fpi_ssm_free(initsm);
 	if (error)
@@ -943,7 +938,7 @@ static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
 	enum read_msg_status status, uint8_t seq, unsigned char subcmd,
 	unsigned char *data, size_t data_len, void *user_data)
 {
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 	struct fpi_ssm *ssm = user_data;
 
 	if (status != READ_MSG_RESPONSE) {
@@ -964,13 +959,13 @@ static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
 
 static void enroll_start_sm_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case RUN_INITSM: ;
 		struct fpi_ssm *initsm = initsm_new(dev);
-		initsm->priv = ssm;
+		fpi_ssm_set_user_data(initsm, ssm);
 		fpi_ssm_start(initsm, enroll_start_sm_cb_initsm);
 		break;
 	case ENROLL_INIT: ;
@@ -1006,12 +1001,12 @@ static void enroll_iterate(struct fp_dev *dev);
 static void e_handle_resp00(struct fp_dev *dev, unsigned char *data,
 	size_t data_len)
 {
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 	unsigned char status;
 	int result = 0;
 
 	if (data_len != 14) {
-		fp_err("received 3001 poll response of %d bytes?", data_len);
+		fp_err("received 3001 poll response of %lu bytes?", data_len);
 		fpi_drvcb_enroll_stage_completed(dev, -EPROTO, NULL, NULL);
 		return;
 	}
@@ -1023,6 +1018,9 @@ static void e_handle_resp00(struct fp_dev *dev, unsigned char *data,
 	case 0x0c:
 	case 0x0d:
 	case 0x0e:
+	case 0x26:
+	case 0x27:
+	case 0x2e:
 		/* if we previously completed a non-last enrollment stage, we'll
 		 * get this code to indicate successful stage completion */
 		if (upekdev->enroll_passed) {
@@ -1083,7 +1081,7 @@ static void e_handle_resp02(struct fp_dev *dev, unsigned char *data,
 	int result = -EPROTO;
 
 	if (data_len < sizeof(scan_comp)) {
-		fp_err("fingerprint data too short (%d bytes)", data_len);
+		fp_err("fingerprint data too short (%lu bytes)", data_len);
 	} else if (memcmp(data, scan_comp, sizeof(scan_comp)) != 0) {
 		fp_err("unrecognised data prefix %x %x %x %x %x",
 			data[0], data[1], data[2], data[3], data[4]);
@@ -1157,10 +1155,10 @@ static void enroll_iterate(struct fp_dev *dev)
 
 static void enroll_started(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
-	fpi_drvcb_enroll_started(dev, ssm->error);
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
+	fpi_drvcb_enroll_started(dev, fpi_ssm_get_error(ssm));
 
-	if (!ssm->error)
+	if (!fpi_ssm_get_error(ssm))
 		enroll_iterate(dev);
 
 	fpi_ssm_free(ssm);
@@ -1168,7 +1166,7 @@ static void enroll_started(struct fpi_ssm *ssm)
 
 static int enroll_start(struct fp_dev *dev)
 {
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	/* do_init state machine first */
 	struct fpi_ssm *ssm = fpi_ssm_new(dev, enroll_start_sm_run_state,
@@ -1182,7 +1180,7 @@ static int enroll_start(struct fp_dev *dev)
 static void enroll_stop_deinit_cb(struct fpi_ssm *ssm)
 {
 	/* don't really care about errors */
-	fpi_drvcb_enroll_stopped(ssm->dev);
+	fpi_drvcb_enroll_stopped(fpi_ssm_get_dev(ssm));
 	fpi_ssm_free(ssm);
 }
 
@@ -1196,7 +1194,7 @@ static int enroll_stop(struct fp_dev *dev)
 static void verify_stop_deinit_cb(struct fpi_ssm *ssm)
 {
 	/* don't really care about errors */
-	fpi_drvcb_verify_stopped(ssm->dev);
+	fpi_drvcb_verify_stopped(fpi_ssm_get_dev(ssm));
 	fpi_ssm_free(ssm);
 }
 
@@ -1221,9 +1219,12 @@ enum {
 /* Called when the device initialization state machine completes */
 static void verify_start_sm_cb_initsm(struct fpi_ssm *initsm)
 {
-	struct fpi_ssm *verify_start_ssm = initsm->priv;
-	if (initsm->error)
-		fpi_ssm_mark_aborted(verify_start_ssm, initsm->error);
+	struct fpi_ssm *verify_start_ssm = fpi_ssm_get_user_data(initsm);
+	int err;
+
+	err = fpi_ssm_get_error(initsm);
+	if (err)
+		fpi_ssm_mark_aborted(verify_start_ssm, err);
 	else
 		fpi_ssm_next_state(verify_start_ssm);
 	fpi_ssm_free(initsm);
@@ -1243,17 +1244,17 @@ static void verify_init_2803_cb(struct libusb_transfer *transfer)
 
 static void verify_start_sm_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case VERIFY_RUN_INITSM: ;
 		struct fpi_ssm *initsm = initsm_new(dev);
-		initsm->priv = ssm;
+		fpi_ssm_set_user_data(initsm, ssm);
 		fpi_ssm_start(initsm, verify_start_sm_cb_initsm);
 		break;
 	case VERIFY_INIT: ;
-		struct fp_print_data *print = dev->verify_data;
+		struct fp_print_data *print = fpi_dev_get_verify_data(dev);
 		struct fp_print_data_item *item = print->prints->data;
 		size_t data_len = sizeof(verify_hdr) + item->length;
 		unsigned char *data = g_malloc(data_len);
@@ -1288,7 +1289,7 @@ static void v_handle_resp00(struct fp_dev *dev, unsigned char *data,
 	int r = 0;
 
 	if (data_len != 14) {
-		fp_err("received 3001 poll response of %d bytes?", data_len);
+		fp_err("received 3001 poll response of %lu bytes?", data_len);
 		r = -EPROTO;
 		goto out;
 	}
@@ -1359,7 +1360,7 @@ static void verify_rd2800_cb(struct fp_dev *dev, enum read_msg_status msgstat,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	if (msgstat != READ_MSG_RESPONSE) {
 		fp_err("expected response, got %d seq=%x", msgstat, seq);
@@ -1398,7 +1399,7 @@ static void verify_wr2800_cb(struct libusb_transfer *transfer)
 
 static void verify_iterate(struct fp_dev *dev)
 {
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	if (upekdev->stop_verify) {
 		do_verify_stop(dev);
@@ -1433,11 +1434,11 @@ static void verify_iterate(struct fp_dev *dev)
 
 static void verify_started(struct fpi_ssm *ssm)
 {
-	struct fp_dev *dev = ssm->dev;
-	struct upekts_dev *upekdev = dev->priv;
+	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
-	fpi_drvcb_verify_started(dev, ssm->error);
-	if (!ssm->error) {
+	fpi_drvcb_verify_started(dev, fpi_ssm_get_error(ssm));
+	if (!fpi_ssm_get_error(ssm)) {
 		upekdev->first_verify_iteration = TRUE;
 		verify_iterate(dev);
 	}
@@ -1447,7 +1448,7 @@ static void verify_started(struct fpi_ssm *ssm)
 
 static int verify_start(struct fp_dev *dev)
 {
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 	struct fpi_ssm *ssm = fpi_ssm_new(dev, verify_start_sm_run_state,
 		VERIFY_NUM_STATES);
 	upekdev->stop_verify = FALSE;
@@ -1457,7 +1458,7 @@ static int verify_start(struct fp_dev *dev)
 
 static int verify_stop(struct fp_dev *dev, gboolean iterating)
 {
-	struct upekts_dev *upekdev = dev->priv;
+	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	if (!iterating)
 		do_verify_stop(dev);

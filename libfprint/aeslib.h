@@ -20,7 +20,7 @@
 #ifndef __AESLIB_H__
 #define __AESLIB_H__
 
-#include <fp_internal.h>
+#include <fprint.h>
 
 struct aes_regwrite {
 	unsigned char reg;

@@ -26,16 +26,9 @@
 
 #define FP_COMPONENT "aes4000"
 
-#include <errno.h>
-
-#include <glib.h>
-#include <libusb.h>
-
-#include <aeslib.h>
-#include <fp_internal.h>
-
+#include "drivers_api.h"
+#include "aeslib.h"
 #include "aes3k.h"
-#include "driver_ids.h"
 
 #define DATA_BUFLEN	0x1259
 
@@ -126,13 +119,14 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 	struct aes3k_dev *aesdev;
 
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
 	}
 
-	aesdev = dev->priv = g_malloc0(sizeof(struct aes3k_dev));
+	aesdev = g_malloc0(sizeof(struct aes3k_dev));
+	fpi_imgdev_set_user_data(dev, aesdev);
 
 	if (!aesdev)
 		return -ENOMEM;
@@ -151,9 +145,9 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	struct aes3k_dev *aesdev = dev->priv;
+	struct aes3k_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	g_free(aesdev);
-	libusb_release_interface(dev->udev, 0);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

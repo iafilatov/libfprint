@@ -27,9 +27,6 @@
 
 #include "fp_internal.h"
 
-static int log_level = 0;
-static int log_level_fixed = 0;
-
 libusb_context *fpi_usb_ctx = NULL;
 GSList *opened_devices = NULL;
 
@@ -116,54 +113,6 @@ GSList *opened_devices = NULL;
 
 static GSList *registered_drivers = NULL;
 
-void fpi_log(enum fpi_log_level level, const char *component,
-	const char *function, const char *format, ...)
-{
-	va_list args;
-	FILE *stream = stdout;
-	const char *prefix;
-
-#ifndef ENABLE_DEBUG_LOGGING
-	if (!log_level)
-		return;
-	if (level == FPRINT_LOG_LEVEL_WARNING && log_level < 2)
-		return;
-	if (level == FPRINT_LOG_LEVEL_INFO && log_level < 3)
-		return;
-#endif
-
-	switch (level) {
-	case FPRINT_LOG_LEVEL_INFO:
-		prefix = "info";
-		break;
-	case FPRINT_LOG_LEVEL_WARNING:
-		stream = stderr;
-		prefix = "warning";
-		break;
-	case FPRINT_LOG_LEVEL_ERROR:
-		stream = stderr;
-		prefix = "error";
-		break;
-	case FPRINT_LOG_LEVEL_DEBUG:
-		stream = stderr;
-		prefix = "debug";
-		break;
-	default:
-		stream = stderr;
-		prefix = "unknown";
-		break;
-	}
-
-	fprintf(stream, "%s:%s [%s] ", component ? component : "fp", prefix,
-		function);
-
-	va_start (args, format);
-	vfprintf(stream, format, args);
-	va_end (args);
-
-	fprintf(stream, "\n");
-}
-
 static void register_driver(struct fp_driver *drv)
 {
 	if (drv->id == 0) {
@@ -174,73 +123,7 @@ static void register_driver(struct fp_driver *drv)
 	fp_dbg("registered driver %s", drv->name);
 }
 
-static struct fp_driver * const primitive_drivers[] = {
-#ifdef ENABLE_UPEKTS
-	&upekts_driver,
-#endif
-};
-
-static struct fp_img_driver * const img_drivers[] = {
-#ifdef ENABLE_AES3500
-	&aes3500_driver,
-#endif
-#ifdef ENABLE_AES4000
-	&aes4000_driver,
-#endif
-#ifdef ENABLE_AES2501
-	&aes2501_driver,
-#endif
-#ifdef ENABLE_AES2550
-	&aes2550_driver,
-#endif
-#ifdef ENABLE_URU4000
-	&uru4000_driver,
-#endif
-#ifdef ENABLE_VCOM5S
-	&vcom5s_driver,
-#endif
-#ifdef ENABLE_UPEKSONLY
-	&upeksonly_driver,
-#endif
-
-#ifdef ENABLE_AES1610
-	&aes1610_driver,
-#endif
-#ifdef ENABLE_AES1660
-	&aes1660_driver,
-#endif
-#ifdef ENABLE_AES2660
-	&aes2660_driver,
-#endif
-#ifdef ENABLE_VFS101
-	&vfs101_driver,
-#endif
-#ifdef ENABLE_VFS301
-	&vfs301_driver,
-#endif
-#ifdef ENABLE_VFS5011
-	&vfs5011_driver,
-#endif
-#ifdef ENABLE_UPEKTC
-	&upektc_driver,
-#endif
-#ifdef ENABLE_UPEKTC_IMG
-	&upektc_img_driver,
-#endif
-#ifdef ENABLE_ETES603
-	&etes603_driver,
-#endif
-#ifdef ENABLE_VFS0050
-	&vfs0050_driver,
-#endif
-#ifdef ENABLE_ELAN
-	&elan_driver,
-#endif
-/*#ifdef ENABLE_FDU2000
-	&fdu2000_driver,
-#endif
-	*/
-};
+#include "drivers_arrays.h"
 
 static void register_drivers(void)
 {
@@ -370,11 +253,9 @@ static struct fp_dscv_dev *discover_dev(libusb_device *udev)
  */
 API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 {
-	GSList *tmplist = NULL;
-	struct fp_dscv_dev **list;
+	GPtrArray *tmparray;
 	libusb_device *udev;
 	libusb_device **devs;
-	int dscv_count = 0;
 	int r;
 	int i = 0;
 
@@ -387,11 +268,10 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 		return NULL;
 	}
 
+	tmparray = g_ptr_array_new ();
+
 	/* Check each device against each driver, temporarily storing successfully
-	 * discovered devices in a GSList.
-	 *
-	 * Quite inefficient but excusable as we'll only be dealing with small
-	 * sets of drivers against small sets of USB devices */
+	 * discovered devices in a GPtrArray. */
 	while ((udev = devs[i++]) != NULL) {
 		struct fp_dscv_dev *ddev = discover_dev(udev);
 		if (!ddev)
@@ -399,25 +279,14 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 		/* discover_dev() doesn't hold a reference to the udev,
 		 * so increase the reference for ddev to hold this ref */
 		libusb_ref_device(udev);
-		tmplist = g_slist_prepend(tmplist, (gpointer) ddev);
-		dscv_count++;
+		g_ptr_array_add (tmparray, (gpointer) ddev);
 	}
 	libusb_free_device_list(devs, 1);
 
-	/* Convert our temporary GSList into a standard NULL-terminated pointer
+	/* Convert our temporary array into a standard NULL-terminated pointer
 	 * array. */
-	list = g_malloc(sizeof(*list) * (dscv_count + 1));
-	if (dscv_count > 0) {
-		GSList *elem = tmplist;
-		i = 0;
-		do {
-			list[i++] = elem->data;
-		} while ((elem = g_slist_next(elem)));
-	}
-	list[dscv_count] = NULL; /* NULL-terminate */
-
-	g_slist_free(tmplist);
-	return list;
+	g_ptr_array_add (tmparray, NULL);
+	return (struct fp_dscv_dev **) g_ptr_array_free (tmparray, FALSE);
 }
 
 /**
@@ -446,13 +315,24 @@ API_EXPORTED void fp_dscv_devs_free(struct fp_dscv_dev **devs)
  * fp_dscv_dev_get_driver:
  * @dev: the discovered device
  *
- * Gets the #fp_driver "driver" for a discovered device.
+ * Gets the #fp_driver for a discovered device.
  *
  * Returns: the driver backing the device
  */
 API_EXPORTED struct fp_driver *fp_dscv_dev_get_driver(struct fp_dscv_dev *dev)
 {
 	return dev->drv;
+}
+
+/**
+ * fp_dscv_dev_get_driver_id:
+ * @dev: a discovered fingerprint device
+ *
+ * Returns: the ID for the underlying driver for that device
+ */
+API_EXPORTED uint16_t fp_dscv_dev_get_driver_id(struct fp_dscv_dev *dev)
+{
+	return fp_driver_get_driver_id(fp_dscv_dev_get_driver(dev));
 }
 
 /**
@@ -486,7 +366,7 @@ enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv)
  * @dev: the discovered device
  * @print: the print for compatibility checking
  *
- * Determines if a specific #fp_print_data "stored print" appears to be
+ * Determines if a specific #fp_print_data stored print appears to be
  * compatible with a discovered device.
  *
  * Returns: 1 if the print is compatible with the device, 0 otherwise
@@ -504,10 +384,12 @@ API_EXPORTED int fp_dscv_dev_supports_print_data(struct fp_dscv_dev *dev,
  * @dev: the discovered device
  * @print: the discovered print for compatibility checking
  *
- * Determines if a specific #fp_dscv_print "discovered print" appears to be
+ * Determines if a specific #fp_dscv_print discovered print appears to be
  * compatible with a discovered device.
  *
  * Returns: 1 if the print is compatible with the device, 0 otherwise
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED int fp_dscv_dev_supports_dscv_print(struct fp_dscv_dev *dev,
 	struct fp_dscv_print *print)
@@ -522,10 +404,12 @@ API_EXPORTED int fp_dscv_dev_supports_dscv_print(struct fp_dscv_dev *dev,
  * @print: the print under inspection
  *
  * Searches a list of discovered devices for a device that appears to be
- * compatible with a #fp_print_data "stored print".
+ * compatible with a #fp_print_data stored print.
  *
  * Returns: the first discovered device that appears to support the print, or
  * %NULL if no apparently compatible devices could be found
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev **devs,
 	struct fp_print_data *print)
@@ -545,10 +429,12 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_print_data(struct fp_dscv_dev *
  * @print: the print under inspection
  *
  * Searches a list of discovered devices for a device that appears to be
- * compatible with a #fp_dscv_print "discovered print".
+ * compatible with a #fp_dscv_print discovered print.
  *
  * Returns: the first discovered device that appears to support the print, or
  * %NULL if no apparently compatible devices could be found
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev **devs,
 	struct fp_dscv_print *print)
@@ -556,9 +442,13 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev *
 	struct fp_dscv_dev *ddev;
 	int i;
 
-	for (i = 0; (ddev = devs[i]); i++)
+	for (i = 0; (ddev = devs[i]); i++) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 		if (fp_dscv_dev_supports_dscv_print(ddev, print))
 			return ddev;
+#pragma GCC diagnostic pop
+	}
 	return NULL;
 }
 
@@ -566,7 +456,7 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev *
  * fp_dev_get_driver:
  * @dev: the device
  *
- * Get the #fp_driver "driver" for a fingerprint device.
+ * Get the #fp_driver for a fingerprint device.
  *
  * Returns: the driver controlling the device
  */
@@ -624,16 +514,62 @@ API_EXPORTED int fp_dev_supports_print_data(struct fp_dev *dev,
  * @dev: the device
  * @print: the discovered print
  *
- * Determines if a #fp_dscv_print "discovered print" appears to be compatible
+ * Determines if a #fp_dscv_print discovered print appears to be compatible
  * with a certain device.
  *
  * Returns: 1 if the print is compatible with the device, 0 if not
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED int fp_dev_supports_dscv_print(struct fp_dev *dev,
 	struct fp_dscv_print *print)
 {
 	return fpi_print_data_compatible(dev->drv->id, dev->devtype,
 		0, print->driver_id, print->devtype, 0);
+}
+
+libusb_device_handle *
+fpi_dev_get_usb_dev(struct fp_dev *dev)
+{
+	return dev->udev;
+}
+
+void *
+fpi_dev_get_user_data (struct fp_dev *dev)
+{
+	return dev->priv;
+}
+
+void
+fpi_dev_set_user_data (struct fp_dev *dev,
+	void *user_data)
+{
+	dev->priv = user_data;
+}
+
+int
+fpi_dev_get_nr_enroll_stages(struct fp_dev *dev)
+{
+	return dev->nr_enroll_stages;
+}
+
+void
+fpi_dev_set_nr_enroll_stages(struct fp_dev *dev,
+	int nr_enroll_stages)
+{
+	dev->nr_enroll_stages = nr_enroll_stages;
+}
+
+struct fp_print_data *
+fpi_dev_get_verify_data(struct fp_dev *dev)
+{
+	return dev->verify_data;
+}
+
+enum fp_dev_state
+fpi_dev_get_dev_state(struct fp_dev *dev)
+{
+	return dev->state;
 }
 
 /**
@@ -702,7 +638,7 @@ static struct fp_img_dev *dev_to_img_dev(struct fp_dev *dev)
  * Determines if a device has imaging capabilities. If a device has imaging
  * capabilities you are able to perform imaging operations such as retrieving
  * scan images using fp_dev_img_capture(). However, not all devices are
- * imaging devices - some do all processing in hardware. This function will
+ * imaging devices – some do all processing in hardware. This function will
  * indicate which class a device in question falls into.
  *
  * Returns: 1 if the device is an imaging device, 0 if the device does not
@@ -778,38 +714,11 @@ API_EXPORTED int fp_dev_get_img_height(struct fp_dev *dev)
  * fp_set_debug:
  * @level: the verbosity level
  *
- * Set message verbosity.
- *  - Level 0: no messages ever printed by the library (default)
- *  - Level 1: error messages are printed to stderr
- *  - Level 2: warning and error messages are printed to stderr
- *  - Level 3: informational messages are printed to stdout, warning and error
- *    messages are printed to stderr
- *
- * The default level is 0, which means no messages are ever printed. If you
- * choose to increase the message verbosity level, ensure that your
- * application does not close the stdout/stderr file descriptors.
- *
- * You are advised to set level 3. libfprint is conservative with its message
- * logging and most of the time, will only log messages that explain error
- * conditions and other oddities. This will help you debug your software.
- *
- * If the LIBFPRINT_DEBUG environment variable was set when libfprint was
- * initialized, this function does nothing: the message verbosity is fixed
- * to the value in the environment variable.
- *
- * If libfprint was compiled without any message logging, this function does
- * nothing: you'll never get any messages.
- *
- * If libfprint was compiled with verbose debug message logging, this function
- * does nothing: you'll always get messages from all levels.
+ * This call does nothing, see fp_init() for details.
  */
 API_EXPORTED void fp_set_debug(int level)
 {
-	if (log_level_fixed)
-		return;
-
-	log_level = level;
-	libusb_set_debug(fpi_usb_ctx, level);
+	/* Nothing */
 }
 
 /**
@@ -818,25 +727,33 @@ API_EXPORTED void fp_set_debug(int level)
  * Initialise libfprint. This function must be called before you attempt to
  * use the library in any way.
  *
+ * To enable debug output of libfprint specifically, use GLib's `G_MESSAGES_DEBUG`
+ * environment variable as explained in [Running and debugging GLib Applications](https://developer.gnome.org/glib/stable/glib-running.html#G_MESSAGES_DEBUG).
+ *
+ * The log domains used in libfprint are either `libfprint` or `libfprint-FP_COMPONENT`
+ * where `FP_COMPONENT` is defined in the source code for each driver, or component
+ * of the library. Starting with `all` and trimming down is advised.
+ *
+ * To enable debugging of libusb, for USB-based fingerprint reader drivers, use
+ * libusb's `LIBUSB_DEBUG` environment variable as explained in the
+ * [libusb-1.0 API Reference](http://libusb.sourceforge.net/api-1.0/#msglog).
+ *
+ * Example:
+ *
+ * ```
+ * LIBUSB_DEBUG=4 G_MESSAGES_DEBUG=all my-libfprint-application
+ * ```
+ *
  * Returns: 0 on success, non-zero on error.
  */
 API_EXPORTED int fp_init(void)
 {
-	char *dbg = getenv("LIBFPRINT_DEBUG");
 	int r;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	r = libusb_init(&fpi_usb_ctx);
 	if (r < 0)
 		return r;
-
-	if (dbg) {
-		log_level = atoi(dbg);
-		if (log_level) {
-			log_level_fixed = 1;
-			libusb_set_debug(fpi_usb_ctx, log_level);
-		}
-	}
 
 	register_drivers();
 	fpi_poll_init();
@@ -852,7 +769,7 @@ API_EXPORTED int fp_init(void)
  */
 API_EXPORTED void fp_exit(void)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (opened_devices) {
 		GSList *copy = g_slist_copy(opened_devices);

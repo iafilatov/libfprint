@@ -1,5 +1,6 @@
 libfprint_sources = [
     'fp_internal.h',
+    'drivers_api.h',
     'async.c',
     'core.c',
     'data.c',
@@ -128,7 +129,6 @@ foreach driver: drivers
     if driver == 'elan'
         drivers_sources += [ 'drivers/elan.c', 'drivers/elan.h' ]
     endif
-    drivers_cflags += [ '-DENABLE_' + driver.to_upper() + '=1' ]
 endforeach
 
 if aeslib
@@ -146,6 +146,22 @@ if imaging_dep.found()
     other_sources += [ 'pixman.c' ]
 endif
 
+libfprint_sources += configure_file(input: 'empty_file',
+                                    output: 'drivers_definitions.h',
+                                    capture: true,
+                                    command: [
+                                      '/bin/echo',
+                                      drivers_struct_list
+                                    ])
+
+libfprint_sources += configure_file(input: 'empty_file',
+                                    output: 'drivers_arrays.h',
+                                    capture: true,
+                                    command: [
+                                      '/bin/echo',
+                                      drivers_primitive_array + '\n\n' + drivers_img_array
+                                    ])
+
 deps = [ mathlib_dep, glib_dep, libusb_dep, nss_dep, imaging_dep ]
 libfprint = library('fprint',
                     libfprint_sources + drivers_sources + nbis_sources + other_sources,
@@ -162,7 +178,7 @@ libfprint = library('fprint',
 libfprint_dep = declare_dependency(link_with: libfprint,
                                    include_directories: root_inc)
 
-install_headers(['fprint.h'])
+install_headers(['fprint.h'], subdir: 'libfprint')
 
 udev_rules = executable('fprint-list-udev-rules',
                         'fprint-list-udev-rules.c',
@@ -181,14 +197,10 @@ if get_option('udev_rules')
                   install_dir: udev_rules_dir)
 endif
 
-# MOSTLYCLEANFILES = $(udev_rules_DATA)
-
-# EXTRA_DIST = \
-#	60-fprint-autosuspend.rules
-
-# udev_rules_DATA = 60-fprint-autosuspend.rules
-
-# if ENABLE_UDEV_RULES
-# $(udev_rules_DATA): fprint-list-udev-rules
-#	$(builddir)/fprint-list-udev-rules > $@
-#endif
+supported_devices = executable('fprint-list-supported-devices',
+                               'fprint-list-supported-devices.c',
+                               include_directories: [
+                                 root_inc,
+                               ],
+                               dependencies: [ deps, libfprint_dep ],
+                               install: false)

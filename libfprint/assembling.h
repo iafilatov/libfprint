@@ -22,7 +22,7 @@
 #ifndef __ASSEMBLING_H__
 #define __ASSEMBLING_H__
 
-#include <fp_internal.h>
+#include <fprint.h>
 
 struct fpi_frame {
 	int delta_x;

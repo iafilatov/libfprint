@@ -19,10 +19,10 @@
 
 #define FP_COMPONENT "sync"
 
+#include "fp_internal.h"
+
 #include <config.h>
 #include <errno.h>
-
-#include "fp_internal.h"
 
 struct sync_open_data {
 	struct fp_dev *dev;
@@ -42,10 +42,10 @@ static void sync_open_cb(struct fp_dev *dev, int status, void *user_data)
  * @ddev: the discovered device to open
  *
  * Opens and initialises a device. This is the function you call in order
- * to convert a #fp_dscv_dev "discovered device" into an actual device handle
+ * to convert a #fp_dscv_dev discovered device into an actual device handle
  * that you can perform operations with.
  *
- * Returns: (transfer none): the opened device handle, or %NULL on error
+ * Returns: the opened device handle, or %NULL on error
  */
 API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 {
@@ -53,7 +53,7 @@ API_EXPORTED struct fp_dev *fp_dev_open(struct fp_dscv_dev *ddev)
 	struct sync_open_data *odata = g_malloc0(sizeof(*odata));
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	r = fp_async_dev_open(ddev, sync_open_cb, odata);
 	if (r)
 		goto out;
@@ -74,7 +74,7 @@ out:
 
 static void sync_close_cb(struct fp_dev *dev, void *user_data)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	gboolean *closed = user_data;
 	*closed = TRUE;
 }
@@ -93,7 +93,7 @@ API_EXPORTED void fp_dev_close(struct fp_dev *dev)
 	if (!dev)
 		return;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	fp_async_dev_close(dev, sync_close_cb, &closed);
 	while (!closed)
 		if (fp_handle_events() < 0)
@@ -121,14 +121,14 @@ static void sync_enroll_cb(struct fp_dev *dev, int result,
 static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
 {
 	gboolean *stopped = user_data;
-	fp_dbg("");
+	G_DEBUG_HERE();
 	*stopped = TRUE;
 }
 
 /**
  * fp_enroll_finger_img:
  * @dev: the device
- * @print_data a location to return the resultant enrollment data from
+ * @print_data: a location to return the resultant enrollment data from
  * the final stage. Must be freed with fp_print_data_free() after use.
  * @img: location to store the scan image. accepts %NULL for no image
  * storage. If an image is returned, it must be freed with fp_img_free() after
@@ -154,19 +154,19 @@ static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
  * into this function will retry the current stage again. The current stage may
  * need to be retried several times.
  *
- * The fp_enroll_result#FP_ENROLL_FAIL code may be returned from any enroll
+ * The %FP_ENROLL_FAIL code may be returned from any enroll
  * stage. This code indicates that even though the scans themselves have been
  * acceptable, data processing applied to these scans produces incomprehensible
  * results. In other words, the user may have been scanning a different finger
  * for each stage or something like that. Like negative error codes, this
  * return code indicates that the enrollment process has been aborted.
  *
- * The fp_enroll_result#FP_ENROLL_PASS code will only ever be returned for
+ * The %FP_ENROLL_PASS code will only ever be returned for
  * non-final stages. This return code indicates that the scan was acceptable
  * and the next call into this function will advance onto the next enroll
  * stage.
  *
- * The fp_enroll_result#FP_ENROLL_COMPLETE code will only ever be returned
+ * The %FP_ENROLL_COMPLETE code will only ever be returned
  * from the final enroll stage. It indicates that enrollment completed
  * successfully, and that print_data has been assigned to point to the
  * resultant enrollment data. The print_data parameter will not be modified
@@ -189,7 +189,7 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 	gboolean stopped = FALSE;
 	struct sync_enroll_data *edata = NULL;
 	int r;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	/* FIXME __enroll_stage is ugly, can we replace it by some function that
 	 * says whether we're enrolling or not, and then put __enroll_stage into
@@ -287,6 +287,25 @@ err:
 	return r;
 }
 
+/**
+ * fp_enroll_finger:
+ * @dev: the device
+ * @print_data: a location to return the resultant enrollment data from
+ * the final stage. Must be freed with fp_print_data_free() after use.
+ *
+ * Performs an enroll stage. See [Enrolling](libfprint-Devices-operations.html#enrolling)
+ * for an explanation of enroll stages. This function is just a shortcut to
+ * calling fp_enroll_finger_img() with a %NULL image parameter. Be sure to read
+ * the description of fp_enroll_finger_img() in order to understand its behaviour.
+ *
+ * Returns: negative code on error, otherwise a code from #fp_enroll_result
+ */
+API_EXPORTED int fp_enroll_finger(struct fp_dev *dev,
+	struct fp_print_data **print_data)
+{
+	return fp_enroll_finger_img(dev, print_data, NULL);
+}
+
 struct sync_verify_data {
 	gboolean populated;
 	int result;
@@ -305,7 +324,7 @@ static void sync_verify_cb(struct fp_dev *dev, int result, struct fp_img *img,
 static void verify_stop_cb(struct fp_dev *dev, void *user_data)
 {
 	gboolean *stopped = user_data;
-	fp_dbg("");
+	G_DEBUG_HERE();
 	*stopped = TRUE;
 }
 
@@ -401,6 +420,26 @@ err:
 	return r;
 }
 
+/**
+ * fp_verify_finger:
+ * @dev: the device to perform the scan.
+ * @enrolled_print: the print to verify against. Must have been previously
+ * enrolled with a device compatible to the device selected to perform the scan.
+ *
+ * Performs a new scan and verify it against a previously enrolled print. This
+ * function is just a shortcut to calling fp_verify_finger_img() with a NULL
+ * image output parameter.
+ *
+ * See also fp_verify_finger_img().
+ *
+ * Returns: negative code on error, otherwise a code from #fp_verify_result
+ */
+API_EXPORTED int fp_verify_finger(struct fp_dev *dev,
+	struct fp_print_data *enrolled_print)
+{
+	return fp_verify_finger_img(dev, enrolled_print, NULL);
+}
+
 struct sync_identify_data {
 	gboolean populated;
 	int result;
@@ -421,7 +460,7 @@ static void sync_identify_cb(struct fp_dev *dev, int result,
 static void identify_stop_cb(struct fp_dev *dev, void *user_data)
 {
 	gboolean *stopped = user_data;
-	fp_dbg("");
+	G_DEBUG_HERE();
 	*stopped = TRUE;
 }
 
@@ -432,7 +471,7 @@ static void identify_stop_cb(struct fp_dev *dev, void *user_data)
  * identify against. Each one must have been previously enrolled with a device
  * compatible to the device selected to perform the scan.
  * @match_offset: output location to store the array index of the matched
- * gallery print (if any was found). Only valid if FP_VERIFY_MATCH was
+ * gallery print (if any was found). Only valid if %FP_VERIFY_MATCH was
  * returned.
  * @img: location to store the scan image. accepts %NULL for no image
  * storage. If an image is returned, it must be freed with fp_img_free() after
@@ -446,7 +485,7 @@ static void identify_stop_cb(struct fp_dev *dev, void *user_data)
  * provide images.
  *
  * This function returns codes from #fp_verify_result. The return code
- * fp_verify_result#FP_VERIFY_MATCH indicates that the scanned fingerprint
+ * %FP_VERIFY_MATCH indicates that the scanned fingerprint
  * does appear in the print gallery, and the match_offset output parameter
  * will indicate the index into the print gallery array of the matched print.
  *
@@ -523,6 +562,31 @@ err:
 	return r;
 }
 
+/**
+ * fp_identify_finger:
+ * @dev: the device to perform the scan.
+ * @print_gallery: %NULL-terminated array of pointers to the prints to
+ * identify against. Each one must have been previously enrolled with a device
+ * compatible to the device selected to perform the scan.
+ * @match_offset: output location to store the array index of the matched
+ * gallery print (if any was found). Only valid if %FP_VERIFY_MATCH was
+ * returned.
+
+ * Performs a new scan and attempts to identify the scanned finger against a
+ * collection of previously enrolled fingerprints. This function is just a
+ * shortcut to calling fp_identify_finger_img() with a %NULL image output
+ * parameter.
+ *
+ * See also fp_identify_finger_img().
+ *
+ * Returns: negative code on error, otherwise a code from #fp_verify_result
+ */
+API_EXPORTED int fp_identify_finger(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset)
+{
+	return fp_identify_finger_img(dev, print_gallery, match_offset, NULL);
+}
+
 struct sync_capture_data {
 	gboolean populated;
 	int result;
@@ -541,7 +605,7 @@ static void sync_capture_cb(struct fp_dev *dev, int result, struct fp_img *img,
 static void capture_stop_cb(struct fp_dev *dev, void *user_data)
 {
 	gboolean *stopped = user_data;
-	fp_dbg("");
+	G_DEBUG_HERE();
 	*stopped = TRUE;
 }
 /**
@@ -551,7 +615,7 @@ static void capture_stop_cb(struct fp_dev *dev, void *user_data)
  * @img: a location to return the captured image. Must be freed with
  * fp_img_free() after use.
  *
- * Captures a #fp_img "image" from a device. The returned image is the raw
+ * Captures a #fp_img from a device. The returned image is the raw
  * image provided by the device, you may wish to [standardize](libfprint-Image-operations.html#img_std) it.
  *
  * If set, the @unconditional flag indicates that the device should

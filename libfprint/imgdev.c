@@ -231,7 +231,7 @@ void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 {
 	struct fp_print_data *print;
 	int r;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (imgdev->action_state != IMG_ACQUIRE_STATE_AWAIT_IMAGE) {
 		fp_dbg("ignoring due to current state %d", imgdev->action_state);
@@ -360,7 +360,7 @@ void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status)
 
 void fpi_imgdev_deactivate_complete(struct fp_img_dev *imgdev)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	switch (imgdev->action) {
 	case IMG_ACTION_ENROLL:

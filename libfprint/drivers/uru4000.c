@@ -20,17 +20,10 @@
 
 #define FP_COMPONENT "uru4000"
 
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-
 #include <nss.h>
 #include <pk11pub.h>
-#include <libusb.h>
 
-#include <fp_internal.h>
-
-#include "driver_ids.h"
+#include "drivers_api.h"
 
 #define EP_INTR			(1 | LIBUSB_ENDPOINT_IN)
 #define EP_DATA			(2 | LIBUSB_ENDPOINT_IN)
@@ -208,7 +201,7 @@ static int write_regs(struct fp_img_dev *dev, uint16_t first_reg,
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + num_regs);
 	memcpy(data + LIBUSB_CONTROL_SETUP_SIZE, values, num_regs);
 	libusb_fill_control_setup(data, CTRL_OUT, USB_RQ, first_reg, 0, num_regs);
-	libusb_fill_control_transfer(transfer, dev->udev, data, write_regs_cb,
+	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev), data, write_regs_cb,
 		wrdata, CTRL_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -274,7 +267,7 @@ static int read_regs(struct fp_img_dev *dev, uint16_t first_reg,
 
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + num_regs);
 	libusb_fill_control_setup(data, CTRL_IN, USB_RQ, first_reg, 0, num_regs);
-	libusb_fill_control_transfer(transfer, dev->udev, data, read_regs_cb,
+	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev), data, read_regs_cb,
 		rrdata, CTRL_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -324,7 +317,7 @@ static void challenge_cb(struct fp_img_dev *dev, int status,
 	uint16_t num_regs, unsigned char *data, void *user_data)
 {
 	struct fpi_ssm *ssm = user_data;
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	unsigned char *respdata;
 	PK11Context *ctx;
 	int r, outlen;
@@ -363,10 +356,10 @@ static void challenge_cb(struct fp_img_dev *dev, int status,
  */
 static void sm_do_challenge_response(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 	r = read_regs(dev, REG_CHALLENGE, CR_LENGTH, challenge_cb, ssm);
 	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);
@@ -381,7 +374,7 @@ static int start_irq_handler(struct fp_img_dev *dev);
 static void irq_handler(struct libusb_transfer *transfer)
 {
 	struct fp_img_dev *dev = transfer->user_data;
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
 	uint16_t type;
 	int r = 0;
@@ -433,7 +426,7 @@ out:
 
 static int start_irq_handler(struct fp_img_dev *dev)
 {
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
@@ -442,7 +435,7 @@ static int start_irq_handler(struct fp_img_dev *dev)
 		return -ENOMEM;
 	
 	data = g_malloc(IRQ_LENGTH);
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_INTR, data, IRQ_LENGTH,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_INTR, data, IRQ_LENGTH,
 		irq_handler, dev, 0);
 
 	urudev->irq_transfer = transfer;
@@ -457,7 +450,7 @@ static int start_irq_handler(struct fp_img_dev *dev)
 
 static void stop_irq_handler(struct fp_img_dev *dev, irqs_stopped_cb_fn cb)
 {
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	struct libusb_transfer *transfer = urudev->irq_transfer;
 	if (transfer) {
 		libusb_cancel_transfer(transfer);
@@ -491,7 +484,7 @@ static void change_state_write_reg_cb(struct fp_img_dev *dev, int status,
 
 static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
 	switch (state) {
 	case IMGDEV_STATE_INACTIVE:
@@ -526,7 +519,7 @@ static void sm_write_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
 static void sm_write_regs(struct fpi_ssm *ssm, uint16_t first_reg, uint16_t num_regs,
 	void *data)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r = write_regs(dev, first_reg, num_regs, data, sm_write_reg_cb, ssm);
 	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);
@@ -542,7 +535,7 @@ static void sm_read_reg_cb(struct fp_img_dev *dev, int result,
 	uint16_t num_regs, unsigned char *data, void *user_data)
 {
 	struct fpi_ssm *ssm = user_data;
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
 	if (result) {
 		fpi_ssm_mark_aborted(ssm, result);
@@ -555,8 +548,8 @@ static void sm_read_reg_cb(struct fp_img_dev *dev, int result,
 
 static void sm_read_regs(struct fpi_ssm *ssm, uint16_t reg, uint16_t num_regs)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	int r;
 
 	if (num_regs > sizeof(urudev->last_reg_rd)) {
@@ -671,7 +664,7 @@ static int calc_dev2(struct uru4k_image *img)
 	uint8_t *b[2] = { NULL, NULL };
 	int res = 0, mean = 0, i, r, j, idx;
 
-	for (i = r = idx = 0; i < array_n_elements(img->block_info) && idx < 2; i++) {
+	for (i = r = idx = 0; i < G_N_ELEMENTS(img->block_info) && idx < 2; i++) {
 		if (img->block_info[i].flags & BLOCKF_NOT_PRESENT)
 			continue;
 		for (j = 0; j < img->block_info[i].num_lines && idx < 2; j++)
@@ -696,8 +689,8 @@ static int calc_dev2(struct uru4k_image *img)
 
 static void imaging_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	struct uru4k_image *img = urudev->img_data;
 	struct fp_img *fpimg;
 	uint32_t key;
@@ -705,11 +698,11 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 	int i, r, to, dev2;
 	char buf[5];
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case IMAGING_CAPTURE:
 		urudev->img_lines_done = 0;
 		urudev->img_block = 0;
-		libusb_fill_bulk_transfer(urudev->img_transfer, dev->udev, EP_DATA,
+		libusb_fill_bulk_transfer(urudev->img_transfer, fpi_imgdev_get_usb_dev(dev), EP_DATA,
 			urudev->img_data, sizeof(struct uru4k_image), image_transfer_cb, ssm, 0);
 		r = libusb_submit_transfer(urudev->img_transfer);
 		if (r < 0)
@@ -754,7 +747,7 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 		key ^= urudev->img_enc_seed;
 
 		fp_dbg("encryption id %02x -> key %08x", img->key_number, key);
-		while (urudev->img_block < array_n_elements(img->block_info) &&
+		while (urudev->img_block < G_N_ELEMENTS(img->block_info) &&
 				urudev->img_lines_done < img->num_lines) {
 			flags = img->block_info[urudev->img_block].flags;
 			num_lines = img->block_info[urudev->img_block].num_lines;
@@ -792,7 +785,7 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 		fpimg = fpi_img_new_for_imgdev(dev);
 
 		to = r = 0;
-		for (i = 0; i < array_n_elements(img->block_info) && r < img->num_lines; i++) {
+		for (i = 0; i < G_N_ELEMENTS(img->block_info) && r < img->num_lines; i++) {
 			flags = img->block_info[i].flags;
 			num_lines = img->block_info[i].num_lines;
 			if (num_lines == 0)
@@ -819,9 +812,9 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 
 static void imaging_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
-	int r = ssm->error;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
+	int r = fpi_ssm_get_error(ssm);
 	fpi_ssm_free(ssm);
 
 	/* Report error before exiting imaging loop - the error handler
@@ -870,8 +863,8 @@ enum rebootpwr_states {
 static void rebootpwr_pause_cb(void *data)
 {
 	struct fpi_ssm *ssm = data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
 	if (!--urudev->rebootpwr_ctr) {
 		fp_err("could not reboot device power");
@@ -883,10 +876,10 @@ static void rebootpwr_pause_cb(void *data)
 
 static void rebootpwr_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case REBOOTPWR_SET_HWSTAT:
 		urudev->rebootpwr_ctr = 100;
 		sm_set_hwstat(ssm, urudev->last_hwstat & 0xf);
@@ -947,8 +940,8 @@ enum powerup_states {
 static void powerup_pause_cb(void *data)
 {
 	struct fpi_ssm *ssm = data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
 	if (!--urudev->powerup_ctr) {
 		fp_err("could not power device up");
@@ -962,10 +955,10 @@ static void powerup_pause_cb(void *data)
 
 static void powerup_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case POWERUP_INIT:
 		urudev->powerup_ctr = 100;
 		urudev->powerup_hwstat = urudev->last_hwstat & 0xf;
@@ -1032,13 +1025,13 @@ static void init_scanpwr_irq_cb(struct fp_img_dev *dev, int status,
 	uint16_t type, void *user_data)
 {
 	struct fpi_ssm *ssm = user_data;
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
 	if (status)
 		fpi_ssm_mark_aborted(ssm, status);
 	else if (type != IRQDATA_SCANPWR_ON)
 		fp_dbg("ignoring interrupt");
-	else if (ssm->cur_state != INIT_AWAIT_SCAN_POWER) {
+	else if (fpi_ssm_get_cur_state(ssm) != INIT_AWAIT_SCAN_POWER) {
 		fp_dbg("early scanpwr interrupt");
 		urudev->scanpwr_irq_timeouts = -1;
 	} else {
@@ -1050,8 +1043,8 @@ static void init_scanpwr_irq_cb(struct fp_img_dev *dev, int status,
 static void init_scanpwr_timeout(void *user_data)
 {
 	struct fpi_ssm *ssm = user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
 	fp_warn("powerup timed out");
 	urudev->irq_cb = NULL;
@@ -1067,10 +1060,10 @@ static void init_scanpwr_timeout(void *user_data)
 
 static void init_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct uru4k_dev *urudev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case INIT_GET_HWSTAT:
 		sm_read_reg(ssm, REG_HWSTAT);
 		break;
@@ -1082,9 +1075,9 @@ static void init_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_jump_to_state(ssm, INIT_CHECK_HWSTAT_POWERDOWN);
 		break;
 	case INIT_REBOOT_POWER: ;
-		struct fpi_ssm *rebootsm = fpi_ssm_new(dev->dev, rebootpwr_run_state,
+		struct fpi_ssm *rebootsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), rebootpwr_run_state,
 			REBOOTPWR_NUM_STATES);
-		rebootsm->priv = dev;
+		fpi_ssm_set_user_data(rebootsm, dev);
 		fpi_ssm_start_subsm(ssm, rebootsm);
 		break;
 	case INIT_CHECK_HWSTAT_POWERDOWN:
@@ -1101,9 +1094,9 @@ static void init_run_state(struct fpi_ssm *ssm)
 		urudev->irq_cb_data = ssm;
 		urudev->irq_cb = init_scanpwr_irq_cb;
 
-		struct fpi_ssm *powerupsm = fpi_ssm_new(dev->dev, powerup_run_state,
+		struct fpi_ssm *powerupsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), powerup_run_state,
 			POWERUP_NUM_STATES);
-		powerupsm->priv = dev;
+		fpi_ssm_set_user_data(powerupsm, dev);
 		fpi_ssm_start_subsm(ssm, powerupsm);
 		break;
 	case INIT_AWAIT_SCAN_POWER:
@@ -1147,8 +1140,8 @@ static void init_run_state(struct fpi_ssm *ssm)
 
 static void activate_initsm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	int r = ssm->error;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	int r = fpi_ssm_get_error(ssm);
 	fpi_ssm_free(ssm);
 
 	if (r) {
@@ -1166,7 +1159,7 @@ static void activate_initsm_complete(struct fpi_ssm *ssm)
  * call. */
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *ssm;
 	int r;
 
@@ -1176,8 +1169,8 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 	urudev->scanpwr_irq_timeouts = 0;
 	urudev->activate_state = state;
-	ssm = fpi_ssm_new(dev->dev, init_run_state, INIT_NUM_STATES);
-	ssm->priv = dev;
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), init_run_state, INIT_NUM_STATES);
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, activate_initsm_complete);
 	return 0;
 }
@@ -1202,7 +1195,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 
 static int execute_state_change(struct fp_img_dev *dev)
 {
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *ssm;
 
 	switch (urudev->activate_state) {
@@ -1230,8 +1223,8 @@ static int execute_state_change(struct fp_img_dev *dev)
 		urudev->img_data = g_malloc(sizeof(struct uru4k_image));
 		urudev->img_enc_seed = rand();
 
-		ssm = fpi_ssm_new(dev->dev, imaging_run_state, IMAGING_NUM_STATES);
-		ssm->priv = dev;
+		ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), imaging_run_state, IMAGING_NUM_STATES);
+		fpi_ssm_set_user_data(ssm, dev);
 		fpi_ssm_start(ssm, imaging_complete);
 
 		return write_reg(dev, REG_MODE, MODE_CAPTURE,
@@ -1264,7 +1257,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	/* Find fingerprint interface */
-	r = libusb_get_config_descriptor(libusb_get_device(dev->udev), 0, &config);
+	r = libusb_get_config_descriptor(libusb_get_device(fpi_imgdev_get_usb_dev(dev)), 0, &config);
 	if (r < 0) {
 		fp_err("Failed to get config descriptor");
 		return r;
@@ -1318,7 +1311,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	/* Device looks like a supported reader */
 
-	r = libusb_claim_interface(dev->udev, iface_desc->bInterfaceNumber);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), iface_desc->bInterfaceNumber);
 	if (r < 0) {
 		fp_err("interface claim failed: %s", libusb_error_name(r));
 		goto out;
@@ -1358,7 +1351,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 	urudev->param = PK11_ParamFromIV(urudev->cipher, NULL);
 
-	dev->priv = urudev;
+	fpi_imgdev_set_user_data(dev, urudev);
 	fpi_imgdev_open_complete(dev, 0);
 
 out:
@@ -1368,14 +1361,14 @@ out:
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	struct uru4k_dev *urudev = dev->priv;
+	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	if (urudev->symkey)
 		PK11_FreeSymKey (urudev->symkey);
 	if (urudev->param)
 		SECITEM_FreeItem(urudev->param, PR_TRUE);
 	if (urudev->slot)
 		PK11_FreeSlot(urudev->slot);
-	libusb_release_interface(dev->udev, urudev->interface);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), urudev->interface);
 	g_free(urudev);
 	fpi_imgdev_close_complete(dev);
 }

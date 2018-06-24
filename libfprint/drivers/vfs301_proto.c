@@ -28,18 +28,15 @@
  *   - describe some interesting structures better
  */
 #include <errno.h>
-#include <signal.h>
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <glib.h>
 #include <libusb-1.0/libusb.h>
 
 #include "vfs301_proto.h"
 #include "vfs301_proto_fragments.h"
-#include <unistd.h>
-
-#define min(a, b) (((a) < (b)) ? (a) : (b))
 
 /************************** USB STUFF *****************************************/
 
@@ -51,7 +48,7 @@ static void usb_print_packet(int dir, int rv, const unsigned char *data, int len
 #ifdef PRINT_VERBOSE
 	int i;
 
-	for (i = 0; i < min(length, 128); i++) {
+	for (i = 0; i < MIN(length, 128); i++) {
 		fprintf(stderr, "%.2X ", data[i]);
 		if (i % 8 == 7)
 			fprintf(stderr, " ");
@@ -68,7 +65,7 @@ static int usb_recv(
 	vfs301_dev_t *dev,
 	struct libusb_device_handle *devh, unsigned char endpoint, int max_bytes)
 {
-	assert(max_bytes <= sizeof(dev->recv_buf));
+	g_assert(max_bytes <= sizeof(dev->recv_buf));
 
 	int r = libusb_bulk_transfer(
 		devh, endpoint,
@@ -99,7 +96,7 @@ static int usb_send(
 	usb_print_packet(1, r, data, length);
 #endif
 
-	assert(r == 0);
+	g_assert(r == 0);
 
 	if (r < 0)
 		return r;
@@ -131,7 +128,7 @@ static void vfs301_proto_generate_0B(int subtype, unsigned char *data, int *len)
 		len++;
 		break;
 	default:
-		assert(!"unsupported");
+		g_assert_not_reached();
 		break;
 	}
 }
@@ -147,8 +144,8 @@ static void translate_str(const char **srcL, unsigned char *data, int *len)
 	while (*srcL != NULL) {
 		src = *srcL;
 		while (*src != '\0') {
-			assert(*src != '\0');
-			assert(*(src +1) != '\0');
+			g_assert(*src != '\0');
+			g_assert(*(src +1) != '\0');
 			*data = (unsigned char)((HEX_TO_INT(*src) << 4) | (HEX_TO_INT(*(src + 1))));
 
 			data++;
@@ -193,7 +190,7 @@ static void vfs301_proto_generate(int type, int subtype, unsigned char *data, in
 				vfs301_02D0_06,
 				vfs301_02D0_07,
 			};
-			assert((int)subtype <= (int)(sizeof(dataLs) / sizeof(dataLs[0])));
+			g_assert((int)subtype <= (int)(sizeof(dataLs) / sizeof(dataLs[0])));
 			translate_str(dataLs[subtype - 1], data, len);
 		}
 		break;
@@ -214,10 +211,10 @@ static void vfs301_proto_generate(int type, int subtype, unsigned char *data, in
 			translate_str(vfs301_next_scan_template, data, len);
 			unsigned char *field = data + *len - (sizeof(S4_TAIL) - 1) / 2 - 4;
 
-			assert(*field == 0xDE);
-			assert(*(field + 1) == 0xAD);
-			assert(*(field + 2) == 0xDE);
-			assert(*(field + 3) == 0xAD);
+			g_assert(*field == 0xDE);
+			g_assert(*(field + 1) == 0xAD);
+			g_assert(*(field + 2) == 0xDE);
+			g_assert(*(field + 3) == 0xAD);
 
 			*field = (unsigned char)((subtype >> 8) & 0xFF);
 			*(field + 1) = (unsigned char)(subtype & 0xFF);
@@ -225,15 +222,15 @@ static void vfs301_proto_generate(int type, int subtype, unsigned char *data, in
 			*(field + 3) = *(field + 1);
 			break;
 		default:
-			assert(0);
+			g_assert(0);
 			break;
 		}
 		break;
 	case 0x06:
-		assert(!"Not generated");
+		g_assert_not_reached();
 		break;
 	default:
-		assert(!"Unknown message type");
+		g_assert_not_reached();
 		break;
 	}
 }
@@ -296,7 +293,7 @@ void vfs301_extract_image(
 	int last_line;
 	int i;
 
-	assert(vfs->scanline_count >= 1);
+	g_assert(vfs->scanline_count >= 1);
 
 	*output_height = 1;
 	memcpy(output, scanlines, VFS301_FP_OUTPUT_WIDTH);
@@ -344,7 +341,7 @@ static int img_process_data(
 	}
 
 	dev->scanline_buf = realloc(dev->scanline_buf, dev->scanline_count * VFS301_FP_OUTPUT_WIDTH);
-	assert(dev->scanline_buf != NULL);
+	g_assert(dev->scanline_buf != NULL);
 
 	for (cur_line = dev->scanline_buf + last_img_height * VFS301_FP_OUTPUT_WIDTH, i = 0;
 		i < no_lines;
@@ -391,7 +388,7 @@ static int vfs301_proto_process_data(int first_block, vfs301_dev_t *dev)
 	int len = dev->recv_len;
 
 	if (first_block) {
-		assert(len >= VFS301_FP_FRAME_SIZE);
+		g_assert(len >= VFS301_FP_FRAME_SIZE);
 
 		/* Skip bytes until start_sequence is found */
 		for (i = 0; i < VFS301_FP_FRAME_SIZE; i++, buf++, len--) {
@@ -417,14 +414,14 @@ int vfs301_proto_peek_event(
 	const char got_event[] = {0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00};
 
 	USB_SEND(0x17, -1);
-	assert(USB_RECV(VFS301_RECEIVE_ENDPOINT_CTRL, 7) == 0);
+	g_assert(USB_RECV(VFS301_RECEIVE_ENDPOINT_CTRL, 7) == 0);
 
 	if (memcmp(dev->recv_buf, no_event, sizeof(no_event)) == 0) {
 		return 0;
 	} else if (memcmp(dev->recv_buf, got_event, sizeof(no_event)) == 0) {
 		return 1;
 	} else {
-		assert(!"unexpected reply to wait");
+		g_assert_not_reached();
 	}
 }
 

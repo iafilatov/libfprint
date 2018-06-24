@@ -36,14 +36,8 @@
 
 #define FP_COMPONENT "aes3k"
 
-#include <errno.h>
-
-#include <glib.h>
-#include <libusb.h>
-
-#include <aeslib.h>
-#include <fp_internal.h>
-
+#include "drivers_api.h"
+#include "aeslib.h"
 #include "aes3k.h"
 
 #define CTRL_TIMEOUT	1000
@@ -69,7 +63,7 @@ static void aes3k_assemble_image(unsigned char *input, size_t width, size_t heig
 static void img_cb(struct libusb_transfer *transfer)
 {
 	struct fp_img_dev *dev = transfer->user_data;
-	struct aes3k_dev *aesdev = dev->priv;
+	struct aes3k_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *ptr = transfer->buffer;
 	struct fp_img *tmp;
 	struct fp_img *img;
@@ -118,7 +112,7 @@ err:
 
 static void do_capture(struct fp_img_dev *dev)
 {
-	struct aes3k_dev *aesdev = dev->priv;
+	struct aes3k_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data;
 	int r;
 
@@ -129,7 +123,7 @@ static void do_capture(struct fp_img_dev *dev)
 	}
 
 	data = g_malloc(aesdev->data_buflen);
-	libusb_fill_bulk_transfer(aesdev->img_trf, dev->udev, EP_IN, data,
+	libusb_fill_bulk_transfer(aesdev->img_trf, fpi_imgdev_get_usb_dev(dev), EP_IN, data,
 		aesdev->data_buflen, img_cb, dev, 0);
 
 	r = libusb_submit_transfer(aesdev->img_trf);
@@ -150,14 +144,14 @@ static void init_reqs_cb(struct fp_img_dev *dev, int result, void *user_data)
 
 int aes3k_dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct aes3k_dev *aesdev = dev->priv;
+	struct aes3k_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	aes_write_regv(dev, aesdev->init_reqs, aesdev->init_reqs_len, init_reqs_cb, NULL);
 	return 0;
 }
 
 void aes3k_dev_deactivate(struct fp_img_dev *dev)
 {
-	struct aes3k_dev *aesdev = dev->priv;
+	struct aes3k_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	/* FIXME: should wait for cancellation to complete before returning
 	 * from deactivation, otherwise app may legally exit before we've

@@ -6,19 +6,19 @@
   <title>Getting Started</title>
 
   <para>
-  libfprint includes several simple functional examples under the examples/
+  libfprint includes several simple functional examples under the <computeroutput>examples/</computeroutput>
   directory in the libfprint source distribution. Those are good starting
   points.
   </para>
 
   <para>
   Usually the first thing you want to do is determine which fingerprint
-  devices are present. This is done through \ref dscv_dev "device discovery".
+  devices are present. This is done through <ulink url="libfprint-Device-discovery.html">device discovery</ulink>.
   </para>
 
   <para>
   Once you have found a device you would like to operate, you should open it.
-  Refer to \ref dev "device operations". This section also details enrollment,
+  Refer to <ulink url="libfprint-Devices-operations.html">device operations</ulink>. This section also details enrollment,
   image capture, and verification.
   </para>
 

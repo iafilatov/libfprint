@@ -19,6 +19,8 @@
 
 #define FP_COMPONENT "poll"
 
+#include "fp_internal.h"
+
 #include <config.h>
 #include <errno.h>
 #include <time.h>
@@ -26,8 +28,6 @@
 
 #include <glib.h>
 #include <libusb.h>
-
-#include "fp_internal.h"
 
 /**
  * SECTION:events
@@ -55,8 +55,12 @@
  * fp_handle_events_timeout() instead. If you wish to do a non-blocking
  * iteration, call fp_handle_events_timeout() with a zero timeout.
  *
- * FIXME: document how application is supposed to know when to call these
- * functions.
+ * How to integrate events handling depends on your main loop implementation.
+ * The sister fprintd project includes an implementation of main loop handling
+ * that integrates into GLib's main loop. The
+ * [libusb documentation](http://libusb.sourceforge.net/api-1.0/group__poll.html#details)
+ * also includes more details about how to integrate libfprint events into
+ * your main loop.
  */
 
 /* this is a singly-linked list of pending timers, sorted with the timer that
@@ -126,7 +130,7 @@ struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 
 void fpi_timeout_cancel(struct fpi_timeout *timeout)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	active_timers = g_slist_remove(active_timers, timeout);
 	g_free(timeout);
 }
@@ -163,7 +167,7 @@ static int get_next_timeout_expiry(struct timeval *out,
 		timerclear(out);
 	} else {
 		timersub(&next_timeout->expiry, &tv, out);
-		fp_dbg("next timeout in %d.%06ds", out->tv_sec, out->tv_usec);
+		fp_dbg("next timeout in %ld.%06lds", out->tv_sec, out->tv_usec);
 	}
 
 	return 1;
@@ -172,7 +176,7 @@ static int get_next_timeout_expiry(struct timeval *out,
 /* handle a timeout that has expired */
 static void handle_timeout(struct fpi_timeout *timeout)
 {
-	fp_dbg("");
+	G_DEBUG_HERE();
 	timeout->callback(timeout->data);
 	active_timers = g_slist_remove(active_timers, timeout);
 	g_free(timeout);
@@ -303,7 +307,7 @@ API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
  *
  * Retrieve a list of file descriptors that should be polled for events
  * interesting to libfprint. This function is only for users who wish to
- * combine libfprint's file descriptor set with other event sources - more
+ * combine libfprint's file descriptor set with other event sources – more
  * simplistic users will be able to call fp_handle_events() or a variant
  * directly.
  *
@@ -340,9 +344,11 @@ API_EXPORTED size_t fp_get_pollfds(struct fp_pollfd **pollfds)
 
 /**
  * fp_set_pollfd_notifiers:
- * @added_cb:
- * @removed_cb:
+ * @added_cb: a #fp_pollfd_added_cb callback or %NULL
+ * @removed_cb: a #fp_pollfd_removed_cb callback or %NULL
  *
+ * This sets the callback functions to call for every new or removed
+ * file descriptor used as an event source.
  */
 API_EXPORTED void fp_set_pollfd_notifiers(fp_pollfd_added_cb added_cb,
 	fp_pollfd_removed_cb removed_cb)

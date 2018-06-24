@@ -23,17 +23,9 @@
 
 #define FP_COMPONENT "aes2550"
 
-#include <errno.h>
-#include <string.h>
-
-#include <libusb.h>
-
-#include <assembling.h>
-#include <aeslib.h>
-#include <fp_internal.h>
-
+#include "drivers_api.h"
 #include "aes2550.h"
-#include "driver_ids.h"
+#include "aeslib.h"
 
 static void start_capture(struct fp_img_dev *dev);
 static void complete_deactivation(struct fp_img_dev *dev);
@@ -141,7 +133,7 @@ static void finger_det_reqs_cb(struct libusb_transfer *t)
 
 	/* 2 bytes of result */
 	data = g_malloc(AES2550_EP_IN_BUF_SIZE);
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, AES2550_EP_IN_BUF_SIZE,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, data, AES2550_EP_IN_BUF_SIZE,
 		finger_det_data_cb, dev, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -157,9 +149,9 @@ exit_free_transfer:
 static void start_finger_detection(struct fp_img_dev *dev)
 {
 	int r;
-	struct aes2550_dev *aesdev = dev->priv;
+	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	struct libusb_transfer *transfer;
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	if (aesdev->deactivating) {
 		complete_deactivation(dev);
@@ -171,7 +163,7 @@ static void start_finger_detection(struct fp_img_dev *dev)
 		fpi_imgdev_session_error(dev, -ENOMEM);
 		return;
 	}
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT, finger_det_reqs,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, finger_det_reqs,
 		sizeof(finger_det_reqs), finger_det_reqs_cb, dev, BULK_TIMEOUT);
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
@@ -211,8 +203,8 @@ enum capture_states {
 static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
 {
 	unsigned char *stripdata;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aes2550_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	struct fpi_frame *stripe;
 	int len;
 
@@ -253,8 +245,8 @@ static void capture_reqs_cb(struct libusb_transfer *transfer)
 static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aes2550_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length) &&
@@ -281,8 +273,8 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aes2550_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
 	int r;
 
@@ -333,10 +325,10 @@ out:
 
 static void capture_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_WRITE_REQS:
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
@@ -344,7 +336,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT, capture_reqs,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, capture_reqs,
 			sizeof(capture_reqs), capture_reqs_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
@@ -364,7 +356,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		}
 
 		data = g_malloc(AES2550_EP_IN_BUF_SIZE);
-		libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, AES2550_EP_IN_BUF_SIZE,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, data, AES2550_EP_IN_BUF_SIZE,
 			capture_read_data_cb, ssm, BULK_TIMEOUT);
 
 		r = libusb_submit_transfer(transfer);
@@ -382,7 +374,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT, capture_set_idle_reqs,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, capture_set_idle_reqs,
 			sizeof(capture_set_idle_reqs), capture_set_idle_reqs_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
@@ -396,14 +388,14 @@ static void capture_run_state(struct fpi_ssm *ssm)
 
 static void capture_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct aes2550_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	fp_dbg("Capture completed");
 	if (aesdev->deactivating)
 		complete_deactivation(dev);
-	else if (ssm->error)
-		fpi_imgdev_session_error(dev, ssm->error);
+	else if (fpi_ssm_get_error(ssm))
+		fpi_imgdev_session_error(dev, fpi_ssm_get_error(ssm));
 	else
 		start_finger_detection(dev);
 	fpi_ssm_free(ssm);
@@ -411,7 +403,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 
 static void start_capture(struct fp_img_dev *dev)
 {
-	struct aes2550_dev *aesdev = dev->priv;
+	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *ssm;
 
 	if (aesdev->deactivating) {
@@ -420,9 +412,9 @@ static void start_capture(struct fp_img_dev *dev)
 	}
 
 	aesdev->heartbeat_cnt = 0;
-	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
-	fp_dbg("");
-	ssm->priv = dev;
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), capture_run_state, CAPTURE_NUM_STATES);
+	G_DEBUG_HERE();
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
 
@@ -493,10 +485,10 @@ static void calibrate_read_data_cb(struct libusb_transfer *transfer)
 
 static void activate_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case WRITE_INIT:
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
@@ -504,7 +496,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT, init_reqs,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, init_reqs,
 			sizeof(init_reqs), init_reqs_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
@@ -524,7 +516,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		}
 
 		data = g_malloc(AES2550_EP_IN_BUF_SIZE);
-		libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, AES2550_EP_IN_BUF_SIZE,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, data, AES2550_EP_IN_BUF_SIZE,
 			init_read_data_cb, ssm, BULK_TIMEOUT);
 
 		r = libusb_submit_transfer(transfer);
@@ -542,7 +534,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_mark_aborted(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT, calibrate_reqs,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, calibrate_reqs,
 			sizeof(calibrate_reqs), init_reqs_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
@@ -562,7 +554,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		}
 
 		data = g_malloc(AES2550_EP_IN_BUF_SIZE);
-		libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN, data, AES2550_EP_IN_BUF_SIZE,
+		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, data, AES2550_EP_IN_BUF_SIZE,
 			calibrate_read_data_cb, ssm, BULK_TIMEOUT);
 
 		r = libusb_submit_transfer(transfer);
@@ -578,35 +570,35 @@ static void activate_run_state(struct fpi_ssm *ssm)
 
 static void activate_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	fp_dbg("status %d", ssm->error);
-	fpi_imgdev_activate_complete(dev, ssm->error);
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	fp_dbg("status %d", fpi_ssm_get_error(ssm));
+	fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
 
-	if (!ssm->error)
+	if (!fpi_ssm_get_error(ssm))
 		start_finger_detection(dev);
 	fpi_ssm_free(ssm);
 }
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, activate_run_state,
+	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
 		ACTIVATE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, activate_sm_complete);
 	return 0;
 }
 
 static void dev_deactivate(struct fp_img_dev *dev)
 {
-	struct aes2550_dev *aesdev = dev->priv;
+	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	aesdev->deactivating = TRUE;
 }
 
 static void complete_deactivation(struct fp_img_dev *dev)
 {
-	struct aes2550_dev *aesdev = dev->priv;
-	fp_dbg("");
+	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	G_DEBUG_HERE();
 
 	aesdev->deactivating = FALSE;
 	g_slist_free(aesdev->strips);
@@ -619,22 +611,26 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
 	/* TODO check that device has endpoints we're using */
 	int r;
+	struct aes2550_dev *aes2550_dev;
 
-	r = libusb_claim_interface(dev->udev, 0);
+	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
 	}
 
-	dev->priv = g_malloc0(sizeof(struct aes2550_dev));
+	aes2550_dev = g_malloc0(sizeof(struct aes2550_dev));
+	fpi_imgdev_set_user_data(dev, aes2550_dev);
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	g_free(dev->priv);
-	libusb_release_interface(dev->udev, 0);
+	struct aes2550_dev *aesdev;
+	aesdev = fpi_imgdev_get_user_data(dev);
+	g_free(aesdev);
+	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

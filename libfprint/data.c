@@ -76,7 +76,6 @@ void fpi_data_exit(void)
 	((finger) >= LEFT_THUMB && (finger) <= RIGHT_LITTLE)
 
 /* for debug messages only */
-#ifdef ENABLE_DEBUG_LOGGING
 static const char *finger_num_to_str(enum fp_finger finger)
 {
 	const char *names[] = {
@@ -95,7 +94,6 @@ static const char *finger_num_to_str(enum fp_finger finger)
 		return "UNKNOWN";
 	return names[finger];
 }
-#endif
 
 static struct fp_print_data *print_data_new(uint16_t driver_id,
 	uint32_t devtype, enum fp_print_data_type type)
@@ -149,7 +147,7 @@ API_EXPORTED size_t fp_print_data_get_data(struct fp_print_data *data,
 	GSList *list_item;
 	unsigned char *buf;
 
-	fp_dbg("");
+	G_DEBUG_HERE();
 
 	list_item = data->prints;
 	while (list_item) {
@@ -226,7 +224,7 @@ static struct fp_print_data *fpi_print_data_from_fp2_data(unsigned char *buf,
 
 		raw_item = (struct fpi_print_data_item_fp2 *)raw_buf;
 		item_len = GUINT32_FROM_LE(raw_item->length);
-		fp_dbg("item len %d, total_data_len %d", item_len, total_data_len);
+		fp_dbg("item len %d, total_data_len %d", (int) item_len, (int) total_data_len);
 		if (total_data_len < item_len) {
 			fp_err("corrupted fingerprint data");
 			break;
@@ -501,13 +499,15 @@ API_EXPORTED int fp_print_data_delete(struct fp_dev *dev,
  * be freed with fp_print_data_free() after use.
 
  * Attempts to load a stored print based on a #fp_dscv_print
- * "discovered print" record.
+ * discovered print record.
  *
  * A return code of -ENOENT indicates that the file referred to by the
  * discovered print could not be found. Other error codes (both positive and
  * negative) are possible for obscure error conditions (e.g. corruption).
  *
  * Returns: 0 on success, non-zero on error.
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED int fp_print_data_from_dscv_print(struct fp_dscv_print *print,
 	struct fp_print_data **data)
@@ -559,7 +559,7 @@ API_EXPORTED uint32_t fp_print_data_get_devtype(struct fp_print_data *data)
 
 /**
  * SECTION:dscv_print
- * @title: Print discovery
+ * @title: Print discovery (deprecated)
  *
  * The [stored print](libfprint-Stored-prints.html) documentation detailed a simple API
  * for storing per-device prints for a single user, namely
@@ -590,6 +590,10 @@ API_EXPORTED uint32_t fp_print_data_get_devtype(struct fp_print_data *data)
  * circumstances it may turn out that the print is corrupt or not for the
  * device that it appeared to be. Also, it is possible that the print may have
  * been deleted by the time you come to load it.
+ *
+ * Note that this portion of the library is deprecated. All that it offers is
+ * already implementable using publicly available functions, and its usage is
+ * unnecessarily restrictive in terms of how it stores data.
  */
 
 static GSList *scan_dev_store_dir(char *devpath, uint16_t driver_id,
@@ -681,6 +685,8 @@ static GSList *scan_driver_store_dir(char *drvpath, uint16_t driver_id,
  *
  * Returns: a %NULL-terminated list of discovered prints, must be freed with
  * fp_dscv_prints_free() after use.
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED struct fp_dscv_print **fp_discover_prints(void)
 {
@@ -745,6 +751,8 @@ API_EXPORTED struct fp_dscv_print **fp_discover_prints(void)
  * Frees a list of discovered prints. This function also frees the discovered
  * prints themselves, so make sure you do not use any discovered prints
  * after calling this function.
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED void fp_dscv_prints_free(struct fp_dscv_print **prints)
 {
@@ -771,6 +779,8 @@ API_EXPORTED void fp_dscv_prints_free(struct fp_dscv_print **prints)
  * usable with a device controlled by that driver.
  *
  * Returns: the driver ID of the driver compatible with the print
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED uint16_t fp_dscv_print_get_driver_id(struct fp_dscv_print *print)
 {
@@ -786,6 +796,8 @@ API_EXPORTED uint16_t fp_dscv_print_get_driver_id(struct fp_dscv_print *print)
  * with the print.
  *
  * Returns: the devtype of the device range compatible with the print
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED uint32_t fp_dscv_print_get_devtype(struct fp_dscv_print *print)
 {
@@ -799,6 +811,8 @@ API_EXPORTED uint32_t fp_dscv_print_get_devtype(struct fp_dscv_print *print)
  * Gets the finger code for a discovered print.
  *
  * Returns: a finger code from #fp_finger
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED enum fp_finger fp_dscv_print_get_finger(struct fp_dscv_print *print)
 {
@@ -815,6 +829,8 @@ API_EXPORTED enum fp_finger fp_dscv_print_get_finger(struct fp_dscv_print *print
  * fail for obvious reasons.
  *
  * Returns: 0 on success, negative on error
+ *
+ * Deprecated: Do not use.
  */
 API_EXPORTED int fp_dscv_print_delete(struct fp_dscv_print *print)
 {

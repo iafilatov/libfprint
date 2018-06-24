@@ -1,6 +1,32 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2018-06-12: v0.8.1 release
+- Brown paperbag release to install the udev rules file in the correct
+  directory if the udev pkg-config file doesn't have a trailing slash
+
+2018-06-12: v0.8.0 release
+- Port to meson as the build system
+- Port documentation to gtk-doc
+
+* Drivers:
+  - Add Elan driver
+  - Increase threshold to detect encryption on URU4000 devices
+  - Remove already replaced UPEKE2 driver
+  - Fix possible crash caused by vfs5011 when no lines were captured
+
+* Library:
+  - Fix a number of memory and file descriptor leaks and warnings
+  - Make NSS (and URU4000) driver optional
+  - Fix assembling of frames for non-reverse and non reverse stripes
+  - Split internal private header to clarify drivers API
+  - Simplify logging system, now all the builds can be used to output
+    debug information
+  - Mark fp_dscv_print functions as deprecated
+
+* Udev rules:
+  - Add some unsupported devices to the whitelist
+
 2017-05-14: v0.7.0 release
 * Drivers:
   - Add VFS0050 driver

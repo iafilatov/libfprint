@@ -60,7 +60,7 @@
     <para>
     In summary, libfprint represents fingerprints in several internal structures
     and each representation will offer you a way of determining the
-    \ref driver_id "driver ID" and \ref devtype "devtype" of the print in
+    <ulink url="#driver_id">driver ID</ulink> and <ulink url="#device-types">devtype</ulink> of the print in
     question. Prints are only compatible if the driver ID <emphasis role="strong">and</emphasis> devtypes
     match. libfprint does offer you some "is this print compatible?" helper
     functions, so you don't have to worry about these details too much.
@@ -73,8 +73,8 @@
     <para>
     Each driver is assigned a unique ID by the project maintainer. These
     assignments are
-    <ulink href="http://www.reactivated.net/fprint/Driver_ID_assignments">
-    documented on the wiki</ulink> and will never change.
+    <ulink url="https://gitlab.freedesktop.org/libfprint/libfprint/blob/master/libfprint/drivers/driver_ids.h">
+    documented in the sources</ulink> and will never change.
     </para>
 
     <para>
@@ -93,7 +93,7 @@
     <title>Device types</title>
 
     <para>
-    Internally, the \ref drv "driver" behind a device assigns a 32-bit
+    Internally, the <ulink url="libfprint-Driver-operations.html#libfprint-Driver-operations.description">driver</ulink> behind a device assigns a 32-bit
     <emphasis>devtype</emphasis> identifier to the device. This cannot be used as a unique
     ID for a specific device as many devices under the same range may share
     the same devtype. The devtype may even be 0 in all cases.

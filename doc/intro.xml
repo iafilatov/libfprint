@@ -8,13 +8,13 @@
   <para>
   libfprint is an open source library to provide access to fingerprint
   scanning devices. For more info, see the
-  <ulink url="http://www.reactivated.net/fprint/Libfprint">libfprint project homepage</ulink>.
+  <ulink url="https://fprint.freedesktop.org/">libfprint project homepage</ulink>.
   </para>
 
   <para>
   This documentation is aimed at application developers who wish to integrate
   fingerprint-related functionality into their software. libfprint has been
-  designed so that you only have to do this once - by integrating your
+  designed so that you only have to do this once – by integrating your
   software with libfprint, you'll be supporting all the fingerprint readers
   that we have got our hands on. As such, the API is rather general (and
   therefore hopefully easy to comprehend!), and does its best to hide the
@@ -30,7 +30,7 @@
   Feedback on this API and its associated documentation is appreciated. Was
   anything unclear? Does anything seem unreasonably complicated? Is anything
   missing? Let us know on the
-  <ulink url="http://www.reactivated.net/fprint/Mailing_list">mailing list</ulink>.
+  <ulink url="https://lists.freedesktop.org/mailman/listinfo/fprint">mailing list</ulink>.
   </para>
 
   <refsect2 id="enrollment">

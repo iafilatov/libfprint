@@ -23,17 +23,8 @@
 
 #define FP_COMPONENT "aesX660"
 
-#include <stdio.h>
-
-#include <errno.h>
-#include <string.h>
-
-#include <libusb.h>
-
-#include <assembling.h>
-#include <aeslib.h>
-#include <fp_internal.h>
-
+#include "drivers_api.h"
+#include "aeslib.h"
 #include "aesx660.h"
 
 static void start_capture(struct fp_img_dev *dev);
@@ -49,7 +40,7 @@ static void complete_deactivation(struct fp_img_dev *dev);
 static void aesX660_send_cmd_timeout(struct fpi_ssm *ssm, const unsigned char *cmd,
 	size_t cmd_len, libusb_transfer_cb_fn callback, int timeout)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
 
@@ -58,7 +49,7 @@ static void aesX660_send_cmd_timeout(struct fpi_ssm *ssm, const unsigned char *c
 		return;
 	}
 
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_OUT,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT,
 		(unsigned char *)cmd, cmd_len,
 		callback, ssm, timeout);
 	r = libusb_submit_transfer(transfer);
@@ -78,7 +69,7 @@ static void aesX660_send_cmd(struct fpi_ssm *ssm, const unsigned char *cmd,
 static void aesX660_read_response(struct fpi_ssm *ssm, size_t buf_len,
 	libusb_transfer_cb_fn callback)
 {
-	struct fp_img_dev *dev = ssm->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
@@ -89,7 +80,7 @@ static void aesX660_read_response(struct fpi_ssm *ssm, size_t buf_len,
 	}
 
 	data = g_malloc(buf_len);
-	libusb_fill_bulk_transfer(transfer, dev->udev, EP_IN,
+	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN,
 		data, buf_len,
 		callback, ssm, BULK_TIMEOUT);
 
@@ -153,8 +144,8 @@ enum finger_det_states {
 static void finger_det_read_fd_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
 
 	aesdev->fd_data_transfer = NULL;
@@ -206,9 +197,9 @@ static void finger_det_set_idle_cmd_cb(struct libusb_transfer *transfer)
 
 static void finger_det_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
-	int err = ssm->error;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Finger detection completed");
 	fpi_imgdev_report_finger_status(dev, TRUE);
@@ -226,7 +217,7 @@ static void finger_det_sm_complete(struct fpi_ssm *ssm)
 
 static void finger_det_run_state(struct fpi_ssm *ssm)
 {
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case FINGER_DET_SEND_LED_CMD:
 		aesX660_send_cmd(ssm, led_blink_cmd, sizeof(led_blink_cmd),
 			aesX660_send_cmd_cb);
@@ -249,15 +240,15 @@ static void finger_det_run_state(struct fpi_ssm *ssm)
 static void start_finger_detection(struct fp_img_dev *dev)
 {
 	struct fpi_ssm *ssm;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	if (aesdev->deactivating) {
 		complete_deactivation(dev);
 		return;
 	}
 
-	ssm = fpi_ssm_new(dev->dev, finger_det_run_state, FINGER_DET_NUM_STATES);
-	ssm->priv = dev;
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), finger_det_run_state, FINGER_DET_NUM_STATES);
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, finger_det_sm_complete);
 }
 
@@ -276,8 +267,8 @@ static int process_stripe_data(struct fpi_ssm *ssm, unsigned char *data)
 {
 	struct fpi_frame *stripe;
 	unsigned char *stripdata;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	stripe = g_malloc(aesdev->assembling_ctx->frame_width * FRAME_HEIGHT / 2 + sizeof(struct fpi_frame)); /* 4 bpp */
 	stripdata = stripe->data;
@@ -304,8 +295,8 @@ static int process_stripe_data(struct fpi_ssm *ssm, unsigned char *data)
 static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length)) {
@@ -330,8 +321,8 @@ static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
 static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
 	int finger_missing = 0;
 	size_t copied, actual_len = transfer->actual_length;
@@ -341,7 +332,7 @@ static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 		goto out;
 	}
 
-	fp_dbg("Got %d bytes of data", actual_len);
+	fp_dbg("Got %lu bytes of data", actual_len);
 	do {
 		copied = min(aesdev->buffer_max - aesdev->buffer_size, actual_len);
 		memcpy(aesdev->buffer + aesdev->buffer_size,
@@ -350,13 +341,13 @@ static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 		actual_len -= copied;
 		data += copied;
 		aesdev->buffer_size += copied;
-		fp_dbg("Copied %.4x bytes into internal buffer",
+		fp_dbg("Copied %.4lx bytes into internal buffer",
 			copied);
 		if (aesdev->buffer_size == aesdev->buffer_max) {
 			if (aesdev->buffer_max == AESX660_HEADER_SIZE) {
 				aesdev->buffer_max = aesdev->buffer[AESX660_RESPONSE_SIZE_LSB_OFFSET] +
 					(aesdev->buffer[AESX660_RESPONSE_SIZE_MSB_OFFSET] << 8) + AESX660_HEADER_SIZE;
-				fp_dbg("Got frame, type %.2x size %.4x",
+				fp_dbg("Got frame, type %.2x size %.4lx",
 					aesdev->buffer[AESX660_RESPONSE_TYPE_OFFSET],
 					aesdev->buffer_max);
 				continue;
@@ -382,10 +373,10 @@ out:
 
 static void capture_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_SEND_LED_CMD:
 		aesX660_send_cmd(ssm, led_solid_cmd, sizeof(led_solid_cmd),
 			aesX660_send_cmd_cb);
@@ -402,7 +393,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 			capture_read_stripe_data_cb);
 	break;
 	case CAPTURE_SET_IDLE:
-		fp_dbg("Got %d frames\n", aesdev->strips_len);
+		fp_dbg("Got %lu frames\n", aesdev->strips_len);
 		aesX660_send_cmd(ssm, set_idle_cmd, sizeof(set_idle_cmd),
 			capture_set_idle_cmd_cb);
 	break;
@@ -411,9 +402,9 @@ static void capture_run_state(struct fpi_ssm *ssm)
 
 static void capture_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
-	int err = ssm->error;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Capture completed");
 	fpi_ssm_free(ssm);
@@ -428,7 +419,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 
 static void start_capture(struct fp_img_dev *dev)
 {
-	struct aesX660_dev *aesdev = dev->priv;
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	struct fpi_ssm *ssm;
 
 	if (aesdev->deactivating) {
@@ -436,9 +427,9 @@ static void start_capture(struct fp_img_dev *dev)
 		return;
 	}
 
-	ssm = fpi_ssm_new(dev->dev, capture_run_state, CAPTURE_NUM_STATES);
-	fp_dbg("");
-	ssm->priv = dev;
+	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), capture_run_state, CAPTURE_NUM_STATES);
+	G_DEBUG_HERE();
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
 
@@ -458,8 +449,8 @@ enum activate_states {
 static void activate_read_id_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
 
 	if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) ||
@@ -509,8 +500,8 @@ out:
 static void activate_read_init_cb(struct libusb_transfer *transfer)
 {
 	struct fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
 
 	fp_dbg("read_init_cb\n");
@@ -545,10 +536,10 @@ out:
 
 static void activate_run_state(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	struct aesX660_dev *aesdev = dev->priv;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
-	switch (ssm->cur_state) {
+	switch (fpi_ssm_get_cur_state(ssm)) {
 	case ACTIVATE_SET_IDLE:
 		aesdev->init_seq_idx = 0;
 		fp_dbg("Activate: set idle\n");
@@ -591,8 +582,8 @@ static void activate_run_state(struct fpi_ssm *ssm)
 
 static void activate_sm_complete(struct fpi_ssm *ssm)
 {
-	struct fp_img_dev *dev = ssm->priv;
-	int err = ssm->error;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	int err = fpi_ssm_get_error(ssm);
 	fp_dbg("status %d", err);
 	fpi_imgdev_activate_complete(dev, err);
 	fpi_ssm_free(ssm);
@@ -603,16 +594,16 @@ static void activate_sm_complete(struct fpi_ssm *ssm)
 
 int aesX660_dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct fpi_ssm *ssm = fpi_ssm_new(dev->dev, activate_run_state,
+	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
 		ACTIVATE_NUM_STATES);
-	ssm->priv = dev;
+	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, activate_sm_complete);
 	return 0;
 }
 
 void aesX660_dev_deactivate(struct fp_img_dev *dev)
 {
-	struct aesX660_dev *aesdev = dev->priv;
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	if (aesdev->fd_data_transfer)
 		libusb_cancel_transfer(aesdev->fd_data_transfer);
@@ -622,8 +613,8 @@ void aesX660_dev_deactivate(struct fp_img_dev *dev)
 
 static void complete_deactivation(struct fp_img_dev *dev)
 {
-	struct aesX660_dev *aesdev = dev->priv;
-	fp_dbg("");
+	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	G_DEBUG_HERE();
 
 	aesdev->deactivating = FALSE;
 	g_slist_free(aesdev->strips);

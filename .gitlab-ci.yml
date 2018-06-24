@@ -1,0 +1,20 @@
+image: fedora:rawhide
+stages:
+  - build
+
+variables:
+  DEPENDENCIES: libusb1-devel glib2-devel nss-devel pixman-devel systemd meson gtk-doc
+                gcc gcc-c++ glibc-devel libX11-devel libXv-devel
+
+
+before_script:
+  - dnf update -y --nogpgcheck && dnf install -y --nogpgcheck $DEPENDENCIES
+
+
+build:
+  stage: build
+  script:
+    - meson . _build
+    - ninja -C _build
+    - ninja -C _build install
+
