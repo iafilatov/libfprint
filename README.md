@@ -35,6 +35,20 @@ cd builddir_dbg
 ninja
 ```
 
+### Pre-requisites
+
+YMMV. The best way to get all required packages and avoid installing unnecessary ones is to keep running `meson builddir` and installing the packages it asks for one-by-one.
+
+```
+libglib2.0-dev
+libnss3-dev
+libpixman-1-dev
+libusb-1.0.0-dev
+libx11-dev
+libxv-dev
+pkg-config
+```
+
 ### Capture
 
 > This may require root
