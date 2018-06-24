@@ -13,26 +13,32 @@ libfprint is built with [Meson Build System](http://mesonbuild.com/Quick-guide.h
 **If you installed libfprint from source before c5c5fcf (May 17, 2018)** please see [Uninstalling with autotools](#uninstalling-with-autotools).
 
 ```
+apt install meson
 git clone git@github.com:iafilatov/libfprint.git
 cd libfprint
-
-apt install ninja-build
-
-# The doc recommends system-wide installation with pip, which might not be the best/easiest option.
-# Here is how you can install meson in isolated environment:
-python3 -m venv venv
-. venv/bin/activate
-pip install -U pip
-pip install meson
 ```
 
 ## Trying it out
 
 ```
-venv/bin/meson builddir_dbg
-venv/bin/meson configure builddir_dbg -Ddebug_log=true
+meson builddir_dbg
+meson configure builddir_dbg -Ddebug_log=true
 cd builddir_dbg
 ninja
+```
+
+### Pre-requisites
+
+YMMV. The best way to get all required packages and avoid installing unnecessary ones is to keep running `meson builddir` and installing the packages it asks for one-by-one.
+
+```
+libglib2.0-dev >= 2.50
+libnss3-dev
+libpixman-1-dev
+libusb-1.0.0-dev
+libx11-dev
+libxv-dev
+pkg-config
 ```
 
 ### Capture
