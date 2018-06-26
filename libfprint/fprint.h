@@ -314,7 +314,7 @@ struct fp_pollfd {
 
 int fp_handle_events_timeout(struct timeval *timeout);
 int fp_handle_events(void);
-size_t fp_get_pollfds(struct fp_pollfd **pollfds);
+ssize_t fp_get_pollfds(struct fp_pollfd **pollfds);
 int fp_get_next_timeout(struct timeval *tv);
 
 /**
