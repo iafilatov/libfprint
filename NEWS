@@ -1,6 +1,17 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2018-07-15: v0.8.2 release
+* Drivers:
+  - Add USB ID for TNP Nano USB Fingerprint Reader
+  - Fix UPEKTS enrollment never finishing on some devices
+
+* Library:
+  - Fix fp_get_pollfds() retval type, a small ABI change
+  - Downgrade fatal errors to run-time warnings, as a number of drivers
+    used to throw silent errors and we made them fatal. Those will now
+    be visible warnings, hopefully helping with fixing them.
+
 2018-06-12: v0.8.1 release
 - Brown paperbag release to install the udev rules file in the correct
   directory if the udev pkg-config file doesn't have a trailing slash
