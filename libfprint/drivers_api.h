@@ -40,7 +40,7 @@
 #define fp_dbg g_debug
 #define fp_info g_debug
 #define fp_warn g_warning
-#define fp_err g_error
+#define fp_err g_warning
 
 #define BUG_ON(condition) G_STMT_START		\
 	if (condition) {			\
