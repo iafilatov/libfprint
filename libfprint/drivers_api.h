@@ -40,10 +40,16 @@
 #define fp_dbg g_debug
 #define fp_info g_debug
 #define fp_warn g_warning
-#define fp_err g_error
+#define fp_err g_warning
 
-#define BUG_ON(condition) g_assert(!(condition))
-#define BUG() g_assert_not_reached()
+#define BUG_ON(condition) G_STMT_START		\
+	if (condition) {			\
+		char *s;			\
+		s = g_strconcat ("BUG: (", #condition, ")", NULL); \
+		g_warning ("%s: %s() %s:%d", s, G_STRFUNC, __FILE__, __LINE__); \
+		g_free (s);			\
+	} G_STMT_END
+#define BUG() BUG_ON(1)
 
 enum fp_dev_state {
 	DEV_STATE_INITIAL = 0,
