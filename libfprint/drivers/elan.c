@@ -698,7 +698,7 @@ static void calibrate_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 
 	if (ssm->error != -ECANCELED)
-		fpi_imgdev_activate_complete(dev, ssm->error);
+		elan_capture(dev);
 
 	fpi_ssm_free(ssm);
 }
@@ -776,10 +776,7 @@ static void activate_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = ssm->priv;
 
 	if (ssm->error != -ECANCELED) {
-		if (ssm->error)
-			fpi_imgdev_activate_complete(dev, ssm->error);
-		else
-			elan_calibrate(dev);
+		fpi_imgdev_activate_complete(dev, ssm->error);
 	}
 
 	fpi_ssm_free(ssm);
@@ -873,7 +870,7 @@ static void elan_change_state(struct fp_img_dev *dev)
 		break;
 	case IMGDEV_STATE_AWAIT_FINGER_ON:
 		/* activation completed or another enroll stage started */
-		elan_capture(dev);
+		elan_calibrate(dev);
 		break;
 	case IMGDEV_STATE_CAPTURE:
 		/* not used */
