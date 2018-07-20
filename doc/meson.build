@@ -54,7 +54,6 @@ gnome.gtkdoc('libfprint',
              content_files: content_files,
              expand_content_files: expand_content_files,
              scan_args: [
-               '--rebuild-types',
                '--ignore-decorators=API_EXPORTED',
                '--ignore-headers=' + ' '.join(private_headers),
              ],
