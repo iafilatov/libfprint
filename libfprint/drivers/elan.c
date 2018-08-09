@@ -425,40 +425,58 @@ static void elan_run_cmd(struct fpi_ssm *ssm, const struct elan_cmd *cmd,
 	elandev->cur_transfer = transfer;
 
 	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev),
-				  ELAN_EP_CMD_OUT, cmd->cmd, ELAN_CMD_LEN,
-				  elan_cmd_cb, ssm, elandev->cmd_timeout);
+				  ELAN_EP_CMD_OUT, (char *)cmd->cmd,
+				  ELAN_CMD_LEN, elan_cmd_cb, ssm,
+				  elandev->cmd_timeout);
 	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
 	int r = libusb_submit_transfer(transfer);
 	if (r < 0)
 		fpi_ssm_mark_aborted(ssm, r);
 }
 
-enum deactivate_states {
-	DEACTIVATE,
-	DEACTIVATE_NUM_STATES,
+enum stop_capture_states {
+	STOP_CAPTURE,
+	STOP_CAPTURE_NUM_STATES,
 };
 
-static void deactivate_run_state(struct fpi_ssm *ssm)
+static void stop_capture_run_state(struct fpi_ssm *ssm)
 {
 	G_DEBUG_HERE();
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
-	case DEACTIVATE:
+	case STOP_CAPTURE:
 		elan_run_cmd(ssm, &stop_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	}
 }
 
-static void deactivate_complete(struct fpi_ssm *ssm)
+static void stop_capture_complete(struct fpi_ssm *ssm)
 {
 	G_DEBUG_HERE();
 
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct elan_dev *elandev = fpi_imgdev_get_user_data(dev);
+	int error = fpi_ssm_get_error(ssm);
 
-	fpi_imgdev_deactivate_complete(dev);
+	fpi_ssm_free(ssm);
+
+	if (!error) {
+		fpi_imgdev_report_finger_status(dev, FALSE);
+
+		/* If verify or identify fails because of short swipe, we need to restart
+		 * capture manually. It feels like libfprint or the application should know
+		 * better if they want to retry, but they don't. Unless we've been asked to
+		 * deactivate, try to re-enter the capture loop. Since state change is
+		 * async, there's still a chance to be deactivated by another pending
+		 * event. */
+		if (elandev->dev_state_next != IMGDEV_STATE_INACTIVE)
+			dev_change_state(dev, IMGDEV_STATE_AWAIT_FINGER_ON);
+
+	} else if (error != -ECANCELED)
+		fpi_imgdev_abort_scan(dev, error);
 }
 
-static void elan_deactivate(struct fp_img_dev *dev)
+static void elan_stop_capture(struct fp_img_dev *dev)
 {
 	G_DEBUG_HERE();
 
@@ -467,10 +485,10 @@ static void elan_deactivate(struct fp_img_dev *dev)
 	elan_dev_reset(elandev);
 
 	struct fpi_ssm *ssm =
-	    fpi_ssm_new(fpi_imgdev_get_dev(dev), deactivate_run_state,
-			DEACTIVATE_NUM_STATES);
+	    fpi_ssm_new(fpi_imgdev_get_dev(dev), stop_capture_run_state,
+			STOP_CAPTURE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
-	fpi_ssm_start(ssm, deactivate_complete);
+	fpi_ssm_start(ssm, stop_capture_complete);
 }
 
 enum capture_states {
@@ -549,19 +567,6 @@ static void capture_complete(struct fpi_ssm *ssm)
 	 * successful! */
 	else
 		fpi_imgdev_abort_scan(dev, error);
-
-	/* this procedure must be called regardless of outcome because it advances
-	 * dev_state to AWAIT_FINGER_ON under the hood... */
-	fpi_imgdev_report_finger_status(dev, FALSE);
-
-	/* ...but only on enroll! If verify or identify fails because of short swipe,
-	 * we need to do it manually. It feels like libfprint or the application
-	 * should know better if they want to retry, but they don't. Unless we've
-	 * been asked to deactivate, try to re-enter the capture loop. Since state
-	 * change is async, there's still a chance to be deactivated by another
-	 * pending event. */
-	if (elandev->dev_state_next != IMGDEV_STATE_INACTIVE)
-		dev_change_state(dev, IMGDEV_STATE_AWAIT_FINGER_ON);
 
 	fpi_ssm_free(ssm);
 }
@@ -690,7 +695,7 @@ static void calibrate_complete(struct fpi_ssm *ssm)
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 
 	if (fpi_ssm_get_error(ssm) != -ECANCELED)
-		fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
+		elan_capture(dev);
 
 	fpi_ssm_free(ssm);
 }
@@ -768,13 +773,8 @@ static void activate_complete(struct fpi_ssm *ssm)
 
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 
-	if (fpi_ssm_get_error(ssm) != -ECANCELED) {
-		if (fpi_ssm_get_error(ssm))
-			fpi_imgdev_activate_complete(dev,
-						     fpi_ssm_get_error(ssm));
-		else
-			elan_calibrate(dev);
-	}
+	if (fpi_ssm_get_error(ssm) != -ECANCELED)
+		fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
 
 	fpi_ssm_free(ssm);
 }
@@ -821,6 +821,13 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	return 0;
 }
 
+static void elan_deactivate(struct fp_img_dev *dev)
+{
+	G_DEBUG_HERE();
+
+	fpi_imgdev_deactivate_complete(dev);
+}
+
 static void dev_deinit(struct fp_img_dev *dev)
 {
 	G_DEBUG_HERE();
@@ -862,11 +869,13 @@ static void elan_change_state(struct fp_img_dev *dev)
 		break;
 	case IMGDEV_STATE_AWAIT_FINGER_ON:
 		/* activation completed or another enroll stage started */
-		elan_capture(dev);
+		elan_calibrate(dev);
 		break;
 	case IMGDEV_STATE_CAPTURE:
-	case IMGDEV_STATE_AWAIT_FINGER_OFF:
+		/* not used */
 		break;
+	case IMGDEV_STATE_AWAIT_FINGER_OFF:
+		elan_stop_capture(dev);
 	}
 
 	elandev->dev_state = next_state;
@@ -886,6 +895,7 @@ static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	switch (state) {
 	case IMGDEV_STATE_INACTIVE:
 	case IMGDEV_STATE_AWAIT_FINGER_ON:
+	case IMGDEV_STATE_AWAIT_FINGER_OFF:
 		/* schedule state change instead of calling it directly to allow all actions
 		 * related to the previous state to complete */
 		elandev->dev_state_next = state;
@@ -895,8 +905,7 @@ static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 		}
 		break;
 	case IMGDEV_STATE_CAPTURE:
-	case IMGDEV_STATE_AWAIT_FINGER_OFF:
-		/* TODO MAYBE: split capture ssm into smaller ssms and use these states */
+		/* TODO MAYBE: split capture ssm into smaller ssms and use this state */
 		elandev->dev_state = state;
 		elandev->dev_state_next = state;
 		break;
