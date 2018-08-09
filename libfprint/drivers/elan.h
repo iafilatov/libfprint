@@ -26,35 +26,41 @@
 
 #define ELAN_VENDOR_ID 0x04f3
 
-/* supported devices */
-#define ELAN_0903 1
-#define ELAN_0907 (1 << 1)
-#define ELAN_0C03 (1 << 2)
-#define ELAN_0C16 (1 << 3)
-#define ELAN_0C1A (1 << 4)
-#define ELAN_0C26 (1 << 5)
+/* a default device type */
+#define ELAN_ALL_DEVICES 0
 
-#define ELAN_ALL_DEVICES (ELAN_0903|ELAN_0907|ELAN_0C03|ELAN_0C16|ELAN_0C1A|ELAN_0C26)
+/* devices with quirks */
+#define ELAN_0907 1
+
+/* min FW version that supports calibration */
+#define ELAN_MIN_CALIBRATION_FW 0x0138
+
+/* max difference between background image mean and calibration mean
+ * (the response value of get_calib_mean_cmd)*/
+#define ELAN_CALIBRATION_MAX_DELTA 500
+
+/* times to retry reading calibration status during one session
+ * generally prevents calibration from looping indefinitely */
+#define ELAN_CALIBRATION_ATTEMPTS 10
 
 /* min and max frames in a capture */
 #define ELAN_MIN_FRAMES 7
 #define ELAN_MAX_FRAMES 30
 
+/* crop frames to this height to improve stitching */
+#define ELAN_MAX_FRAME_HEIGHT 30
+
 /* number of frames to drop at the end of capture because frames captured
  * while the finger is being lifted can be bad */
 #define ELAN_SKIP_LAST_FRAMES 1
-
-/* max difference between background image mean and calibration mean
-* (the response value of get_calib_mean_cmd)*/
-#define ELAN_CALIBRATION_MAX_DELTA 500
-
-/* times to retry calibration */
-#define ELAN_CALIBRATION_ATTEMPTS 10
 
 #define ELAN_CMD_LEN 0x2
 #define ELAN_EP_CMD_OUT (0x1 | LIBUSB_ENDPOINT_OUT)
 #define ELAN_EP_CMD_IN (0x3 | LIBUSB_ENDPOINT_IN)
 #define ELAN_EP_IMG_IN (0x2 | LIBUSB_ENDPOINT_IN)
+
+/* used as response length to tell the driver to skip reading response */
+#define ELAN_CMD_SKIP_READ 0
 
 /* usual command timeout and timeout for when we need to check if the finger is
  * still on the device */
@@ -99,27 +105,6 @@ static const struct elan_cmd get_image_cmd = {
 	.devices = ELAN_ALL_DEVICES,
 };
 
-static const struct elan_cmd get_calib_mean_cmd = {
-	.cmd = {0x40, 0x24},
-	.response_len = 0x2,
-	.response_in = ELAN_EP_CMD_IN,
-	.devices = ELAN_ALL_DEVICES & ~ELAN_0903,
-};
-
-static const struct elan_cmd reset_sensor_cmd = {
-	.cmd = {0x40, 0x11},
-	.response_len = 0x0,
-	.response_in = ELAN_EP_CMD_IN,
-	.devices = ELAN_ALL_DEVICES,
-};
-
-static const struct elan_cmd fuse_load_cmd = {
-	.cmd = {0x40, 0x14},
-	.response_len = 0x0,
-	.response_in = ELAN_EP_CMD_IN,
-	.devices = ELAN_ALL_DEVICES,
-};
-
 static const struct elan_cmd read_sensor_status_cmd = {
 	.cmd = {0x40, 0x13},
 	.response_len = 0x1,
@@ -127,16 +112,23 @@ static const struct elan_cmd read_sensor_status_cmd = {
 	.devices = ELAN_ALL_DEVICES,
 };
 
-static const struct elan_cmd run_calibration_cmd = {
+static const struct elan_cmd get_calib_status_cmd = {
 	.cmd = {0x40, 0x23},
 	.response_len = 0x1,
 	.response_in = ELAN_EP_CMD_IN,
 	.devices = ELAN_ALL_DEVICES,
 };
 
+static const struct elan_cmd get_calib_mean_cmd = {
+	.cmd = {0x40, 0x24},
+	.response_len = 0x2,
+	.response_in = ELAN_EP_CMD_IN,
+	.devices = ELAN_ALL_DEVICES,
+};
+
 static const struct elan_cmd led_on_cmd = {
 	.cmd = {0x40, 0x31},
-	.response_len = 0x0,
+	.response_len = ELAN_CMD_SKIP_READ,
 	.response_in = ELAN_EP_CMD_IN,
 	.devices = ELAN_0907,
 };
@@ -153,7 +145,7 @@ static const struct elan_cmd pre_scan_cmd = {
 /* led off, stop waiting for finger */
 static const struct elan_cmd stop_cmd = {
 	.cmd = {0x00, 0x0b},
-	.response_len = 0x0,
+	.response_len = ELAN_CMD_SKIP_READ,
 	.response_in = ELAN_EP_CMD_IN,
 	.devices = ELAN_ALL_DEVICES,
 };
