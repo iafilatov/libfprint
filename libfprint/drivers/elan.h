@@ -21,7 +21,6 @@
 #ifndef __ELAN_H
 #define __ELAN_H
 
-#include <string.h>
 #include <libusb.h>
 
 #define ELAN_VEND_ID 0x04f3
