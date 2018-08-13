@@ -1,3 +1,10 @@
+# Read this first
+
+This driver went upstream. If you are about to clone and build this repo, better clone [the official libfprint repo](https://gitlab.freedesktop.org/libfprint/libfprint) instead. If your package manager ships libfprint >= 0.8.3, it's already there. Yay!
+
+For help with this driver consider opening a ticket in the official repo or asking on the [mailing list](https://www.freedesktop.org/wiki/Software/fprint/Mailing_list/). I will keep this fork as a landing page for a while.
+
+
 # A fork of libfrpint with ElanTech fingerprint reader driver
 
 Original libfprint readme is in [README](README)
