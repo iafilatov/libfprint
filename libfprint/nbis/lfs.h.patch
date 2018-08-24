@@ -1,0 +1,58 @@
+--- include/lfs.h	2018-08-24 15:31:54.535579623 +0200
++++ include/lfs.h.orig	2018-08-24 15:31:48.781587933 +0200
+@@ -66,7 +43,7 @@ of the software.
+ 
+ #include <math.h>
+ #include <stdio.h>
+-#include <an2k.h>  /* Needed by to_type9.c */
++#include <fp_internal.h>
+ 
+ /*************************************************************************/
+ /*        OUTPUT FILE EXTENSIONS                                         */
+@@ -154,26 +131,8 @@ typedef struct rotgrids{
+ #define DISAPPEARING    0
+ #define APPEARING       1
+ 
+-typedef struct minutia{
+-   int x;
+-   int y;
+-   int ex;
+-   int ey;
+-   int direction;
+-   double reliability;
+-   int type;
+-   int appearing;
+-   int feature_id;
+-   int *nbrs;
+-   int *ridge_counts;
+-   int num_nbrs;
+-} MINUTIA;
+-
+-typedef struct minutiae{
+-   int alloc;
+-   int num;
+-   MINUTIA **list;
+-} MINUTIAE;
++typedef struct fp_minutia MINUTIA;
++typedef struct fp_minutiae MINUTIAE;
+ 
+ typedef struct feature_pattern{
+    int type;
+@@ -1185,17 +1185,6 @@ extern void bubble_sort_double_inc_2(double *, int *, const int);
+ extern void bubble_sort_double_dec_2(double *, int *,  const int);
+ extern void bubble_sort_int_inc(int *, const int);
+ 
+-/* to_type9.c */
+-extern int minutiae2type_9(RECORD **, const int, MINUTIAE *, const int,
+-                  const int, const double);
+-extern int mintiae2field_12(FIELD **, MINUTIAE *, const int, const int,
+-                  const double);
+-
+-/* update.c */
+-extern int update_ANSI_NIST_lfs_results(ANSI_NIST *, MINUTIAE *,
+-                                unsigned char *, const int, const int,
+-                                const int, const double, const int, const int);
+-
+ /* util.c */
+ extern int maxv(const int *, const int);
+ extern int minv(const int *, const int);
