@@ -1,25 +1,46 @@
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
+
 
 /***********************************************************************
       LIBRARY: LFS - NIST Latent Fingerprint System
@@ -52,76 +73,51 @@ identified are necessarily the best available for the purpose.
 
 /*************************************************************************
 **************************************************************************
-#cat: insert_neighbor - Takes a minutia index and its squared distance to a
-#cat:               primary minutia point, and inserts them in the specified
-#cat:               position of their respective lists, shifting previously
-#cat:               stored values down and off the lists as necessary.
+#cat: count_minutiae_ridges - Takes a list of minutiae, and for each one,
+#cat:                determines its closest neighbors and counts the number
+#cat:                of interveining ridges between the minutia point and
+#cat:                each of its neighbors.
 
    Input:
-      pos       - postions where values are to be inserted in lists
-      nbr_index - index of minutia being inserted
-      nbr_dist2 - squared distance of minutia to its primary point
-      nbr_list  - current list of nearest neighbor minutia indices
-      nbr_sqr_dists - corresponding squared euclidean distance of each
-                  neighbor to the primary minutia point
-      nnbrs     - number of neighbors currently in the list
-      max_nbrs  - maximum number of closest neighbors to be returned
+      minutiae  - list of minutiae
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      lfsparms  - parameters and thresholds for controlling LFS
    Output:
-      nbr_list - updated list of nearest neighbor indices
-      nbr_sqr_dists - updated list of nearest neighbor distances
-      nnbrs    - number of neighbors in the update lists
+      minutiae  - list of minutiae augmented with neighbors and ridge counts
    Return Code:
-      Zero      - successful completion
-      Negative  - system error
+      Zero     - successful completion
+      Negative - system error
 **************************************************************************/
-static int insert_neighbor(const int pos, const int nbr_index, const double nbr_dist2,
-                    int *nbr_list, double *nbr_sqr_dists,
-                    int *nnbrs, const int max_nbrs)
+int count_minutiae_ridges(MINUTIAE *minutiae,
+                      unsigned char *bdata, const int iw, const int ih,
+                      const LFSPARMS *lfsparms)
 {
+   int ret;
    int i;
 
-   /* If the desired insertion position is beyond one passed the last     */
-   /* neighbor in the lists OR greater than equal to the maximum ...      */
-   /* NOTE: pos is zero-oriented while nnbrs and max_nbrs are 1-oriented. */
-   if((pos > *nnbrs) ||
-      (pos >= max_nbrs)){
-      fprintf(stderr,
-              "ERROR : insert_neighbor : insertion point exceeds lists\n");
-      return(-480);
+   print2log("\nFINDING NBRS AND COUNTING RIDGES:\n");
+
+   /* Sort minutia points on x then y (column-oriented). */
+   if((ret = sort_minutiae_x_y(minutiae, iw, ih))){
+      return(ret);
    }
 
-   /* If the neighbor lists are NOT full ... */
-   if(*nnbrs < max_nbrs){
-      /* Then we have room to shift everything down to make room for new */
-      /* neighbor and increase the number of neighbors stored by 1.      */
-      i = *nnbrs-1;
-      (*nnbrs)++;
-   }
-   /* Otherwise, the neighbors lists are full ... */
-   else if(*nnbrs == max_nbrs)
-      /* So, we must bump the last neighbor in the lists off to make */
-      /* room for the new neighbor (ignore last neighbor in lists).  */
-      i = *nnbrs-2;
-   /* Otherwise, there is a list overflow error condition */
-   /* (shouldn't ever happen, but just in case) ...       */
-   else{
-      fprintf(stderr,
-              "ERROR : insert_neighbor : overflow in neighbor lists\n");
-      return(-481);
+   /* Remove any duplicate minutia points from the list. */
+   if((ret = rm_dup_minutiae(minutiae))){
+      return(ret);
    }
 
-   /* While we havn't reached the desired insertion point ... */
-   while(i >= pos){
-      /* Shift the current neighbor down the list 1 positon. */
-      nbr_list[i+1] = nbr_list[i];
-      nbr_sqr_dists[i+1] = nbr_sqr_dists[i];
-      i--;
+   /* Foreach remaining sorted minutia in list ... */
+   for(i = 0; i < minutiae->num-1; i++){
+      /* Located neighbors and count number of ridges in between. */
+      /* NOTE: neighbor and ridge count results are stored in     */
+      /*       minutiae->list[i].                                 */
+      if((ret = count_minutia_ridges(i, minutiae, bdata, iw, ih, lfsparms))){
+         return(ret);
+      }
    }
-
-   /* We are now ready to put our new neighbor in the position where */
-   /* we shifted everything down from to make room.                  */
-   nbr_list[pos] = nbr_index;
-   nbr_sqr_dists[pos] = nbr_dist2;
 
    /* Return normally. */
    return(0);
@@ -129,79 +125,83 @@ static int insert_neighbor(const int pos, const int nbr_index, const double nbr_
 
 /*************************************************************************
 **************************************************************************
-#cat: update_nbr_dists - Takes the current list of neighbors along with a
-#cat:               primary minutia and a potential new neighbor, and
-#cat:               determines if the new neighbor is sufficiently close
-#cat:               to be added to the list of nearest neighbors.  If added,
-#cat:               it is placed in the list in its proper order based on
-#cat:               squared distance to the primary point.
+#cat: count_minutia_ridges - Takes a minutia, and determines its closest
+#cat:                neighbors and counts the number of interveining ridges
+#cat:                between the minutia point and each of its neighbors.
 
    Input:
-      nbr_list - current list of nearest neighbor minutia indices
-      nbr_sqr_dists - corresponding squared euclidean distance of each
-                 neighbor to the primary minutia point
-      nnbrs    - number of neighbors currently in the list
-      max_nbrs - maximum number of closest neighbors to be returned
-      first    - index of the primary minutia point
-      second   - index of the secondary (new neighbor) point
-      minutiae - list of minutiae
+      minutia   - input minutia
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      lfsparms  - parameters and thresholds for controlling LFS
    Output:
-      nbr_list - updated list of nearest neighbor indices
-      nbr_sqr_dists - updated list of nearest neighbor distances
-      nnbrs    - number of neighbors in the update lists
+      minutiae  - minutia augmented with neighbors and ridge counts
    Return Code:
-      Zero      - successful completion
-      Negative  - system error
+      Zero     - successful completion
+      Negative - system error
 **************************************************************************/
-static int update_nbr_dists(int *nbr_list, double *nbr_sqr_dists,
-                      int *nnbrs, const int max_nbrs,
-                      const int first, const int second, MINUTIAE *minutiae)
+int count_minutia_ridges(const int first, MINUTIAE *minutiae,
+                      unsigned char *bdata, const int iw, const int ih,
+                      const LFSPARMS *lfsparms)
 {
-   double dist2;
-   MINUTIA *minutia1, *minutia2;
-   int pos, last_nbr;
+   int i, ret, *nbr_list, *nbr_nridges, nnbrs;
 
-   /* Compute position of maximum last neighbor stored. */
-   last_nbr = max_nbrs - 1;
+   /* Find up to the maximum number of qualifying neighbors. */
+   if((ret = find_neighbors(&nbr_list, &nnbrs, lfsparms->max_nbrs,
+                           first, minutiae))){
+      free(nbr_list);
+      return(ret);
+   }
 
-   /* Assigne temporary minutia pointers. */
-   minutia1 = minutiae->list[first];
-   minutia2 = minutiae->list[second];
+   print2log("NBRS FOUND: %d,%d = %d\n", minutiae->list[first]->x,
+              minutiae->list[first]->y, nnbrs);
 
-   /* Compute squared euclidean distance between minutia pair. */
-   dist2 = squared_distance(minutia1->x, minutia1->y,
-                            minutia2->x, minutia2->y);
-
-   /* If maximum number of neighbors not yet stored in lists OR */
-   /* if the squared distance to current secondary is less      */
-   /* than the largest stored neighbor distance ...             */
-   if((*nnbrs < max_nbrs) ||
-      (dist2 < nbr_sqr_dists[last_nbr])){
-
-      /* Find insertion point in neighbor lists. */
-      pos = find_incr_position_dbl(dist2, nbr_sqr_dists, *nnbrs);
-      /* If the position returned is >= maximum list length (this should */
-      /* never happen, but just in case) ...                             */
-      if(pos >= max_nbrs){
-         fprintf(stderr, 
-         "ERROR : update_nbr_dists : illegal position for new neighbor\n");
-         return(-470);
-      }
-      /* Insert the new neighbor into the neighbor lists at the */
-      /* specified location.                                    */
-      if(insert_neighbor(pos, second, dist2,
-                         nbr_list, nbr_sqr_dists, nnbrs, max_nbrs))
-         return(-471);
-
-      /* Otherwise, neighbor inserted successfully, so return normally. */
+   /* If no neighors found ... */
+   if(nnbrs == 0){
+      /* Then no list returned and no ridges to count. */
       return(0);
    }
-   /* Otherwise, the new neighbor is not sufficiently close to be       */
-   /* added or inserted into the neighbor lists, so ignore the neighbor */
-   /* and return normally.                                              */
-   else
-      return(0);
 
+   /* Sort neighbors on delta dirs. */
+   if((ret = sort_neighbors(nbr_list, nnbrs, first, minutiae))){
+      free(nbr_list);
+      return(ret);
+   }
+
+   /* Count ridges between first and neighbors. */
+   /* List of ridge counts, one for each neighbor stored. */
+   nbr_nridges = (int *)malloc(nnbrs * sizeof(int));
+   if(nbr_nridges == (int *)NULL){
+      free(nbr_list);
+      fprintf(stderr, "ERROR : count_minutia_ridges : malloc : nbr_nridges\n");
+      return(-450);
+   }
+
+   /* Foreach neighbor found and sorted in list ... */
+   for(i = 0; i < nnbrs; i++){
+      /* Count the ridges between the primary minutia and the neighbor. */
+      ret = ridge_count(first, nbr_list[i], minutiae, bdata, iw, ih, lfsparms);
+      /* If system error ... */
+      if(ret < 0){
+         /* Deallocate working memories. */
+         free(nbr_list);
+         free(nbr_nridges);
+         /* Return error code. */
+         return(ret);
+      }
+
+      /* Otherwise, ridge count successful, so store ridge count to list. */
+      nbr_nridges[i] = ret;
+   }
+
+   /* Assign neighbor indices and ridge counts to primary minutia. */
+   minutiae->list[first]->nbrs = nbr_list;
+   minutiae->list[first]->ridge_counts = nbr_nridges;
+   minutiae->list[first]->num_nbrs = nnbrs;
+
+   /* Return normally. */
+   return(0);
 }
 
 /*************************************************************************
@@ -224,7 +224,7 @@ static int update_nbr_dists(int *nbr_list, double *nbr_sqr_dists,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-static int find_neighbors(int **onbr_list, int *onnbrs, const int max_nbrs,
+int find_neighbors(int **onbr_list, int *onnbrs, const int max_nbrs,
                    const int first, MINUTIAE *minutiae)
 {
    int ret, second, last_nbr;
@@ -314,6 +314,160 @@ static int find_neighbors(int **onbr_list, int *onnbrs, const int max_nbrs,
 
 /*************************************************************************
 **************************************************************************
+#cat: update_nbr_dists - Takes the current list of neighbors along with a
+#cat:               primary minutia and a potential new neighbor, and
+#cat:               determines if the new neighbor is sufficiently close
+#cat:               to be added to the list of nearest neighbors.  If added,
+#cat:               it is placed in the list in its proper order based on
+#cat:               squared distance to the primary point.
+
+   Input:
+      nbr_list - current list of nearest neighbor minutia indices
+      nbr_sqr_dists - corresponding squared euclidean distance of each
+                 neighbor to the primary minutia point
+      nnbrs    - number of neighbors currently in the list
+      max_nbrs - maximum number of closest neighbors to be returned
+      first    - index of the primary minutia point
+      second   - index of the secondary (new neighbor) point
+      minutiae - list of minutiae
+   Output:
+      nbr_list - updated list of nearest neighbor indices
+      nbr_sqr_dists - updated list of nearest neighbor distances
+      nnbrs    - number of neighbors in the update lists
+   Return Code:
+      Zero      - successful completion
+      Negative  - system error
+**************************************************************************/
+int update_nbr_dists(int *nbr_list, double *nbr_sqr_dists,
+                      int *nnbrs, const int max_nbrs,
+                      const int first, const int second, MINUTIAE *minutiae)
+{
+   double dist2;
+   MINUTIA *minutia1, *minutia2;
+   int pos, last_nbr;
+
+   /* Compute position of maximum last neighbor stored. */
+   last_nbr = max_nbrs - 1;
+
+   /* Assigne temporary minutia pointers. */
+   minutia1 = minutiae->list[first];
+   minutia2 = minutiae->list[second];
+
+   /* Compute squared euclidean distance between minutia pair. */
+   dist2 = squared_distance(minutia1->x, minutia1->y,
+                            minutia2->x, minutia2->y);
+
+   /* If maximum number of neighbors not yet stored in lists OR */
+   /* if the squared distance to current secondary is less      */
+   /* than the largest stored neighbor distance ...             */
+   if((*nnbrs < max_nbrs) ||
+      (dist2 < nbr_sqr_dists[last_nbr])){
+
+      /* Find insertion point in neighbor lists. */
+      pos = find_incr_position_dbl(dist2, nbr_sqr_dists, *nnbrs);
+      /* If the position returned is >= maximum list length (this should */
+      /* never happen, but just in case) ...                             */
+      if(pos >= max_nbrs){
+         fprintf(stderr,
+         "ERROR : update_nbr_dists : illegal position for new neighbor\n");
+         return(-470);
+      }
+      /* Insert the new neighbor into the neighbor lists at the */
+      /* specified location.                                    */
+      if(insert_neighbor(pos, second, dist2,
+                         nbr_list, nbr_sqr_dists, nnbrs, max_nbrs))
+         return(-471);
+
+      /* Otherwise, neighbor inserted successfully, so return normally. */
+      return(0);
+   }
+   /* Otherwise, the new neighbor is not sufficiently close to be       */
+   /* added or inserted into the neighbor lists, so ignore the neighbor */
+   /* and return normally.                                              */
+   else
+      return(0);
+
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: insert_neighbor - Takes a minutia index and its squared distance to a
+#cat:               primary minutia point, and inserts them in the specified
+#cat:               position of their respective lists, shifting previously
+#cat:               stored values down and off the lists as necessary.
+
+   Input:
+      pos       - postions where values are to be inserted in lists
+      nbr_index - index of minutia being inserted
+      nbr_dist2 - squared distance of minutia to its primary point
+      nbr_list  - current list of nearest neighbor minutia indices
+      nbr_sqr_dists - corresponding squared euclidean distance of each
+                  neighbor to the primary minutia point
+      nnbrs     - number of neighbors currently in the list
+      max_nbrs  - maximum number of closest neighbors to be returned
+   Output:
+      nbr_list - updated list of nearest neighbor indices
+      nbr_sqr_dists - updated list of nearest neighbor distances
+      nnbrs    - number of neighbors in the update lists
+   Return Code:
+      Zero      - successful completion
+      Negative  - system error
+**************************************************************************/
+int insert_neighbor(const int pos, const int nbr_index, const double nbr_dist2,
+                    int *nbr_list, double *nbr_sqr_dists,
+                    int *nnbrs, const int max_nbrs)
+{
+   int i;
+
+   /* If the desired insertion position is beyond one passed the last     */
+   /* neighbor in the lists OR greater than equal to the maximum ...      */
+   /* NOTE: pos is zero-oriented while nnbrs and max_nbrs are 1-oriented. */
+   if((pos > *nnbrs) ||
+      (pos >= max_nbrs)){
+      fprintf(stderr,
+              "ERROR : insert_neighbor : insertion point exceeds lists\n");
+      return(-480);
+   }
+
+   /* If the neighbor lists are NOT full ... */
+   if(*nnbrs < max_nbrs){
+      /* Then we have room to shift everything down to make room for new */
+      /* neighbor and increase the number of neighbors stored by 1.      */
+      i = *nnbrs-1;
+      (*nnbrs)++;
+   }
+   /* Otherwise, the neighbors lists are full ... */
+   else if(*nnbrs == max_nbrs)
+      /* So, we must bump the last neighbor in the lists off to make */
+      /* room for the new neighbor (ignore last neighbor in lists).  */
+      i = *nnbrs-2;
+   /* Otherwise, there is a list overflow error condition */
+   /* (shouldn't ever happen, but just in case) ...       */
+   else{
+      fprintf(stderr,
+              "ERROR : insert_neighbor : overflow in neighbor lists\n");
+      return(-481);
+   }
+
+   /* While we havn't reached the desired insertion point ... */
+   while(i >= pos){
+      /* Shift the current neighbor down the list 1 positon. */
+      nbr_list[i+1] = nbr_list[i];
+      nbr_sqr_dists[i+1] = nbr_sqr_dists[i];
+      i--;
+   }
+
+   /* We are now ready to put our new neighbor in the position where */
+   /* we shifted everything down from to make room.                  */
+   nbr_list[pos] = nbr_index;
+   nbr_sqr_dists[pos] = nbr_dist2;
+
+   /* Return normally. */
+   return(0);
+}
+
+/*************************************************************************
+**************************************************************************
 #cat: sort_neighbors - Takes a list of primary minutia and its neighboring
 #cat:               minutia indices and sorts the neighbors based on their
 #cat:               position relative to the primary minutia point.  Neighbors
@@ -331,7 +485,7 @@ static int find_neighbors(int **onbr_list, int *onnbrs, const int max_nbrs,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int sort_neighbors(int *nbr_list, const int nnbrs, const int first,
+int sort_neighbors(int *nbr_list, const int nnbrs, const int first,
                    MINUTIAE *minutiae)
 {
    double *join_thetas, theta;
@@ -369,7 +523,164 @@ static int sort_neighbors(int *nbr_list, const int nnbrs, const int first,
    free(join_thetas);
 
    /* Return normally. */
-   return(0);      
+   return(0);
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: ridge_count - Takes a pair of minutiae, and counts the number of
+#cat:               ridges crossed along the linear trajectory connecting
+#cat:               the 2 points in the image.
+
+   Input:
+      first     - index of primary minutia
+      second    - index of secondary (neighbor) minutia
+      minutiae  - list of minutiae
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      lfsparms  - parameters and thresholds for controlling LFS
+   Return Code:
+      Zero or Positive - number of ridges counted
+      Negative         - system error
+**************************************************************************/
+int ridge_count(const int first, const int second, MINUTIAE *minutiae,
+                unsigned char *bdata, const int iw, const int ih,
+                const LFSPARMS *lfsparms)
+{
+   MINUTIA *minutia1, *minutia2;
+   int i, ret, found;
+   int *xlist, *ylist, num;
+   int ridge_count, ridge_start, ridge_end;
+   int prevpix, curpix;
+
+   minutia1 = minutiae->list[first];
+   minutia2 = minutiae->list[second];
+
+   /* If the 2 mintuia have identical pixel coords ... */
+   if((minutia1->x == minutia2->x) &&
+      (minutia1->y == minutia2->y))
+      /* Then zero ridges between points. */
+     return(0);
+
+   /* Compute linear trajectory of contiguous pixels between first */
+   /* and second minutia points.                                   */
+   if((ret = line_points(&xlist, &ylist, &num,
+                        minutia1->x, minutia1->y, minutia2->x, minutia2->y))){
+      return(ret);
+   }
+
+   /* It there are no points on the line trajectory, then no ridges */
+   /* to count (this should not happen, but just in case) ...       */
+   if(num == 0){
+      free(xlist);
+      free(ylist);
+      return(0);
+   }
+
+   /* Find first pixel opposite type along linear trajectory from */
+   /* first minutia.                                              */
+   prevpix = *(bdata+(ylist[0]*iw)+xlist[0]);
+   i = 1;
+   found = FALSE;
+   while(i < num){
+      curpix = *(bdata+(ylist[i]*iw)+xlist[i]);
+      if(curpix != prevpix){
+         found = TRUE;
+         break;
+      }
+      i++;
+   }
+
+   /* If opposite pixel not found ... then no ridges to count */
+   if(!found){
+      free(xlist);
+      free(ylist);
+      return(0);
+   }
+
+   /* Ready to count ridges, so initialize counter to 0. */
+   ridge_count = 0;
+
+   print2log("RIDGE COUNT: %d,%d to %d,%d ", minutia1->x, minutia1->y,
+                                               minutia2->x, minutia2->y);
+
+   /* While not at the end of the trajectory ... */
+   while(i < num){
+      /* If 0-to-1 transition not found ... */
+      if(!find_transition(&i, 0, 1, xlist, ylist, num, bdata, iw, ih)){
+         /* Then we are done looking for ridges. */
+         free(xlist);
+         free(ylist);
+
+         print2log("\n");
+
+         /* Return number of ridges counted to this point. */
+         return(ridge_count);
+      }
+      /* Otherwise, we found a new ridge start transition, so store */
+      /* its location (the location of the 1 in 0-to-1 transition). */
+      ridge_start = i;
+
+      print2log(": RS %d,%d ", xlist[i], ylist[i]);
+
+      /* If 1-to-0 transition not found ... */
+      if(!find_transition(&i, 1, 0, xlist, ylist, num, bdata, iw, ih)){
+         /* Then we are done looking for ridges. */
+         free(xlist);
+         free(ylist);
+
+         print2log("\n");
+
+         /* Return number of ridges counted to this point. */
+         return(ridge_count);
+      }
+      /* Otherwise, we found a new ridge end transition, so store   */
+      /* its location (the location of the 0 in 1-to-0 transition). */
+      ridge_end = i;
+
+      print2log("; RE %d,%d ", xlist[i], ylist[i]);
+
+      /* Conduct the validation, tracing the contour of the ridge  */
+      /* from the ridge ending point a specified number of steps   */
+      /* scanning for neighbors clockwise and counter-clockwise.   */
+      /* If the ridge starting point is encounted during the trace */
+      /* then we can assume we do not have a valid ridge crossing  */
+      /* and instead we are walking on and off the edge of the     */
+      /* side of a ridge.                                          */
+      ret = validate_ridge_crossing(ridge_start, ridge_end,
+                                    xlist, ylist, num, bdata, iw, ih,
+                                    lfsparms->max_ridge_steps);
+
+      /* If system error ... */
+      if(ret < 0){
+         free(xlist);
+         free(ylist);
+         /* Return the error code. */
+         return(ret);
+      }
+
+      print2log("; V%d ", ret);
+
+      /* If validation result is TRUE ... */
+      if(ret){
+         /* Then assume we have found a valid ridge crossing and bump */
+         /* the ridge counter.                                        */
+         ridge_count++;
+      }
+
+      /* Otherwise, ignore the current ridge start and end transitions */
+      /* and go back and search for new ridge start.                   */
+   }
+
+   /* Deallocate working memories. */
+   free(xlist);
+   free(ylist);
+
+   print2log("\n");
+
+   /* Return the number of ridges counted. */
+   return(ridge_count);
 }
 
 /*************************************************************************
@@ -395,7 +706,7 @@ static int sort_neighbors(int *nbr_list, const int nnbrs, const int first,
       TRUE  - pixel pair transition found
       FALSE - pixel pair transition not found
 **************************************************************************/
-static int find_transition(int *iptr, const int pix1, const int pix2,
+int find_transition(int *iptr, const int pix1, const int pix2,
                     const int *xlist, const int *ylist, const int num,
                     unsigned char *bdata, const int iw, const int ih)
 {
@@ -456,7 +767,7 @@ static int find_transition(int *iptr, const int pix1, const int pix2,
       FALSE       - ridge corssing INVALID
       Negative    - system error
 **************************************************************************/
-static int validate_ridge_crossing(const int ridge_start, const int ridge_end,
+int validate_ridge_crossing(const int ridge_start, const int ridge_end,
                             const int *xlist, const int *ylist, const int num,
                             unsigned char *bdata, const int iw, const int ih,
                             const int max_ridge_steps)
@@ -482,7 +793,7 @@ static int validate_ridge_crossing(const int ridge_start, const int ridge_end,
    /* position is on the white (of a black to white transition) and  */
    /* the ridge start is on the black (of a black to white trans),   */
    /* so the edge trace needs to look for the what pixel (not the    */
-   /* black one) of the ridge start transition.                      */	
+   /* black one) of the ridge start transition.                      */
    ret = trace_contour(&contour_x, &contour_y,
                        &contour_ex, &contour_ey, &ncontour,
                        max_ridge_steps,
@@ -535,298 +846,7 @@ static int validate_ridge_crossing(const int ridge_start, const int ridge_end,
       /* Otherwise, second trace returned IGNORE or ridge start found. */
    }
    /* Otherwise, first trace returned IGNORE or ridge start found. */
-   
+
    /* If we get here, then we failed to validate a ridge crossing. */
    return(FALSE);
 }
-
-/*************************************************************************
-**************************************************************************
-#cat: ridge_count - Takes a pair of minutiae, and counts the number of
-#cat:               ridges crossed along the linear trajectory connecting
-#cat:               the 2 points in the image.
-
-   Input:
-      first     - index of primary minutia
-      second    - index of secondary (neighbor) minutia
-      minutiae  - list of minutiae
-      bdata     - binary image data (0==while & 1==black)
-      iw        - width (in pixels) of image
-      ih        - height (in pixels) of image
-      lfsparms  - parameters and thresholds for controlling LFS
-   Return Code:
-      Zero or Positive - number of ridges counted
-      Negative         - system error
-**************************************************************************/
-static int ridge_count(const int first, const int second, MINUTIAE *minutiae,
-                unsigned char *bdata, const int iw, const int ih,
-                const LFSPARMS *lfsparms)
-{
-   MINUTIA *minutia1, *minutia2;
-   int i, ret, found;
-   int *xlist, *ylist, num;
-   int ridge_cnt, ridge_start, ridge_end;
-   int prevpix, curpix;
-
-   minutia1 = minutiae->list[first];
-   minutia2 = minutiae->list[second];
-
-   /* If the 2 mintuia have identical pixel coords ... */
-   if((minutia1->x == minutia2->x) &&
-      (minutia1->y == minutia2->y))
-      /* Then zero ridges between points. */
-     return(0);
-
-   /* Compute linear trajectory of contiguous pixels between first */
-   /* and second minutia points.                                   */
-   if((ret = line_points(&xlist, &ylist, &num,
-                        minutia1->x, minutia1->y, minutia2->x, minutia2->y))){
-      return(ret);
-   }
-
-   /* It there are no points on the line trajectory, then no ridges */
-   /* to count (this should not happen, but just in case) ...       */
-   if(num == 0){
-      free(xlist);
-      free(ylist);
-      return(0);
-   }
-
-   /* Find first pixel opposite type along linear trajectory from */
-   /* first minutia.                                              */
-   prevpix = *(bdata+(ylist[0]*iw)+xlist[0]);
-   i = 1;
-   found = FALSE;
-   while(i < num){
-      curpix = *(bdata+(ylist[i]*iw)+xlist[i]);
-      if(curpix != prevpix){
-         found = TRUE;
-         break;
-      }
-      i++;
-   }
-
-   /* If opposite pixel not found ... then no ridges to count */
-   if(!found){
-      free(xlist);
-      free(ylist);
-      return(0);
-   }
-
-   /* Ready to count ridges, so initialize counter to 0. */
-   ridge_cnt = 0;
-
-   print2log("RIDGE COUNT: %d,%d to %d,%d ", minutia1->x, minutia1->y,
-                                               minutia2->x, minutia2->y);
-
-   /* While not at the end of the trajectory ... */
-   while(i < num){
-      /* If 0-to-1 transition not found ... */
-      if(!find_transition(&i, 0, 1, xlist, ylist, num, bdata, iw, ih)){
-         /* Then we are done looking for ridges. */
-         free(xlist);
-         free(ylist);
-
-         print2log("\n");
-
-         /* Return number of ridges counted to this point. */
-         return(ridge_cnt);
-      }
-      /* Otherwise, we found a new ridge start transition, so store */
-      /* its location (the location of the 1 in 0-to-1 transition). */
-      ridge_start = i;
-
-      print2log(": RS %d,%d ", xlist[i], ylist[i]);
-
-      /* If 1-to-0 transition not found ... */
-      if(!find_transition(&i, 1, 0, xlist, ylist, num, bdata, iw, ih)){
-         /* Then we are done looking for ridges. */
-         free(xlist);
-         free(ylist);
-
-         print2log("\n");
-
-         /* Return number of ridges counted to this point. */
-         return(ridge_cnt);
-      }
-      /* Otherwise, we found a new ridge end transition, so store   */
-      /* its location (the location of the 0 in 1-to-0 transition). */
-      ridge_end = i;
-
-      print2log("; RE %d,%d ", xlist[i], ylist[i]);
-
-      /* Conduct the validation, tracing the contour of the ridge  */
-      /* from the ridge ending point a specified number of steps   */
-      /* scanning for neighbors clockwise and counter-clockwise.   */
-      /* If the ridge starting point is encounted during the trace */
-      /* then we can assume we do not have a valid ridge crossing  */
-      /* and instead we are walking on and off the edge of the     */
-      /* side of a ridge.                                          */
-      ret = validate_ridge_crossing(ridge_start, ridge_end,
-                                    xlist, ylist, num, bdata, iw, ih,
-                                    lfsparms->max_ridge_steps);
-
-      /* If system error ... */
-      if(ret < 0){
-         free(xlist);
-         free(ylist);
-         /* Return the error code. */
-         return(ret);
-      }
-
-      print2log("; V%d ", ret);
-
-      /* If validation result is TRUE ... */
-      if(ret){
-         /* Then assume we have found a valid ridge crossing and bump */
-         /* the ridge counter.                                        */
-         ridge_cnt++;
-      }
-
-      /* Otherwise, ignore the current ridge start and end transitions */
-      /* and go back and search for new ridge start.                   */
-   }
-
-   /* Deallocate working memories. */
-   free(xlist);
-   free(ylist);
-
-   print2log("\n");
-
-   /* Return the number of ridges counted. */
-   return(ridge_cnt);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: count_minutia_ridges - Takes a minutia, and determines its closest
-#cat:                neighbors and counts the number of interveining ridges
-#cat:                between the minutia point and each of its neighbors.
-
-   Input:
-      minutia   - input minutia
-      bdata     - binary image data (0==while & 1==black)
-      iw        - width (in pixels) of image
-      ih        - height (in pixels) of image
-      lfsparms  - parameters and thresholds for controlling LFS
-   Output:
-      minutiae  - minutia augmented with neighbors and ridge counts
-   Return Code:
-      Zero     - successful completion
-      Negative - system error
-**************************************************************************/
-static int count_minutia_ridges(const int first, MINUTIAE *minutiae,
-                      unsigned char *bdata, const int iw, const int ih,
-                      const LFSPARMS *lfsparms)
-{
-   int i, ret, *nbr_list = NULL, *nbr_nridges, nnbrs;
-
-   /* Find up to the maximum number of qualifying neighbors. */
-   if((ret = find_neighbors(&nbr_list, &nnbrs, lfsparms->max_nbrs,
-                           first, minutiae))){
-      free(nbr_list);
-      return(ret);
-   }
-
-   print2log("NBRS FOUND: %d,%d = %d\n", minutiae->list[first]->x,
-              minutiae->list[first]->y, nnbrs);
-
-   /* If no neighors found ... */
-   if(nnbrs == 0){
-      /* Then no list returned and no ridges to count. */
-      return(0);
-   }
-
-   /* Sort neighbors on delta dirs. */
-   if((ret = sort_neighbors(nbr_list, nnbrs, first, minutiae))){
-      free(nbr_list);
-      return(ret);
-   }
-
-   /* Count ridges between first and neighbors. */
-   /* List of ridge counts, one for each neighbor stored. */
-   nbr_nridges = (int *)malloc(nnbrs * sizeof(int));
-   if(nbr_nridges == (int *)NULL){
-      free(nbr_list);
-      fprintf(stderr, "ERROR : count_minutia_ridges : malloc : nbr_nridges\n");
-      return(-450);
-   }
-
-   /* Foreach neighbor found and sorted in list ... */
-   for(i = 0; i < nnbrs; i++){
-      /* Count the ridges between the primary minutia and the neighbor. */
-      ret = ridge_count(first, nbr_list[i], minutiae, bdata, iw, ih, lfsparms);
-      /* If system error ... */
-      if(ret < 0){
-         /* Deallocate working memories. */
-         free(nbr_list);
-         free(nbr_nridges);
-         /* Return error code. */
-         return(ret);
-      }
-
-      /* Otherwise, ridge count successful, so store ridge count to list. */
-      nbr_nridges[i] = ret;
-   }
-
-   /* Assign neighbor indices and ridge counts to primary minutia. */
-   minutiae->list[first]->nbrs = nbr_list;
-   minutiae->list[first]->ridge_counts = nbr_nridges;
-   minutiae->list[first]->num_nbrs = nnbrs;
-
-   /* Return normally. */
-   return(0);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: count_minutiae_ridges - Takes a list of minutiae, and for each one,
-#cat:                determines its closest neighbors and counts the number
-#cat:                of interveining ridges between the minutia point and
-#cat:                each of its neighbors.
-
-   Input:
-      minutiae  - list of minutiae
-      bdata     - binary image data (0==while & 1==black)
-      iw        - width (in pixels) of image
-      ih        - height (in pixels) of image
-      lfsparms  - parameters and thresholds for controlling LFS
-   Output:
-      minutiae  - list of minutiae augmented with neighbors and ridge counts
-   Return Code:
-      Zero     - successful completion
-      Negative - system error
-**************************************************************************/
-int count_minutiae_ridges(MINUTIAE *minutiae,
-                      unsigned char *bdata, const int iw, const int ih,
-                      const LFSPARMS *lfsparms)
-{
-   int ret;
-   int i;
-
-   print2log("\nFINDING NBRS AND COUNTING RIDGES:\n");
-
-   /* Sort minutia points on x then y (column-oriented). */
-   if((ret = sort_minutiae_x_y(minutiae, iw, ih))){
-      return(ret);
-   }
-
-   /* Remove any duplicate minutia points from the list. */
-   if((ret = rm_dup_minutiae(minutiae))){
-      return(ret);
-   }
-
-   /* Foreach remaining sorted minutia in list ... */
-   for(i = 0; i < minutiae->num-1; i++){
-      /* Located neighbors and count number of ridges in between. */
-      /* NOTE: neighbor and ridge count results are stored in     */
-      /*       minutiae->list[i].                                 */
-      if((ret = count_minutia_ridges(i, minutiae, bdata, iw, ih, lfsparms))){
-         return(ret);
-      }
-   }
-
-   /* Return normally. */
-   return(0);
-}
-

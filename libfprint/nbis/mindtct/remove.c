@@ -1,25 +1,46 @@
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
+
 
 /***********************************************************************
       LIBRARY: LFS - NIST Latent Fingerprint System
@@ -35,15 +56,21 @@ identified are necessarily the best available for the purpose.
 
 ***********************************************************************
                ROUTINES:
+                        remove_false_minutia()
                         remove_false_minutia_V2()
                         remove_holes()
                         remove_hooks()
+                        remove_hooks_islands_overlaps()
                         remove_islands_and_lakes()
                         remove_malformations()
-                        remove_near_invblock_V2()
+                        remove_near_invblocks()
+                        remove_near_invblocks_V2()
+                        remove_pointing_invblock()
                         remove_pointing_invblock_V2()
                         remove_overlaps()
+                        remove_pores()
                         remove_pores_V2()
+                        remove_or_adjust_side_minutiae()
                         remove_or_adjust_side_minutiae_V2()
 
 ***********************************************************************/
@@ -51,6 +78,125 @@ identified are necessarily the best available for the purpose.
 #include <stdio.h>
 #include <lfs.h>
 #include <log.h>
+
+/*************************************************************************
+**************************************************************************
+#cat: remove_false_minutia - Takes a list of true and false minutiae and
+#cat:                attempts to detect and remove the false minutiae based
+#cat:                on a series of tests.
+
+   Input:
+      minutiae  - list of true and false minutiae
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      nmap      - IMAP ridge flow matrix with invalid, high-curvature,
+                  and no-valid-neighbor regions identified
+      mw        - width in blocks of the NMAP
+      mh        - height in blocks of the NMAP
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      minutiae  - list of pruned minutiae
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
+
+/*************************************************************************
+**************************************************************************
+#cat: remove_false_minutia_V2 - Takes a list of true and false minutiae and
+#cat:                attempts to detect and remove the false minutiae based
+#cat:                on a series of tests.
+
+   Input:
+      minutiae  - list of true and false minutiae
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      direction_map  - map of image blocks containing directional ridge flow
+      low_flow_map   - map of image blocks flagged as LOW RIDGE FLOW
+      high_curve_map - map of image blocks flagged as HIGH CURVATURE
+      mw        - width in blocks of the maps
+      mh        - height in blocks of the maps
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      minutiae  - list of pruned minutiae
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
+int remove_false_minutia_V2(MINUTIAE *minutiae,
+           unsigned char *bdata, const int iw, const int ih,
+           int *direction_map, int *low_flow_map, int *high_curve_map,
+           const int mw, const int mh, const LFSPARMS *lfsparms)
+{
+   int ret;
+
+   /* 1. Sort minutiae points top-to-bottom and left-to-right. */
+   if((ret = sort_minutiae_y_x(minutiae, iw, ih))){
+      return(ret);
+   }
+
+   /* 2. Remove minutiae on lakes (filled with white pixels) and        */
+   /*    islands (filled with black pixels), both  defined by a pair of */
+   /*    minutia points.                                                */
+   if((ret = remove_islands_and_lakes(minutiae, bdata, iw, ih, lfsparms))){
+      return(ret);
+   }
+
+   /* 3. Remove minutiae on holes in the binary image defined by a */
+   /*    single point.                                             */
+   if((ret = remove_holes(minutiae, bdata, iw, ih, lfsparms))){
+      return(ret);
+   }
+
+   /* 4. Remove minutiae that point sufficiently close to a block with */
+   /*    INVALID direction.                                            */
+   if((ret = remove_pointing_invblock_V2(minutiae, direction_map, mw, mh,
+                                        lfsparms))){
+      return(ret);
+   }
+
+   /* 5. Remove minutiae that are sufficiently close to a block with */
+   /*    INVALID direction.                                          */
+   if((ret = remove_near_invblock_V2(minutiae, direction_map, mw, mh,
+                                    lfsparms))){
+      return(ret);
+   }
+
+   /* 6. Remove or adjust minutiae that reside on the side of a ridge */
+   /*    or valley.                                                   */
+   if((ret = remove_or_adjust_side_minutiae_V2(minutiae, bdata, iw, ih,
+                                  direction_map, mw, mh, lfsparms))){
+      return(ret);
+   }
+
+   /* 7. Remove minutiae that form a hook on the side of a ridge or valley. */
+   if((ret = remove_hooks(minutiae, bdata, iw, ih, lfsparms))){
+      return(ret);
+   }
+
+   /* 8. Remove minutiae that are on opposite sides of an overlap. */
+   if((ret = remove_overlaps(minutiae, bdata, iw, ih, lfsparms))){
+      return(ret);
+   }
+
+   /* 9. Remove minutiae that are "irregularly" shaped. */
+   if((ret = remove_malformations(minutiae, bdata, iw, ih,
+                                 low_flow_map, mw, mh, lfsparms))){
+      return(ret);
+   }
+
+   /* 10. Remove minutiae that form long, narrow, loops in the */
+   /*     "unreliable" regions in the binary image.            */
+   if((ret = remove_pores_V2(minutiae,  bdata, iw, ih,
+                            direction_map, low_flow_map, high_curve_map,
+                            mw, mh, lfsparms))){
+      return(ret);
+   }
+
+   return(0);
+}
 
 /*************************************************************************
 **************************************************************************
@@ -68,7 +214,7 @@ identified are necessarily the best available for the purpose.
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_holes(MINUTIAE *minutiae,
+int remove_holes(MINUTIAE *minutiae,
                  unsigned char *bdata, const int iw, const int ih,
                  const LFSPARMS *lfsparms)
 {
@@ -139,7 +285,7 @@ static int remove_holes(MINUTIAE *minutiae,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_hooks(MINUTIAE *minutiae,
+int remove_hooks(MINUTIAE *minutiae,
                  unsigned char *bdata, const int iw, const int ih,
                  const LFSPARMS *lfsparms)
 {
@@ -343,6 +489,29 @@ static int remove_hooks(MINUTIAE *minutiae,
 
 /*************************************************************************
 **************************************************************************
+#cat: remove_hooks_islands_lakes_overlaps - Removes minutia points on hooks,
+#cat:                islands, lakes, and overlaps and fills in small small
+#cat:                loops in the binary image and joins minutia features in
+#cat:                the image on opposite sides of an overlap.  So, this
+#cat:                routine not only prunes minutia points but it edits the
+#cat:                binary input image as well.
+
+   Input:
+      minutiae  - list of true and false minutiae
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      minutiae  - list of pruned minutiae
+      bdata     - edited binary image with loops filled and overlaps removed
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
+
+/*************************************************************************
+**************************************************************************
 #cat: remove_islands_and_lakes - Takes a list of true and false minutiae and
 #cat:                attempts to detect and remove those false minutiae that
 #cat:                are either on a common island (filled with black pixels)
@@ -362,7 +531,7 @@ static int remove_hooks(MINUTIAE *minutiae,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_islands_and_lakes(MINUTIAE *minutiae,
+int remove_islands_and_lakes(MINUTIAE *minutiae,
                       unsigned char *bdata, const int iw, const int ih,
                       const LFSPARMS *lfsparms)
 {
@@ -616,7 +785,7 @@ static int remove_islands_and_lakes(MINUTIAE *minutiae,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_malformations(MINUTIAE *minutiae,
+int remove_malformations(MINUTIAE *minutiae,
                          unsigned char *bdata, const int iw, const int ih,
                          int *low_flow_map, const int mw, const int mh,
                          const LFSPARMS *lfsparms)
@@ -647,7 +816,7 @@ static int remove_malformations(MINUTIAE *minutiae,
          /* Return error code. */
          return(ret);
       }
-      
+
       /* If trace was not possible OR loop found OR */
       /* contour is incomplete ...                  */
       if((ret == IGNORE) ||
@@ -805,6 +974,26 @@ static int remove_malformations(MINUTIAE *minutiae,
 
 /*************************************************************************
 **************************************************************************
+#cat: remove_near_invblocks - Removes minutia points from the given list
+#cat:                that are sufficiently close to a block with invalid
+#cat:                ridge flow or to the edge of the image.
+
+   Input:
+      minutiae  - list of true and false minutiae
+      nmap      - IMAP ridge flow matrix with invalid, high-curvature,
+                  and no-valid-neighbor regions identified
+      mw        - width in blocks of the NMAP
+      mh        - height in blocks of the NMAP
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      minutiae  - list of pruned minutiae
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
+
+/*************************************************************************
+**************************************************************************
 #cat: remove_near_invblocks_V2 - Removes minutia points from the given list
 #cat:                that are sufficiently close to a block with invalid
 #cat:                ridge flow or to the edge of the image.
@@ -821,7 +1010,7 @@ static int remove_malformations(MINUTIAE *minutiae,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_near_invblock_V2(MINUTIAE *minutiae, int *direction_map,
+int remove_near_invblock_V2(MINUTIAE *minutiae, int *direction_map,
                 const int mw, const int mh, const LFSPARMS *lfsparms)
 {
    int i, ret;
@@ -1034,6 +1223,26 @@ static int remove_near_invblock_V2(MINUTIAE *minutiae, int *direction_map,
 
 /*************************************************************************
 **************************************************************************
+#cat: remove_pointing_invblock - Removes minutia points that are relatively
+#cat:                close in the direction opposite the minutia to an NMAP
+#cat:                block with invalid ridge flow.
+
+   Input:
+      minutiae  - list of true and false minutiae
+      nmap      - IMAP ridge flow matrix with invalid, high-curvature,
+                  and no-valid-neighbor regions identified
+      mw        - width in blocks of the NMAP
+      mh        - height in blocks of the NMAP
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      minutiae  - list of pruned minutiae
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
+
+/*************************************************************************
+**************************************************************************
 #cat: remove_pointing_invblock_V2 - Removes minutia points that are relatively
 #cat:                close in the direction opposite the minutia to a
 #cat:                block with INVALID ridge flow.
@@ -1050,7 +1259,7 @@ static int remove_near_invblock_V2(MINUTIAE *minutiae, int *direction_map,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_pointing_invblock_V2(MINUTIAE *minutiae,
+int remove_pointing_invblock_V2(MINUTIAE *minutiae,
                              int *direction_map, const int mw, const int mh,
                              const LFSPARMS *lfsparms)
 {
@@ -1140,7 +1349,7 @@ static int remove_pointing_invblock_V2(MINUTIAE *minutiae,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_overlaps(MINUTIAE *minutiae,
+int remove_overlaps(MINUTIAE *minutiae,
                     unsigned char *bdata, const int iw, const int ih,
                     const LFSPARMS *lfsparms)
 {
@@ -1350,32 +1559,20 @@ static int remove_overlaps(MINUTIAE *minutiae,
    return(0);
 }
 
-static void mark_minutiae_in_range(MINUTIAE *minutiae, int *to_remove, int x, int y,
-                                   const LFSPARMS *lfsparms)
-{
-    int i, dist;
-    for (i = 0; i < minutiae->num; i++) {
-        if (to_remove[i])
-            continue;
-        dist = (int)sqrt((x - minutiae->list[i]->x) * (x - minutiae->list[i]->x) +
-                         (y - minutiae->list[i]->y) * (y - minutiae->list[i]->y));
-        if (dist < lfsparms->min_pp_distance) {
-            to_remove[i] = 1;
-        }
-    }
-}
-
 /*************************************************************************
 **************************************************************************
-#cat: remove_perimeter_pts - Takes a list of true and false minutiae and
-#cat:                attempts to detect and remove those false minutiae that
-#cat:                belong to image edge
+#cat: remove_pores - Attempts to detect and remove minutia points located on
+#cat:                pore-shaped valleys.
 
    Input:
       minutiae  - list of true and false minutiae
       bdata     - binary image data (0==while & 1==black)
       iw        - width (in pixels) of image
       ih        - height (in pixels) of image
+      nmap      - IMAP ridge flow matrix with invalid, high-curvature,
+                  and no-valid-neighbor regions identified
+      mw        - width in blocks of the NMAP
+      mh        - height in blocks of the NMAP
       lfsparms  - parameters and thresholds for controlling LFS
    Output:
       minutiae  - list of pruned minutiae
@@ -1383,125 +1580,6 @@ static void mark_minutiae_in_range(MINUTIAE *minutiae, int *to_remove, int x, in
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_perimeter_pts(MINUTIAE *minutiae,
-                       unsigned char *bdata, const int iw, const int ih,
-                       const LFSPARMS *lfsparms)
-{
-    int i, j, ret, *to_remove;
-    int *left, *left_up, *left_down;
-    int *right, *right_up, *right_down;
-    int removed = 0;
-    int left_min, right_max;
-
-    if (!lfsparms->remove_perimeter_pts)
-        return(0);
-
-    to_remove = calloc(minutiae->num, sizeof(int));
-    left = calloc(ih, sizeof(int));
-    left_up = calloc(ih, sizeof(int));
-    left_down = calloc(ih, sizeof(int));
-    right = calloc(ih, sizeof(int));
-    right_up = calloc(ih, sizeof(int));
-    right_down = calloc(ih, sizeof(int));
-
-    /* Pass downwards */
-    left_min = iw - 1;
-    right_max = 0;
-    for (i = 0; i < ih; i++) {
-        for (j = 0; j < left_min; j++) {
-            if ((bdata[i * iw + j] != 0)) {
-                left_min = j;
-                break;
-            }
-        }
-        if (left_min == (iw - 1))
-            left_down[i] = -1;
-        else
-            left_down[i] = left_min;
-        for (j = iw - 1; j >= right_max; j--) {
-            if ((bdata[i * iw + j] != 0)) {
-                right_max = j;
-                break;
-            }
-        }
-        if (right_max == 0)
-            right_down[i] = -1;
-        else
-            right_down[i] = right_max;
-    }
-
-    /* Pass upwards */
-    left_min = iw - 1;
-    right_max = 0;
-    for (i = ih - 1; i >= 0; i--) {
-        for (j = 0; j < left_min; j++) {
-            if ((bdata[i * iw + j] != 0)) {
-                left_min = j;
-                break;
-            }
-        }
-        if (left_min == (iw - 1))
-            left_up[i] = -1;
-        else
-            left_up[i] = left_min;
-        for (j = iw - 1; j >= right_max; j--) {
-            if ((bdata[i * iw + j] != 0)) {
-                right_max = j;
-                break;
-            }
-        }
-        if (right_max == 0)
-            right_up[i] = -1;
-        else
-            right_up[i] = right_max;
-    }
-
-    /* Merge */
-    left_min = left_down[ih - 1];
-    right_max = right_down[ih - 1];
-    for (i = 0; i < ih; i++) {
-        if (left_down[i] != left_min)
-            left[i] = left_down[i];
-        else
-            left[i] = left_up[i];
-
-        if (right_down[i] != right_max)
-            right[i] = right_down[i];
-        else
-            right[i] = right_up[i];
-    }
-    free(left_up);
-    free(left_down);
-    free(right_up);
-    free(right_down);
-
-    /* Mark minitiae close to the edge */
-    for (i = 0; i < ih; i++) {
-        if (left[i] != -1)
-            mark_minutiae_in_range(minutiae, to_remove, left[i], i, lfsparms);
-        if (right[i] != -1)
-            mark_minutiae_in_range(minutiae, to_remove, right[i], i, lfsparms);
-    }
-
-    free(left);
-    free(right);
-
-    for (i = minutiae->num - 1; i >= 0; i--) {
-        /* If the current minutia index is flagged for removal ... */
-        if (to_remove[i]){
-            removed ++;
-            /* Remove the minutia from the minutiae list. */
-            if((ret = remove_minutia(i, minutiae))){
-                free(to_remove);
-                return(ret);
-            }
-        }
-    }
-
-    free(to_remove);
-
-    return (0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1527,7 +1605,7 @@ static int remove_perimeter_pts(MINUTIAE *minutiae,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_pores_V2(MINUTIAE *minutiae,
+int remove_pores_V2(MINUTIAE *minutiae,
                     unsigned char *bdata, const int iw, const int ih,
                     int *direction_map, int *low_flow_map,
                     int *high_curve_map, const int mw, const int mh,
@@ -1777,7 +1855,7 @@ static int remove_pores_V2(MINUTIAE *minutiae,
                            /* counter-clockwise scan and step along a */
                            /* specified number of steps (ex. 8).      */
                            ret = trace_contour(&contour_x, &contour_y,
-                                    &contour_ex, &contour_ey, &ncontour, 
+                                    &contour_ex, &contour_ey, &ncontour,
                                     lfsparms->pores_steps_bwd,
                                     qx, qy, qx, qy, qex, qey,
                                     SCAN_COUNTER_CLOCKWISE, bdata, iw, ih);
@@ -1898,6 +1976,26 @@ static int remove_pores_V2(MINUTIAE *minutiae,
 
 /*************************************************************************
 **************************************************************************
+#cat: remove_or_adjust_side_minutiae - Removes loops or minutia points that
+#cat:              are not on complete contours of specified length. If the
+#cat:              contour is complete, then the minutia is adjusted based
+#cat:              on a minmax analysis of the rotated y-coords of the contour.
+
+   Input:
+      minutiae  - list of true and false minutiae
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      minutiae  - list of pruned minutiae
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
+
+/*************************************************************************
+**************************************************************************
 #cat: remove_or_adjust_side_minutiae_V2 - Removes loops or minutia points that
 #cat:              are not on complete contours of specified length. If the
 #cat:              contour is complete, then the minutia is adjusted based
@@ -1918,7 +2016,7 @@ static int remove_pores_V2(MINUTIAE *minutiae,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-static int remove_or_adjust_side_minutiae_V2(MINUTIAE *minutiae,
+int remove_or_adjust_side_minutiae_V2(MINUTIAE *minutiae,
                  unsigned char *bdata, const int iw, const int ih,
                  int *direction_map, const int mw, const int mh,
                  const LFSPARMS *lfsparms)
@@ -2161,107 +2259,6 @@ static int remove_or_adjust_side_minutiae_V2(MINUTIAE *minutiae,
    free(rot_y);
 
    /* Return normally. */
-   return(0);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: remove_false_minutia_V2 - Takes a list of true and false minutiae and
-#cat:                attempts to detect and remove the false minutiae based
-#cat:                on a series of tests.
-
-   Input:
-      minutiae  - list of true and false minutiae
-      bdata     - binary image data (0==while & 1==black)
-      iw        - width (in pixels) of image
-      ih        - height (in pixels) of image
-      direction_map  - map of image blocks containing directional ridge flow
-      low_flow_map   - map of image blocks flagged as LOW RIDGE FLOW
-      high_curve_map - map of image blocks flagged as HIGH CURVATURE
-      mw        - width in blocks of the maps
-      mh        - height in blocks of the maps
-      lfsparms  - parameters and thresholds for controlling LFS
-   Output:
-      minutiae  - list of pruned minutiae
-   Return Code:
-      Zero     - successful completion
-      Negative - system error
-**************************************************************************/
-int remove_false_minutia_V2(MINUTIAE *minutiae,
-           unsigned char *bdata, const int iw, const int ih,
-           int *direction_map, int *low_flow_map, int *high_curve_map,
-           const int mw, const int mh, const LFSPARMS *lfsparms)
-{
-   int ret;
-
-   /* 1. Sort minutiae points top-to-bottom and left-to-right. */
-   if((ret = sort_minutiae_y_x(minutiae, iw, ih))){
-      return(ret);
-   }
-
-   /* 2. Remove minutiae on lakes (filled with white pixels) and        */
-   /*    islands (filled with black pixels), both  defined by a pair of */
-   /*    minutia points.                                                */
-   if((ret = remove_islands_and_lakes(minutiae, bdata, iw, ih, lfsparms))){
-      return(ret);
-   }
-
-   /* 3. Remove minutiae on holes in the binary image defined by a */
-   /*    single point.                                             */
-   if((ret = remove_holes(minutiae, bdata, iw, ih, lfsparms))){
-      return(ret);
-   }
-
-   /* 4. Remove minutiae that point sufficiently close to a block with */
-   /*    INVALID direction.                                            */
-   if((ret = remove_pointing_invblock_V2(minutiae, direction_map, mw, mh,
-                                        lfsparms))){
-      return(ret);
-   }
-
-   /* 5. Remove minutiae that are sufficiently close to a block with */
-   /*    INVALID direction.                                          */
-   if((ret = remove_near_invblock_V2(minutiae, direction_map, mw, mh,
-                                    lfsparms))){
-      return(ret);
-   }
-
-   /* 6. Remove or adjust minutiae that reside on the side of a ridge */
-   /*    or valley.                                                   */
-   if((ret = remove_or_adjust_side_minutiae_V2(minutiae, bdata, iw, ih,
-                                  direction_map, mw, mh, lfsparms))){
-      return(ret);
-   }
-
-   /* 7. Remove minutiae that form a hook on the side of a ridge or valley. */
-   if((ret = remove_hooks(minutiae, bdata, iw, ih, lfsparms))){
-      return(ret);
-   }
-
-   /* 8. Remove minutiae that are on opposite sides of an overlap. */
-   if((ret = remove_overlaps(minutiae, bdata, iw, ih, lfsparms))){
-      return(ret);
-   }
-
-   /* 9. Remove minutiae that are "irregularly" shaped. */
-   if((ret = remove_malformations(minutiae, bdata, iw, ih,
-                                 low_flow_map, mw, mh, lfsparms))){
-      return(ret);
-   }
-
-   /* 10. Remove minutiae that form long, narrow, loops in the */
-   /*     "unreliable" regions in the binary image.            */
-   if((ret = remove_pores_V2(minutiae,  bdata, iw, ih,
-                            direction_map, low_flow_map, high_curve_map,
-                            mw, mh, lfsparms))){
-      return(ret);
-   }
-
-   /* 11. Remove minutiae on image edge */
-   if((ret = remove_perimeter_pts(minutiae, bdata, iw, ih, lfsparms))) {
-      return (ret);
-   }
-
    return(0);
 }
 

@@ -1,25 +1,46 @@
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
+
 
 /***********************************************************************
       LIBRARY: LFS - NIST Latent Fingerprint System
@@ -46,6 +67,7 @@ identified are necessarily the best available for the purpose.
                         pixelize_map()
                         smooth_direction_map()
                         gen_high_curve_map()
+                        gen_imap()
                         gen_initial_imap()
                         primary_dir_test()
                         secondary_fork_test()
@@ -58,6 +80,7 @@ identified are necessarily the best available for the purpose.
                         average_8nbr_dir()
                         num_valid_8nbrs()
                         smooth_imap()
+                        gen_nmap()
                         vorticity()
                         accum_nbr_vorticity()
                         curvature()
@@ -65,8 +88,6 @@ identified are necessarily the best available for the purpose.
 ***********************************************************************/
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <lfs.h>
 #include <morph.h>
 #include <log.h>
@@ -307,10 +328,6 @@ int gen_initial_maps(int **odmap, int **olcmap, int **olfmap,
    xmaxlimit = pw - dftgrids->pad - lfsparms->windowsize - 1;
    ymaxlimit = ph - dftgrids->pad - lfsparms->windowsize - 1;
 
-   /* max limits should not be negative */
-   xmaxlimit = MAX(xmaxlimit, 0);
-   ymaxlimit = MAX(ymaxlimit, 0);
-
    /* Foreach block in image ... */
    for(bi = 0; bi < bsize; bi++){
       /* Adjust block offset from pointing to block origin to pointing */
@@ -393,9 +410,9 @@ int gen_initial_maps(int **odmap, int **olcmap, int **olfmap,
          {  int _w;
             fprintf(logfp, "      Power\n");
             for(_w = 0; _w < nstats; _w++){
-               /* Add 1 to wis[w] to create index to original dft_coefs[] */
+               /* Add 1 to wis[w] to create index to original g_dft_coefs[] */
                fprintf(logfp, "         wis[%d] %d %12.3f %2d %9.3f %12.3f\n",
-                    _w, wis[_w]+1, 
+                    _w, wis[_w]+1,
                     powmaxs[wis[_w]], powmax_dirs[wis[_w]], pownorms[wis[_w]],
                     powers[0][powmax_dirs[wis[_w]]]);
             }
@@ -647,7 +664,7 @@ int morph_TF_map(int *tfmap, const int mw, const int mh,
    unsigned char *cimage, *mimage, *cptr;
    int *mptr;
    int i;
-   
+
 
    /* Convert TRUE/FALSE map into a binary byte image. */
    cimage = (unsigned char *)malloc(mw*mh);
@@ -925,12 +942,36 @@ int gen_high_curve_map(int **ohcmap, int *direction_map,
       } /* bx */
    } /* by */
 
-   /* Assign High Curvature Map to output pointer. */         
+   /* Assign High Curvature Map to output pointer. */
    *ohcmap = high_curve_map;
 
    /* Return normally. */
    return(0);
 }
+
+/*************************************************************************
+**************************************************************************
+#cat: gen_imap - Computes an IMAP, which is a 2D vector of integer directions,
+#cat:            where each direction represents the dominant ridge flow in
+#cat:            a block of the input grayscale image.  This routine will
+#cat:            generate an IMAP for arbitrarily sized, non-square, images.
+
+   Input:
+      pdata     - padded input image data (8 bits [0..256) grayscale)
+      pw        - padded width (in pixels) of the input image
+      ph        - padded height (in pixels) of the input image
+      dir2rad   - lookup table for converting integer directions
+      dftwaves  - structure containing the DFT wave forms
+      dftgrids  - structure containing the rotated pixel grid offsets
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      optr      - points to the created IMAP
+      ow        - width (in blocks) of the IMAP
+      oh        - height (in blocks) of the IMAP
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
 
 /*************************************************************************
 **************************************************************************
@@ -959,126 +1000,6 @@ int gen_high_curve_map(int **ohcmap, int *direction_map,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-int gen_initial_imap(int **optr, int *blkoffs, const int mw, const int mh,
-                unsigned char *pdata, const int pw, const int ph,
-                const DFTWAVES *dftwaves, const  ROTGRIDS *dftgrids,
-                const LFSPARMS *lfsparms)
-{
-   int *imap;
-   int bi, bsize, blkdir;
-   int *wis, *powmax_dirs;
-   double **powers, *powmaxs, *pownorms;
-   int nstats;
-   int ret; /* return code */
-
-   print2log("INITIAL MAP\n");
-
-   /* Compute total number of blocks in IMAP */
-   bsize = mw * mh;
-
-   /* Allocate IMAP memory */
-   imap = (int *)malloc(bsize * sizeof(int));
-   if(imap == (int *)NULL){
-      fprintf(stderr, "ERROR : gen_initial_imap : malloc : imap\n");
-      return(-70);
-   }
-
-   /* Allocate DFT directional power vectors */
-   if((ret = alloc_dir_powers(&powers, dftwaves->nwaves, dftgrids->ngrids))){
-      /* Free memory allocated to this point. */
-      free(imap);
-      return(ret);
-   }
-
-   /* Allocate DFT power statistic arrays */
-   /* Compute length of statistics arrays.  Statistics not needed   */
-   /* for the first DFT wave, so the length is number of waves - 1. */
-   nstats = dftwaves->nwaves - 1;
-   if((ret = alloc_power_stats(&wis, &powmaxs, &powmax_dirs,
-                            &pownorms, nstats))){
-      /* Free memory allocated to this point. */
-      free(imap);
-      free_dir_powers(powers, dftwaves->nwaves);
-      return(ret);
-   }
-
-   /* Initialize the imap to -1 */
-   memset(imap, INVALID_DIR, bsize * sizeof(int));
-
-   /* Foreach block in imap ... */
-   for(bi = 0; bi < bsize; bi++){
-
-      print2log("   BLOCK %2d (%2d, %2d)\n", bi, bi%mw, bi/mw);
-
-      /* Compute DFT powers */
-      if((ret = dft_dir_powers(powers, pdata, blkoffs[bi], pw, ph,
-                            dftwaves, dftgrids))){
-         /* Free memory allocated to this point. */
-         free(imap);
-         free_dir_powers(powers, dftwaves->nwaves);
-         free(wis);
-         free(powmaxs);
-         free(powmax_dirs);
-         free(pownorms);
-         return(ret);
-      }
-
-      /* Compute DFT power statistics, skipping first applied DFT  */
-      /* wave.  This is dependent on how the primary and secondary */
-      /* direction tests work below.                               */
-      if((ret = dft_power_stats(wis, powmaxs, powmax_dirs, pownorms, powers,
-                      1, dftwaves->nwaves, dftgrids->ngrids))){
-         /* Free memory allocated to this point. */
-         free(imap);
-         free_dir_powers(powers, dftwaves->nwaves);
-         free(wis);
-         free(powmaxs);
-         free(powmax_dirs);
-         free(pownorms);
-         return(ret);
-      }
-
-#ifdef LOG_REPORT /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-      {  int _w;
-         fprintf(logfp, "      Power\n");
-         for(_w = 0; _w < nstats; _w++){
-            /* Add 1 to wis[w] to create index to original dft_coefs[] */
-            fprintf(logfp, "         wis[%d] %d %12.3f %2d %9.3f %12.3f\n",
-                    _w, wis[_w]+1, 
-                    powmaxs[wis[_w]], powmax_dirs[wis[_w]], pownorms[wis[_w]],
-                    powers[0][powmax_dirs[wis[_w]]]);
-         }
-      }
-#endif /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
-      /* Conduct primary direction test */
-      blkdir = primary_dir_test(powers, wis, powmaxs, powmax_dirs,
-                               pownorms, nstats, lfsparms);
-
-      if(blkdir != INVALID_DIR)
-         imap[bi] = blkdir;
-      else{
-         /* Conduct secondary (fork) direction test */
-         blkdir = secondary_fork_test(powers, wis, powmaxs, powmax_dirs,
-                               pownorms, nstats, lfsparms);
-         if(blkdir != INVALID_DIR)
-            imap[bi] = blkdir;
-      }
-
-      /* Otherwise current block direction in IMAP remains INVALID */
-
-   } /* bi */
-
-   /* Deallocate working memory */
-   free_dir_powers(powers, dftwaves->nwaves);
-   free(wis);
-   free(powmaxs);
-   free(powmax_dirs);
-   free(pownorms);
-
-   *optr = imap;
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1093,7 +1014,7 @@ int gen_initial_imap(int **optr, int *blkoffs, const int mw, const int mh,
       powmaxs     - maximum power for each of the highest N-1 frequencies
       powmax_dirs - directions associated with each of the N-1 maximum powers
       pownorms    - normalized power for each of the highest N-1 frequencies
-      nstats      - N-1 wave frequencies (where N is the length of dft_coefs)
+      nstats      - N-1 wave frequencies (where N is the length of g_dft_coefs)
       lfsparms    - parameters and thresholds for controlling LFS
    Return Code:
       Zero or Positive - The selected IMAP integer direction
@@ -1120,7 +1041,7 @@ int primary_dir_test(double **powers, const int *wis,
          (powers[0][powmax_dirs[wis[w]]] <= lfsparms->powmax_max)){
 
 #ifdef LOG_REPORT /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-            /* Add 1 to wis[w] to create index to original dft_coefs[] */
+            /* Add 1 to wis[w] to create index to original g_dft_coefs[] */
             fprintf(logfp,
                      "         Selected Wave = %d\n", wis[w]+1);
             fprintf(logfp,
@@ -1177,7 +1098,7 @@ int primary_dir_test(double **powers, const int *wis,
       powmaxs     - maximum power for each of the highest N-1 frequencies
       powmax_dirs - directions associated with each of the N-1 maximum powers
       pownorms    - normalized power for each of the highest N-1 frequencies
-      nstats      - N-1 wave frequencies (where N is the length of dft_coefs)
+      nstats      - N-1 wave frequencies (where N is the length of g_dft_coefs)
       lfsparms    - parameters and thresholds for controlling LFS
    Return Code:
       Zero or Positive - The selected IMAP integer direction
@@ -2022,76 +1943,29 @@ int num_valid_8nbrs(int *imap, const int mx, const int my,
    Output:
       imap      - vector of smoothed input values
 **************************************************************************/
-void smooth_imap(int *imap, const int mw, const int mh,
-                 const DIR2RAD *dir2rad, const LFSPARMS *lfsparms)
-{
-   int mx, my;
-   int *iptr;
-   int avrdir, nvalid;
-   double dir_strength;
 
-   print2log("SMOOTH MAP\n");
+/*************************************************************************
+**************************************************************************
+#cat: gen_nmap - Computes an NMAP from its associated 2D vector of integer
+#cat:            directions (IMAP).  Each value in the NMAP either represents
+#cat:            a direction of dominant ridge flow in a block of the input
+#cat:            grayscale image, or it contains a codes describing why such
+#cat:            a direction was not procuded.
+#cat:            For example, blocks near areas of high-curvature (such as
+#cat:            with cores and deltas) will not produce reliable IMAP
+#cat:            directions.
 
-   iptr = imap;
-   for(my = 0; my < mh; my++){
-      for(mx = 0; mx < mw; mx++){
-         /* Compute average direction from neighbors, returning the */
-         /* number of valid neighbors used in the computation, and  */
-         /* the "strength" of the average direction.                */
-         average_8nbr_dir(&avrdir, &dir_strength, &nvalid,
-                          imap, mx, my, mw, mh, dir2rad);
-
-         /* If average direction strength is strong enough */
-         /*    (Ex. thresh==0.2)...                        */
-         if(dir_strength >= lfsparms->dir_strength_min){
-            /* If IMAP direction is valid ... */
-            if(*iptr != INVALID_DIR){
-               /* Conduct valid neighbor test (Ex. thresh==3)... */
-               if(nvalid >= lfsparms->rmv_valid_nbr_min){
-
-#ifdef LOG_REPORT /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-                  fprintf(logfp, "   BLOCK %2d (%2d, %2d)\n",
-                          mx+(my*mw), mx, my);
-                  fprintf(logfp, "      Average NBR :   %2d %6.3f %d\n",
-                          avrdir, dir_strength, nvalid);
-                  fprintf(logfp, "      1. Valid NBR (%d >= %d)\n",
-                          nvalid, lfsparms->rmv_valid_nbr_min);
-                  fprintf(logfp, "      Valid Direction = %d\n", *iptr);
-                  fprintf(logfp, "      Smoothed Direction = %d\n", avrdir);
-#endif /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
-                  /* Reassign valid IMAP direction with average direction. */
-                  *iptr = avrdir;
-               }
-            }
-            /* Otherwise IMAP direction is invalid ... */
-            else{
-               /* Even if IMAP value is invalid, if number of valid */
-               /* neighbors is big enough (Ex. thresh==7)...        */
-               if(nvalid >= lfsparms->smth_valid_nbr_min){
-
-#ifdef LOG_REPORT /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-                  fprintf(logfp, "   BLOCK %2d (%2d, %2d)\n",
-                          mx+(my*mw), mx, my);
-                  fprintf(logfp, "      Average NBR :   %2d %6.3f %d\n",
-                          avrdir, dir_strength, nvalid);
-                  fprintf(logfp, "      2. Invalid NBR (%d >= %d)\n",
-                          nvalid, lfsparms->smth_valid_nbr_min);
-                  fprintf(logfp, "      Invalid Direction = %d\n", *iptr);
-                  fprintf(logfp, "      Smoothed Direction = %d\n", avrdir);
-#endif /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
-                  /* Assign invalid IMAP direction with average direction. */
-                  *iptr = avrdir;
-               }
-            }
-         }
-
-         /* Bump to next IMAP direction. */
-         iptr++;
-      }
-   }
-}
+   Input:
+      imap      - associated input vector of IMAP directions
+      mw        - the width (in blocks) of the IMAP
+      mh        - the height (in blocks) of the IMAP
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      optr      - points to the created NMAP
+   Return Code:
+      Zero     - successful completion
+      Negative - system error
+**************************************************************************/
 
 /*************************************************************************
 **************************************************************************

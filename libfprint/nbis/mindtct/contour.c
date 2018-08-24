@@ -1,25 +1,46 @@
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
+
 
 /***********************************************************************
       LIBRARY: LFS - NIST Latent Fingerprint System
@@ -50,7 +71,6 @@ identified are necessarily the best available for the purpose.
 ***********************************************************************/
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <lfs.h>
 
 /*************************************************************************
@@ -593,236 +613,6 @@ int get_centered_contour(int **ocontour_x, int **ocontour_y,
 
 /*************************************************************************
 **************************************************************************
-#cat: start_scan_nbr - Takes a two pixel coordinates that are either
-#cat:            aligned north-to-south or east-to-west, and returns the
-#cat:            position the second pixel is in realtionship to the first.
-#cat:            The positions returned are based on 8-connectedness.
-#cat:            NOTE, this routine does NOT account for diagonal positions.
-
-   Input:
-      x_prev - x-coord of first point
-      y_prev - y-coord of first point
-      x_next - x-coord of second point
-      y_next - y-coord of second point
-   Return Code:
-      NORTH - second pixel above first
-      SOUTH - second pixel below first
-      EAST  - second pixel right of first
-      WEST  - second pixel left of first
-**************************************************************************/
-static int start_scan_nbr(const int x_prev, const int y_prev,
-                   const int x_next, const int y_next)
-{
-   if((x_prev==x_next) && (y_next > y_prev))
-      return(SOUTH);
-   else if ((x_prev==x_next) && (y_next < y_prev))
-      return(NORTH);
-   else if ((x_next > x_prev) && (y_prev==y_next))
-      return(EAST);
-   else if ((x_next < x_prev) && (y_prev==y_next))
-      return(WEST);
-
-   /* Added by MDG on 03-16-05 */
-   /* Should never reach here.  Added to remove compiler warning. */
-   return(INVALID_DIR); /* -1 */
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: next_scan_nbr - Advances the given 8-connected neighbor index
-#cat:            on location in the specifiec direction (clockwise or
-#cat:            counter-clockwise). 
-
-   Input:
-      nbr_i      - current 8-connected neighbor index
-      scan_clock - direction in which the neighbor index is to be advanced
-   Return Code:
-      Next neighbor - 8-connected index of next neighbor
-**************************************************************************/
-static int next_scan_nbr(const int nbr_i, const int scan_clock)
-{
-   int new_i;
-
-   /* If scanning neighbors clockwise ... */
-   if(scan_clock == SCAN_CLOCKWISE)
-      /* Advance one neighbor clockwise. */
-      new_i = (nbr_i+1)%8;
-   /* Otherwise, scanning neighbors counter-clockwise ... */
-   else
-      /* Advance one neighbor counter-clockwise.         */
-      /* There are 8 pixels in the neighborhood, so to   */
-      /* decrement with wrapping from 0 around to 7, add */
-      /* the nieghbor index by 7 and mod with 8.         */
-      new_i = (nbr_i+7)%8;
-
-   /* Return the new neighbor index. */
-   return(new_i);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: next_contour_pixel - Takes a pixel coordinate of a point determined
-#cat:            to be on the interior edge of a feature (ridge or valley-
-#cat:            ending), and attempts to locate a neighboring pixel on the
-#cat:            feature's contour.  Neighbors of the current feature pixel
-#cat:            are searched in a specified direction (clockwise or counter-
-#cat:            clockwise) and the first pair of adjacent/neigboring pixels
-#cat:            found with the first pixel having the color of the feature
-#cat:            and the second the opposite color are returned as the next
-#cat:            point on the contour.  One exception happens when the new
-#cat:            point is on an "exposed" corner.
-
-   Input:
-      cur_x_loc  - x-pixel coord of current point on feature's
-                   interior contour
-      cur_y_loc  - y-pixel coord of current point on feature's
-                   interior contour
-      cur_x_edge - x-pixel coord of corresponding edge pixel
-                   (exterior to feature)
-      cur_y_edge - y-pixel coord of corresponding edge pixel
-                   (exterior to feature)
-      scan_clock - direction in which neighboring pixels are to be scanned
-                   for the next contour pixel
-      bdata      - binary image data (0==while & 1==black)
-      iw         - width (in pixels) of image
-      ih         - height (in pixels) of image
-   Output:
-      next_x_loc  - x-pixel coord of next point on feature's interior contour
-      next_y_loc  - y-pixel coord of next point on feature's interior contour
-      next_x_edge - x-pixel coord of corresponding edge (exterior to feature)
-      next_y_edge - y-pixel coord of corresponding edge (exterior to feature)
-   Return Code:
-      TRUE  - next contour point found and returned
-      FALSE - next contour point NOT found
-**************************************************************************/
-/*************************************************************************/
-static int next_contour_pixel(int *next_x_loc, int *next_y_loc,
-                int *next_x_edge, int *next_y_edge,
-                const int cur_x_loc, const int cur_y_loc,
-                const int cur_x_edge, const int cur_y_edge,
-                const int scan_clock,
-                unsigned char *bdata, const int iw, const int ih)
-{
-   int feature_pix, edge_pix;
-   int prev_nbr_pix, prev_nbr_x, prev_nbr_y;
-   int cur_nbr_pix, cur_nbr_x, cur_nbr_y;
-   int ni, nx, ny, npix;
-   int nbr_i, i;
-
-   /* Get the feature's pixel value. */
-   feature_pix = *(bdata + (cur_y_loc * iw) + cur_x_loc);
-   /* Get the feature's edge pixel value. */
-   edge_pix = *(bdata + (cur_y_edge * iw) + cur_x_edge);
-
-   /* Get the nieghbor position of the feature's edge pixel in relationship */
-   /* to the feature's actual position.                                     */
-   /* REMEBER: The feature's position is always interior and on a ridge     */
-   /* ending (black pixel) or (for bifurcations) on a valley ending (white  */
-   /* pixel).  The feature's edge pixel is an adjacent pixel to the feature */
-   /* pixel that is exterior to the ridge or valley ending and opposite in  */
-   /* pixel value.                                                          */
-   nbr_i = start_scan_nbr(cur_x_loc, cur_y_loc, cur_x_edge, cur_y_edge);
-
-   /* Set current neighbor scan pixel to the feature's edge pixel. */
-   cur_nbr_x = cur_x_edge;
-   cur_nbr_y = cur_y_edge;
-   cur_nbr_pix = edge_pix;
-
-   /* Foreach pixel neighboring the feature pixel ... */
-   for(i = 0; i < 8; i++){
-
-      /* Set current neighbor scan pixel to previous scan pixel. */
-      prev_nbr_x = cur_nbr_x;
-      prev_nbr_y = cur_nbr_y;
-      prev_nbr_pix = cur_nbr_pix;
-
-      /* Bump pixel neighbor index clockwise or counter-clockwise. */
-      nbr_i = next_scan_nbr(nbr_i, scan_clock);
-
-      /* Set current scan pixel to the new neighbor.                   */
-      /* REMEMBER: the neighbors are being scanned around the original */
-      /* feature point.                                                */
-      cur_nbr_x = cur_x_loc + g_nbr8_dx[nbr_i];
-      cur_nbr_y = cur_y_loc + g_nbr8_dy[nbr_i];
-
-      /* If new neighbor is not within image boundaries... */
-      if((cur_nbr_x < 0) || (cur_nbr_x >= iw) ||
-         (cur_nbr_y < 0) || (cur_nbr_y >= ih))
-         /* Return (FALSE==>Failure) if neighbor out of bounds. */
-         return(FALSE);
-
-      /* Get the new neighbor's pixel value. */
-      cur_nbr_pix = *(bdata + (cur_nbr_y * iw) + cur_nbr_x);
-
-      /* If the new neighbor's pixel value is the same as the feature's   */
-      /* pixel value AND the previous neighbor's pixel value is the same  */
-      /* as the features's edge, then we have "likely" found our next     */
-      /* contour pixel.                                                   */
-      if((cur_nbr_pix == feature_pix) && (prev_nbr_pix == edge_pix)){
-
-         /* Check to see if current neighbor is on the corner of the */
-         /* neighborhood, and if so, test to see if it is "exposed". */
-         /* The neighborhood corners have odd neighbor indicies.     */
-         if(nbr_i % 2){
-            /* To do this, look ahead one more neighbor pixel. */
-            ni = next_scan_nbr(nbr_i, scan_clock);
-            nx = cur_x_loc + g_nbr8_dx[ni];
-            ny = cur_y_loc + g_nbr8_dy[ni];
-            /* If new neighbor is not within image boundaries... */
-            if((nx < 0) || (nx >= iw) ||
-               (ny < 0) || (ny >= ih))
-               /* Return (FALSE==>Failure) if neighbor out of bounds. */
-               return(FALSE);
-            npix = *(bdata + (ny * iw) + nx);
-
-            /* If the next neighbor's value is also the same as the */
-            /* feature's pixel, then corner is NOT exposed...       */
-            if(npix == feature_pix){
-               /* Assign the current neighbor pair to the output pointers. */
-               *next_x_loc = cur_nbr_x;
-               *next_y_loc = cur_nbr_y;
-               *next_x_edge = prev_nbr_x;
-               *next_y_edge = prev_nbr_y;
-               /* Return TRUE==>Success. */
-               return(TRUE);
-            }
-            /* Otherwise, corner pixel is "exposed" so skip it. */
-            else{
-               /* Skip current corner neighbor by resetting it to the      */
-               /* next neighbor, which upon the iteration will immediately */
-               /* become the previous neighbor.                            */
-               cur_nbr_x = nx;
-               cur_nbr_y = ny;
-               cur_nbr_pix = npix;
-               /* Advance neighbor index. */
-               nbr_i = ni;
-               /* Advance neighbor count. */
-               i++;
-            }
-         }
-         /* Otherwise, current neighbor is not a corner ... */
-         else{
-            /* Assign the current neighbor pair to the output pointers. */
-            *next_x_loc = cur_nbr_x;
-            *next_y_loc = cur_nbr_y;
-            *next_x_edge = prev_nbr_x;
-            *next_y_edge = prev_nbr_y;
-            /* Return TRUE==>Success. */
-            return(TRUE);
-         }
-      }
-   }
-
-   /* If we get here, then we did not find the next contour pixel */
-   /* within the 8 neighbors of the current feature pixel so      */
-   /* return (FALSE==>Failure).                                   */
-   /* NOTE: This must mean we found a single isolated pixel.      */
-   /*       Perhaps this should be filled?                        */
-   return(FALSE);
-}
-
-/*************************************************************************
-**************************************************************************
 #cat: trace_contour - Takes the pixel coordinate of a detected minutia
 #cat:            feature point and its corresponding/adjacent edge pixel
 #cat:            and extracts a contour (up to a specified maximum length)
@@ -1044,6 +834,236 @@ int search_contour(const int x_search, const int y_search,
    /* If we get here, we successfully searched the maximum points */
    /* without finding our desired point, so return NOT_FOUND.     */
    return(NOT_FOUND);
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: next_contour_pixel - Takes a pixel coordinate of a point determined
+#cat:            to be on the interior edge of a feature (ridge or valley-
+#cat:            ending), and attempts to locate a neighboring pixel on the
+#cat:            feature's contour.  Neighbors of the current feature pixel
+#cat:            are searched in a specified direction (clockwise or counter-
+#cat:            clockwise) and the first pair of adjacent/neigboring pixels
+#cat:            found with the first pixel having the color of the feature
+#cat:            and the second the opposite color are returned as the next
+#cat:            point on the contour.  One exception happens when the new
+#cat:            point is on an "exposed" corner.
+
+   Input:
+      cur_x_loc  - x-pixel coord of current point on feature's
+                   interior contour
+      cur_y_loc  - y-pixel coord of current point on feature's
+                   interior contour
+      cur_x_edge - x-pixel coord of corresponding edge pixel
+                   (exterior to feature)
+      cur_y_edge - y-pixel coord of corresponding edge pixel
+                   (exterior to feature)
+      scan_clock - direction in which neighboring pixels are to be scanned
+                   for the next contour pixel
+      bdata      - binary image data (0==while & 1==black)
+      iw         - width (in pixels) of image
+      ih         - height (in pixels) of image
+   Output:
+      next_x_loc  - x-pixel coord of next point on feature's interior contour
+      next_y_loc  - y-pixel coord of next point on feature's interior contour
+      next_x_edge - x-pixel coord of corresponding edge (exterior to feature)
+      next_y_edge - y-pixel coord of corresponding edge (exterior to feature)
+   Return Code:
+      TRUE  - next contour point found and returned
+      FALSE - next contour point NOT found
+**************************************************************************/
+/*************************************************************************/
+int next_contour_pixel(int *next_x_loc, int *next_y_loc,
+                int *next_x_edge, int *next_y_edge,
+                const int cur_x_loc, const int cur_y_loc,
+                const int cur_x_edge, const int cur_y_edge,
+                const int scan_clock,
+                unsigned char *bdata, const int iw, const int ih)
+{
+   int feature_pix, edge_pix;
+   int prev_nbr_pix, prev_nbr_x, prev_nbr_y;
+   int cur_nbr_pix, cur_nbr_x, cur_nbr_y;
+   int ni, nx, ny, npix;
+   int nbr_i, i;
+
+   /* Get the feature's pixel value. */
+   feature_pix = *(bdata + (cur_y_loc * iw) + cur_x_loc);
+   /* Get the feature's edge pixel value. */
+   edge_pix = *(bdata + (cur_y_edge * iw) + cur_x_edge);
+
+   /* Get the nieghbor position of the feature's edge pixel in relationship */
+   /* to the feature's actual position.                                     */
+   /* REMEBER: The feature's position is always interior and on a ridge     */
+   /* ending (black pixel) or (for bifurcations) on a valley ending (white  */
+   /* pixel).  The feature's edge pixel is an adjacent pixel to the feature */
+   /* pixel that is exterior to the ridge or valley ending and opposite in  */
+   /* pixel value.                                                          */
+   nbr_i = start_scan_nbr(cur_x_loc, cur_y_loc, cur_x_edge, cur_y_edge);
+
+   /* Set current neighbor scan pixel to the feature's edge pixel. */
+   cur_nbr_x = cur_x_edge;
+   cur_nbr_y = cur_y_edge;
+   cur_nbr_pix = edge_pix;
+
+   /* Foreach pixel neighboring the feature pixel ... */
+   for(i = 0; i < 8; i++){
+
+      /* Set current neighbor scan pixel to previous scan pixel. */
+      prev_nbr_x = cur_nbr_x;
+      prev_nbr_y = cur_nbr_y;
+      prev_nbr_pix = cur_nbr_pix;
+
+      /* Bump pixel neighbor index clockwise or counter-clockwise. */
+      nbr_i = next_scan_nbr(nbr_i, scan_clock);
+
+      /* Set current scan pixel to the new neighbor.                   */
+      /* REMEMBER: the neighbors are being scanned around the original */
+      /* feature point.                                                */
+      cur_nbr_x = cur_x_loc + g_nbr8_dx[nbr_i];
+      cur_nbr_y = cur_y_loc + g_nbr8_dy[nbr_i];
+
+      /* If new neighbor is not within image boundaries... */
+      if((cur_nbr_x < 0) || (cur_nbr_x >= iw) ||
+         (cur_nbr_y < 0) || (cur_nbr_y >= ih))
+         /* Return (FALSE==>Failure) if neighbor out of bounds. */
+         return(FALSE);
+
+      /* Get the new neighbor's pixel value. */
+      cur_nbr_pix = *(bdata + (cur_nbr_y * iw) + cur_nbr_x);
+
+      /* If the new neighbor's pixel value is the same as the feature's   */
+      /* pixel value AND the previous neighbor's pixel value is the same  */
+      /* as the features's edge, then we have "likely" found our next     */
+      /* contour pixel.                                                   */
+      if((cur_nbr_pix == feature_pix) && (prev_nbr_pix == edge_pix)){
+
+         /* Check to see if current neighbor is on the corner of the */
+         /* neighborhood, and if so, test to see if it is "exposed". */
+         /* The neighborhood corners have odd neighbor indicies.     */
+         if(nbr_i % 2){
+            /* To do this, look ahead one more neighbor pixel. */
+            ni = next_scan_nbr(nbr_i, scan_clock);
+            nx = cur_x_loc + g_nbr8_dx[ni];
+            ny = cur_y_loc + g_nbr8_dy[ni];
+            /* If new neighbor is not within image boundaries... */
+            if((nx < 0) || (nx >= iw) ||
+               (ny < 0) || (ny >= ih))
+               /* Return (FALSE==>Failure) if neighbor out of bounds. */
+               return(FALSE);
+            npix = *(bdata + (ny * iw) + nx);
+
+            /* If the next neighbor's value is also the same as the */
+            /* feature's pixel, then corner is NOT exposed...       */
+            if(npix == feature_pix){
+               /* Assign the current neighbor pair to the output pointers. */
+               *next_x_loc = cur_nbr_x;
+               *next_y_loc = cur_nbr_y;
+               *next_x_edge = prev_nbr_x;
+               *next_y_edge = prev_nbr_y;
+               /* Return TRUE==>Success. */
+               return(TRUE);
+            }
+            /* Otherwise, corner pixel is "exposed" so skip it. */
+            else{
+               /* Skip current corner neighbor by resetting it to the      */
+               /* next neighbor, which upon the iteration will immediately */
+               /* become the previous neighbor.                            */
+               cur_nbr_x = nx;
+               cur_nbr_y = ny;
+               cur_nbr_pix = npix;
+               /* Advance neighbor index. */
+               nbr_i = ni;
+               /* Advance neighbor count. */
+               i++;
+            }
+         }
+         /* Otherwise, current neighbor is not a corner ... */
+         else{
+            /* Assign the current neighbor pair to the output pointers. */
+            *next_x_loc = cur_nbr_x;
+            *next_y_loc = cur_nbr_y;
+            *next_x_edge = prev_nbr_x;
+            *next_y_edge = prev_nbr_y;
+            /* Return TRUE==>Success. */
+            return(TRUE);
+         }
+      }
+   }
+
+   /* If we get here, then we did not find the next contour pixel */
+   /* within the 8 neighbors of the current feature pixel so      */
+   /* return (FALSE==>Failure).                                   */
+   /* NOTE: This must mean we found a single isolated pixel.      */
+   /*       Perhaps this should be filled?                        */
+   return(FALSE);
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: start_scan_nbr - Takes a two pixel coordinates that are either
+#cat:            aligned north-to-south or east-to-west, and returns the
+#cat:            position the second pixel is in realtionship to the first.
+#cat:            The positions returned are based on 8-connectedness.
+#cat:            NOTE, this routine does NOT account for diagonal positions.
+
+   Input:
+      x_prev - x-coord of first point
+      y_prev - y-coord of first point
+      x_next - x-coord of second point
+      y_next - y-coord of second point
+   Return Code:
+      NORTH - second pixel above first
+      SOUTH - second pixel below first
+      EAST  - second pixel right of first
+      WEST  - second pixel left of first
+**************************************************************************/
+int start_scan_nbr(const int x_prev, const int y_prev,
+                   const int x_next, const int y_next)
+{
+   if((x_prev==x_next) && (y_next > y_prev))
+      return(SOUTH);
+   else if ((x_prev==x_next) && (y_next < y_prev))
+      return(NORTH);
+   else if ((x_next > x_prev) && (y_prev==y_next))
+      return(EAST);
+   else if ((x_next < x_prev) && (y_prev==y_next))
+      return(WEST);
+
+   /* Added by MDG on 03-16-05 */
+   /* Should never reach here.  Added to remove compiler warning. */
+   return(INVALID_DIR); /* -1 */
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: next_scan_nbr - Advances the given 8-connected neighbor index
+#cat:            on location in the specifiec direction (clockwise or
+#cat:            counter-clockwise).
+
+   Input:
+      nbr_i      - current 8-connected neighbor index
+      scan_clock - direction in which the neighbor index is to be advanced
+   Return Code:
+      Next neighbor - 8-connected index of next neighbor
+**************************************************************************/
+int next_scan_nbr(const int nbr_i, const int scan_clock)
+{
+   int new_i;
+
+   /* If scanning neighbors clockwise ... */
+   if(scan_clock == SCAN_CLOCKWISE)
+      /* Advance one neighbor clockwise. */
+      new_i = (nbr_i+1)%8;
+   /* Otherwise, scanning neighbors counter-clockwise ... */
+   else
+      /* Advance one neighbor counter-clockwise.         */
+      /* There are 8 pixels in the neighborhood, so to   */
+      /* decrement with wrapping from 0 around to 7, add */
+      /* the nieghbor index by 7 and mod with 8.         */
+      new_i = (nbr_i+7)%8;
+
+   /* Return the new neighbor index. */
+   return(new_i);
 }
 
 /*************************************************************************
