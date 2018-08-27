@@ -216,6 +216,10 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 /* Deactivate device */
 static void dev_deactivate(struct fp_img_dev *dev)
 {
+	vfs301_dev_t *vdev;
+
+	vdev = fpi_imgdev_get_user_data(dev);
+	vfs301_proto_deinit(fpi_imgdev_get_usb_dev(dev), vdev);
 	fpi_imgdev_deactivate_complete(dev);
 }
 
