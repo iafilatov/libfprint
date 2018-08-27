@@ -105,7 +105,7 @@ int block_offsets(int **optr, int *ow, int *oh,
    int *blkoffs, bx, by, bw, bh, bi, bsize;
    int blkrow_start, blkrow_size, offset;
    int lastbw, lastbh;
-   int pad2, pw, ph;
+   int pad2, pw;
 
    /* Test if unpadded image is smaller than a single block */
    if((iw < blocksize) || (ih < blocksize)){
@@ -115,10 +115,9 @@ int block_offsets(int **optr, int *ow, int *oh,
       return(-80);
    }
 
-   /* Compute padded width and height of image */
+   /* Compute padded width of image */
    pad2 = pad<<1;
    pw = iw + pad2;
-   ph = ih + pad2;
 
    /* Compute the number of columns and rows of blocks in the image. */
    /* Take the ceiling to account for "leftovers" at the right and   */
