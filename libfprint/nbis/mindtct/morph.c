@@ -173,7 +173,7 @@ char get_south8_2(char *ptr, const int row, const int iw, const int ih,
    if (row >= ih-1) /* catch case where image is undefined southwards   */
       return failcode; /* use plane geometry and return code.           */
 
-      return *(ptr+iw);
+   return *(ptr+iw);
 }
 
 /*************************************************************************
@@ -197,7 +197,7 @@ char get_north8_2(char *ptr, const int row, const int iw,
    if (row < 1)     /* catch case where image is undefined northwards   */
       return failcode; /* use plane geometry and return code.           */
 
-      return *(ptr-iw);
+   return *(ptr-iw);
 }
 
 /*************************************************************************
@@ -221,7 +221,7 @@ char get_east8_2(char *ptr, const int col, const int iw,
    if (col >= iw-1) /* catch case where image is undefined eastwards    */
       return failcode; /* use plane geometry and return code.           */
 
-      return *(ptr+ 1);
+   return *(ptr+ 1);
 }
 
 /*************************************************************************
@@ -243,5 +243,5 @@ char get_west8_2(char *ptr, const int col, const int failcode)
    if (col < 1)     /* catch case where image is undefined westwards     */
       return failcode; /* use plane geometry and return code.            */
 
-      return *(ptr- 1);
+   return *(ptr- 1);
 }
