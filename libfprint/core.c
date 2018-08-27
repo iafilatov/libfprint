@@ -566,12 +566,6 @@ fpi_dev_get_verify_data(struct fp_dev *dev)
 	return dev->verify_data;
 }
 
-enum fp_dev_state
-fpi_dev_get_dev_state(struct fp_dev *dev)
-{
-	return dev->state;
-}
-
 /**
  * fp_driver_get_name:
  * @drv: the driver
