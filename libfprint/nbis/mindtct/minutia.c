@@ -1,25 +1,46 @@
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
+
 
 /***********************************************************************
       LIBRARY: LFS - NIST Latent Fingerprint System
@@ -37,6 +58,7 @@ identified are necessarily the best available for the purpose.
                ROUTINES:
                         alloc_minutiae()
                         realloc_minutiae()
+                        detect_minutiae()
                         detect_minutiae_V2()
                         update_minutiae()
                         update_minutiae_V2()
@@ -73,15 +95,11 @@ identified are necessarily the best available for the purpose.
                         adjust_high_curvature_minutia()
                         adjust_high_curvature_minutia_V2()
                         get_low_curvature_direction()
-                        lfs2nist_minutia_XYT()
 
 ***********************************************************************/
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <lfs.h>
-
-
 
 /*************************************************************************
 **************************************************************************
@@ -89,14 +107,14 @@ identified are necessarily the best available for the purpose.
 #cat:            specified maximum number of minutiae to be detected.
 
    Input:
-      max_minutiae - number of minutia to be allocated in list
+      DEFAULT_BOZORTH_MINUTIAE - number of minutia to be allocated in list
    Output:
       ominutiae    - points to the allocated minutiae list
    Return Code:
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int alloc_minutiae(MINUTIAE **ominutiae, const int max_minutiae)
+int alloc_minutiae(MINUTIAE **ominutiae, const int DEFAULT_BOZORTH_MINUTIAE)
 {
    MINUTIAE *minutiae;
 
@@ -105,13 +123,13 @@ int alloc_minutiae(MINUTIAE **ominutiae, const int max_minutiae)
       fprintf(stderr, "ERROR : alloc_minutiae : malloc : minutiae\n");
       exit(-430);
    }
-   minutiae->list = (MINUTIA **)malloc(max_minutiae * sizeof(MINUTIA *));
+   minutiae->list = (MINUTIA **)malloc(DEFAULT_BOZORTH_MINUTIAE * sizeof(MINUTIA *));
    if(minutiae->list == (MINUTIA **)NULL){
       fprintf(stderr, "ERROR : alloc_minutiae : malloc : minutiae->list\n");
       exit(-431);
    }
 
-   minutiae->alloc = max_minutiae;
+   minutiae->alloc = DEFAULT_BOZORTH_MINUTIAE;
    minutiae->num = 0;
 
    *ominutiae = minutiae;
@@ -126,7 +144,7 @@ int alloc_minutiae(MINUTIAE **ominutiae, const int max_minutiae)
 
    Input:
       minutiae    - previously allocated list of minutiae points
-      max_minutiae - number of minutia to be allocated in list
+      DEFAULT_BOZORTH_MINUTIAE - number of minutia to be allocated in list
    Output:
       minutiae    - extended list of minutiae points
    Return Code:
@@ -145,6 +163,29 @@ int realloc_minutiae(MINUTIAE *minutiae, const int incr_minutiae)
 
    return(0);
 }
+
+/*************************************************************************
+**************************************************************************
+#cat: detect_minutiae - Takes a binary image and its associated IMAP and
+#cat:            NMAP matrices and scans each image block for potential
+#cat:            minutia points.
+
+   Input:
+      bdata     - binary image data (0==while & 1==black)
+      iw        - width (in pixels) of image
+      ih        - height (in pixels) of image
+      imap      - matrix of ridge flow directions
+      nmap      - IMAP augmented with blocks of HIGH-CURVATURE and
+                  blocks which have no neighboring valid directions.
+      mw        - width (in blocks) of IMAP and NMAP matrices.
+      mh        - height (in blocks) of IMAP and NMAP matrices.
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      minutiae   - points to a list of detected minutia structures
+   Return Code:
+      Zero      - successful completion
+      Negative  - system error
+**************************************************************************/
 
 /*************************************************************************
 **************************************************************************
@@ -666,40 +707,6 @@ int rm_dup_minutiae(MINUTIAE *minutiae)
    Output:
       fpout - open file pointer
 **************************************************************************/
-void dump_minutiae(FILE *fpout, const MINUTIAE *minutiae)
-{
-   int i, j;
-
-   fprintf(fpout, "\n%d Minutiae Detected\n\n", minutiae->num);
-
-   for(i = 0; i < minutiae->num; i++){
-      /* Precision of reliablity added one decimal position */
-      /* on 09-13-04 */
-      fprintf(fpout, "%4d : %4d, %4d : %2d : %6.3f :", i,
-             minutiae->list[i]->x, minutiae->list[i]->y,
-             minutiae->list[i]->direction, minutiae->list[i]->reliability);
-      if(minutiae->list[i]->type == RIDGE_ENDING)
-         fprintf(fpout, "RIG : ");
-      else
-         fprintf(fpout, "BIF : ");
-   
-      if(minutiae->list[i]->appearing)
-         fprintf(fpout, "APP : ");
-      else
-         fprintf(fpout, "DIS : ");
-
-      fprintf(fpout, "%2d ", minutiae->list[i]->feature_id);
-
-      for(j = 0; j < minutiae->list[i]->num_nbrs; j++){
-         fprintf(fpout, ": %4d,%4d; %2d ",
-                 minutiae->list[minutiae->list[i]->nbrs[j]]->x,
-                 minutiae->list[minutiae->list[i]->nbrs[j]]->y,
-                 minutiae->list[i]->ridge_counts[j]);
-      }
-
-      fprintf(fpout, "\n");
-   }
-}
 
 /*************************************************************************
 **************************************************************************
@@ -712,20 +719,6 @@ void dump_minutiae(FILE *fpout, const MINUTIAE *minutiae)
    Output:
       fpout - open file pointer
 **************************************************************************/
-void dump_minutiae_pts(FILE *fpout, const MINUTIAE *minutiae)
-{
-   int i;
-
-   /* First line in the output file contians the number of minutia */
-   /* points to be written to the file.                            */
-   fprintf(fpout, "%d\n", minutiae->num);
-
-   /* Foreach minutia in list... */
-   for(i = 0; i < minutiae->num; i++){
-      /* Write the minutia's coordinate point to the file pointer. */
-      fprintf(fpout, "%4d %4d\n", minutiae->list[i]->x, minutiae->list[i]->y);
-   }
-}
 
 
 /*************************************************************************
@@ -741,32 +734,6 @@ void dump_minutiae_pts(FILE *fpout, const MINUTIAE *minutiae)
    Output:
       fpout - open file pointer
 **************************************************************************/
-void dump_reliable_minutiae_pts(FILE *fpout, const MINUTIAE *minutiae,
-                                const double reliability)
-{
-   int i, count;
-
-   /* First count the number of qualifying minutiae so that the */
-   /* MFS header may be written.                                */
-   count = 0;
-   /* Foreach minutia in list... */
-   for(i = 0; i < minutiae->num; i++){
-      if(minutiae->list[i]->reliability == reliability)
-         count++;
-   }
-
-   /* First line in the output file contians the number of minutia */
-   /* points to be written to the file.                            */
-   fprintf(fpout, "%d\n", count);
-
-   /* Foreach minutia in list... */
-   for(i = 0; i < minutiae->num; i++){
-      if(minutiae->list[i]->reliability == reliability)
-         /* Write the minutia's coordinate point to the file pointer. */
-         fprintf(fpout, "%4d %4d\n",
-                 minutiae->list[i]->x, minutiae->list[i]->y);
-   }
-}
 
 /*************************************************************************
 **************************************************************************
@@ -782,7 +749,7 @@ void dump_reliable_minutiae_pts(FILE *fpout, const MINUTIAE *minutiae,
       reliability - floating point measure of minutia's reliability
       type    - type of the minutia (ridge-ending or bifurcation)
       appearing  - designates the minutia as appearing or disappearing
-      feature_id - index of minutia's matching feature_patterns[]
+      feature_id - index of minutia's matching g_feature_patterns[]
    Output:
       ominutia - ponter to an allocated and initialized minutia structure
    Return Code:
@@ -927,119 +894,6 @@ int remove_minutia(const int index, MINUTIAE *minutiae)
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int join_minutia(const MINUTIA *minutia1, const MINUTIA *minutia2,
-                 unsigned char *bdata, const int iw, const int ih,
-                 const int with_boundary, const int line_radius)
-{
-   int dx_gte_dy, delta_x, delta_y;
-   int *x_list, *y_list, num;
-   int minutia_pix, boundary_pix;
-   int i, j, ret;
-   int x1, y1, x2, y2;
-
-   /* Compute X and Y deltas between minutia points. */
-   delta_x = abs(minutia1->x - minutia2->x);
-   delta_y = abs(minutia1->y - minutia2->y);
-
-   /* Set flag based on |DX| >= |DY|. */
-   /* If flag is true then add additional pixel width to the join line  */
-   /* by adding pixels neighboring top and bottom.                      */
-   /* If flag is false then add additional pixel width to the join line */
-   /* by adding pixels neighboring left and right.                      */
-   if(delta_x >= delta_y)
-      dx_gte_dy = 1;
-   else
-      dx_gte_dy = 0;
-
-   /* Compute points along line segment between the two minutia points. */
-   if((ret = line_points(&x_list, &y_list, &num,
-                      minutia1->x, minutia1->y, minutia2->x, minutia2->y)))
-      /* If error with line routine, return error code. */
-      return(ret);
-
-   /* Determine pixel color of minutia and boundary. */
-   if(minutia1->type == RIDGE_ENDING){
-      /* To connect 2 ridge-endings, draw black. */
-      minutia_pix = 1;
-      boundary_pix = 0;
-   }
-   else{
-      /* To connect 2 bifurcations, draw white. */
-      minutia_pix = 0;
-      boundary_pix = 1;
-   }
-
-   /* Foreach point on line connecting the minutiae points ... */
-   for(i = 1; i < num-1; i++){
-      /* Draw minutia pixel at current point on line. */
-      *(bdata+(y_list[i]*iw)+x_list[i]) = minutia_pix;
-
-      /* Initialize starting corrdinates for adding width to the */
-      /* join line to the current point on the line.             */
-      x1 = x_list[i];
-      y1 = y_list[i];
-      x2 = x1;
-      y2 = y1;
-      /* Foreach pixel of added radial width ... */
-      for(j = 0; j < line_radius; j++){
-
-         /* If |DX|>=|DY|, we want to add width to line by writing */
-         /*                to pixels neighboring above and below.  */
-         /*                x1 -= (0=(1-1)); y1 -= 1 ==> ABOVE      */
-         /*                x2 += (0=(1-1)); y2 += 1 ==> BELOW      */
-         /* If |DX|<|DY|, we want to add width to line by writing  */
-         /*                to pixels neighboring left and right.   */
-         /*                x1 -= (1=(1-0)); y1 -= 0 ==> LEFT       */
-         /*                x2 += (1=(1-0)); y2 += 0 ==> RIGHT      */
-
-         /* Advance 1st point along width dimension. */
-         x1 -= (1 - dx_gte_dy);
-         y1 -= dx_gte_dy;
-         /* If pixel 1st point is within image boundaries ... */
-         if((x1 >= 0) && (x1 < iw) &&
-            (y1 >= 0) && (y1 < ih))
-            /* Write the pixel ABOVE or LEFT. */
-            *(bdata+(y1*iw)+x1) = minutia_pix;
-
-         /* Advance 2nd point along width dimension. */
-         x2 += (1 - dx_gte_dy);
-         y2 += dx_gte_dy;
-         /* If pixel 2nd point is within image boundaries ... */
-         if((x2 >= 0) && (x2 < iw) &&
-            /* Write the pixel BELOW or RIGHT. */
-            (y2 >= 0) && (y2 < ih))
-            *(bdata+(y2*iw)+x2) = minutia_pix;
-      }
-
-      /* If boundary flag is set ... draw the boundary pixels.*/
-      if(with_boundary){
-         /* Advance 1st point along width dimension. */
-         x1 -= (1 - dx_gte_dy);
-         y1 -= dx_gte_dy;
-         /* If pixel 1st point is within image boundaries ... */
-         if((x1 >= 0) && (x1 < iw) &&
-            (y1 >= 0) && (y1 < ih))
-            /* Write the pixel ABOVE or LEFT of opposite color. */
-            *(bdata+(y1*iw)+x1) = boundary_pix;
-
-         /* Advance 2nd point along width dimension. */
-         x2 += (1 - dx_gte_dy);
-         y2 += dx_gte_dy;
-         /* If pixel 2nd point is within image boundaries ... */
-         if((x2 >= 0) && (x2 < iw) &&
-            (y2 >= 0) && (y2 < ih))
-            /* Write the pixel BELOW or RIGHT of opposite color. */
-            *(bdata+(y2*iw)+x2) = boundary_pix;
-      }
-   }
-
-   /* Deallocate points along connecting line. */
-   free(x_list);
-   free(y_list);
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1178,61 +1032,6 @@ int choose_scan_direction(const int imapval, const int ndirs)
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int scan4minutiae(MINUTIAE *minutiae,
-                unsigned char *bdata, const int iw, const int ih,
-                const int *imap, const int *nmap,
-                const int blk_x, const int blk_y, const int mw, const int mh,
-                const int scan_x, const int scan_y,
-                const int scan_w, const int scan_h, const int scan_dir,
-                const LFSPARMS *lfsparms)
-{
-   int blk_i, ret;
-
-   /* Compute block index from block coordinates. */
-   blk_i = (blk_y*mw) + blk_x;
-
-   /* Conduct primary scan for minutiae horizontally. */
-   if(scan_dir == SCAN_HORIZONTAL){
-
-      if((ret = scan4minutiae_horizontally(minutiae, bdata, iw, ih,
-                         imap[blk_i], nmap[blk_i],
-                         scan_x, scan_y, scan_w, scan_h, lfsparms))){
-         /* Return code may be:                      */
-         /* 1. ret<0 (implying system error)         */
-         return(ret);
-      }
-
-      /* Rescan block vertically. */
-      if((ret = rescan4minutiae_vertically(minutiae, bdata, iw, ih,
-                        imap, nmap, blk_x, blk_y, mw, mh,
-                        scan_x, scan_y, scan_w, scan_h, lfsparms))){
-         /* Return code may be:                      */
-         /* 1. ret<0 (implying system error)         */
-         return(ret);
-      }
-   }
-
-   /* Otherwise, conduct primary scan for minutiae vertically. */
-   else{
-      if((ret = scan4minutiae_vertically(minutiae, bdata, iw, ih,
-                            imap[blk_i], nmap[blk_i],
-                            scan_x, scan_y, scan_w, scan_h, lfsparms))){
-         /* Return resulting code. */
-         return(ret);
-      }
-
-      /* Rescan block horizontally. */
-      if((ret = rescan4minutiae_horizontally(minutiae, bdata, iw, ih,
-                            imap, nmap, blk_x, blk_y, mw, mh,
-                            scan_x, scan_y, scan_w, scan_h, lfsparms))){
-         /* Return resulting code. */
-         return(ret);
-      }
-   }
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1262,116 +1061,6 @@ int scan4minutiae(MINUTIAE *minutiae,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int scan4minutiae_horizontally(MINUTIAE *minutiae,
-                unsigned char *bdata, const int iw, const int ih,
-                const int imapval, const int nmapval,
-                const int scan_x, const int scan_y,
-                const int scan_w, const int scan_h,
-                const LFSPARMS *lfsparms)
-{
-   int sx, sy, ex, ey, cx, cy, x2;
-   unsigned char *p1ptr, *p2ptr;
-   int possible[NFEATURES], nposs;
-   int ret;
-
-   /* NOTE!!! Minutia that "straddle" region boundaries may be missed! */
-
-   /* If possible, overlap left and right of current scan region      */
-   /* by 2 pixel columns to help catch some minutia that straddle the */
-   /* the scan region boundaries.                                     */
-   sx = max(0, scan_x-2);
-   ex = min(iw, scan_x+scan_w+2);
-
-   /* If possible, overlap the scan region below by 1 pixel row. */
-   sy = scan_y;
-   ey = min(ih, scan_y+scan_h+1);
-
-   /* For now, we will not adjust for IMAP edge, as the binary image  */
-   /* was properly padded at its edges so as not to cause anomallies. */
-
-   /* Start at first row in region. */
-   cy = sy;
-   /* While second scan row not outside the bottom of the scan region... */
-   while(cy+1 < ey){
-      /* Start at beginning of new scan row in region. */
-      cx = sx;
-      /* While not at end of region's current scan row. */
-      while(cx < ex){
-         /* Get pixel pair from current x position in current and next */
-         /* scan rows. */
-         p1ptr = bdata+(cy*iw)+cx;
-         p2ptr = bdata+((cy+1)*iw)+cx;
-         /* If scan pixel pair matches first pixel pair of */
-         /* 1 or more features... */
-         if(match_1st_pair(*p1ptr, *p2ptr, possible, &nposs)){
-            /* Bump forward to next scan pixel pair. */
-            cx++;
-            p1ptr++;
-            p2ptr++;
-            /* If not at end of region's current scan row... */
-            if(cx < ex){
-               /* If scan pixel pair matches second pixel pair of */
-               /* 1 or more features... */
-               if(match_2nd_pair(*p1ptr, *p2ptr, possible, &nposs)){
-                  /* Store current x location. */
-                  x2 = cx;
-                  /* Skip repeated pixel pairs. */
-                  skip_repeated_horizontal_pair(&cx, ex, &p1ptr, &p2ptr,
-                                                    iw, ih);
-                  /* If not at end of region's current scan row... */
-                  if(cx < ex){
-                     /* If scan pixel pair matches third pixel pair of */
-                     /* a single feature... */
-                     if(match_3rd_pair(*p1ptr, *p2ptr, possible, &nposs)){
-                        /* Process detected minutia point. */
-                        if((ret = process_horizontal_scan_minutia(minutiae,
-                                         cx, cy, x2, possible[0],
-                                         bdata, iw, ih,
-                                         imapval, nmapval, lfsparms))){
-                           /* Return code may be:                       */
-                           /* 1.  ret< 0 (implying system error)        */
-                           /* 2. ret==IGNORE (ignore current feature)   */
-                           if(ret < 0)
-                              return(ret);
-                           /* Otherwise, IGNORE and continue. */
-                        }
-                     }
-
-                     /* Set up to resume scan. */
-                     /* Test to see if 3rd pair can slide into 2nd pair. */
-                     /* The values of the 2nd pair MUST be different.    */
-                     /* If 3rd pair values are different ... */
-                     if(*p1ptr != *p2ptr){
-                        /* Set next first pair to last of repeated */
-                        /* 2nd pairs, ie. back up one pair.        */
-                        cx--;
-                     }
-
-                     /* Otherwise, 3rd pair can't be a 2nd pair, so  */
-                     /* keep pointing to 3rd pair so that it is used */
-                     /* in the next first pair test.                 */
-
-                  } /* Else, at end of current scan row. */
-               }
-
-               /* Otherwise, 2nd pair failed, so keep pointing to it */
-               /* so that it is used in the next first pair test.    */
-
-            } /* Else, at end of current scan row. */
-         }
-         /* Otherwise, 1st pair failed... */
-         else{
-            /* Bump forward to next pixel pair. */
-            cx++;
-         }
-      } /* While not at end of current scan row. */
-      /* Bump forward to next scan row. */
-      cy++;
-   } /* While not out of scan rows. */
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1497,7 +1186,7 @@ int scan4minutiae_horizontally_V2(MINUTIAE *minutiae,
 
 /*************************************************************************
 **************************************************************************
-#cat: scan4minutiae_vertically - Scans a specified region of binary image data 
+#cat: scan4minutiae_vertically - Scans a specified region of binary image data
 #cat:                vertically, detecting potential minutiae points.
 #cat:                Minutia detected via the vetical scan process are
 #cat:                by nature horizontally oriented (orthogonal to  the scan).
@@ -1523,116 +1212,6 @@ int scan4minutiae_horizontally_V2(MINUTIAE *minutiae,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int scan4minutiae_vertically(MINUTIAE *minutiae,
-                unsigned char *bdata, const int iw, const int ih,
-                const int imapval, const int nmapval,
-                const int scan_x, const int scan_y,
-                const int scan_w, const int scan_h,
-                const LFSPARMS *lfsparms)
-{
-   int sx, sy, ex, ey, cx, cy, y2;
-   unsigned char *p1ptr, *p2ptr;
-   int possible[NFEATURES], nposs;
-   int ret;
-
-   /* NOTE!!! Minutia that "straddle" region boundaries may be missed! */
-
-   /* If possible, overlap scan region to the right by 1 pixel column. */
-   sx = scan_x;
-   ex = min(iw, scan_x+scan_w+1);
-
-   /* If possible, overlap top and bottom of current scan region   */
-   /* by 2 pixel rows to help catch some minutia that straddle the */
-   /* the scan region boundaries.                                  */
-   sy = max(0, scan_y-2);
-   ey = min(ih, scan_y+scan_h+2);
-
-   /* For now, we will not adjust for IMAP edge, as the binary image */
-   /* was properly padded at its edges so as not to cause anomalies. */
-
-   /* Start at first column in region. */
-   cx = sx;
-   /* While second scan column not outside the right of the region ... */
-   while(cx+1 < ex){
-      /* Start at beginning of new scan column in region. */
-      cy = sy;
-      /* While not at end of region's current scan column. */
-      while(cy < ey){
-         /* Get pixel pair from current y position in current and next */
-         /* scan columns. */
-         p1ptr = bdata+(cy*iw)+cx;
-         p2ptr = p1ptr+1;
-         /* If scan pixel pair matches first pixel pair of */
-         /* 1 or more features... */
-         if(match_1st_pair(*p1ptr, *p2ptr, possible, &nposs)){
-            /* Bump forward to next scan pixel pair. */
-            cy++;
-            p1ptr+=iw;
-            p2ptr+=iw;
-            /* If not at end of region's current scan column... */
-            if(cy < ey){
-               /* If scan pixel pair matches second pixel pair of */
-               /* 1 or more features... */
-               if(match_2nd_pair(*p1ptr, *p2ptr, possible, &nposs)){
-                  /* Store current y location. */
-                  y2 = cy;
-                  /* Skip repeated pixel pairs. */
-                  skip_repeated_vertical_pair(&cy, ey, &p1ptr, &p2ptr,
-                                                  iw, ih);
-                  /* If not at end of region's current scan column... */
-                  if(cy < ey){
-                     /* If scan pixel pair matches third pixel pair of */
-                     /* a single feature... */
-                     if(match_3rd_pair(*p1ptr, *p2ptr, possible, &nposs)){
-                        /* Process detected minutia point. */
-                        if((ret = process_vertical_scan_minutia(minutiae,
-                                         cx, cy, y2, possible[0],
-                                         bdata, iw, ih,
-                                         imapval, nmapval, lfsparms))){
-                           /* Return code may be:                       */
-                           /* 1.  ret< 0 (implying system error)        */
-                           /* 2. ret==IGNORE (ignore current feature)   */
-                           if(ret < 0)
-                              return(ret);
-                           /* Otherwise, IGNORE and continue. */
-                        }
-                     }
-
-                     /* Set up to resume scan. */
-                     /* Test to see if 3rd pair can slide into 2nd pair. */
-                     /* The values of the 2nd pair MUST be different.    */
-                     /* If 3rd pair values are different ... */
-                     if(*p1ptr != *p2ptr){
-                        /* Set next first pair to last of repeated */
-                        /* 2nd pairs, ie. back up one pair.        */
-                        cy--;
-                     }
-
-                     /* Otherwise, 3rd pair can't be a 2nd pair, so  */
-                     /* keep pointing to 3rd pair so that it is used */
-                     /* in the next first pair test.                 */
-
-                  } /* Else, at end of current scan row. */
-               }
-
-               /* Otherwise, 2nd pair failed, so keep pointing to it */
-               /* so that it is used in the next first pair test.    */
-
-            } /* Else, at end of current scan column. */
-         }
-         /* Otherwise, 1st pair failed... */
-         else{
-            /* Bump forward to next pixel pair. */
-            cy++;
-         }
-      } /* While not at end of current scan column. */
-      /* Bump forward to next scan column. */
-      cx++;
-   } /* While not out of scan columns. */
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1785,62 +1364,6 @@ int scan4minutiae_vertically_V2(MINUTIAE *minutiae,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int rescan4minutiae_horizontally(MINUTIAE *minutiae,
-                      unsigned char *bdata, const int iw, const int ih,
-                      const int *imap, const int *nmap,
-                      const int blk_x, const int blk_y,
-                      const int mw, const int mh,
-                      const int scan_x, const int scan_y,
-                      const int scan_w, const int scan_h,
-                      const LFSPARMS *lfsparms)
-{
-   int blk_i, ret;
-
-   /* Compute block index from block coordinates. */
-   blk_i = (blk_y*mw)+blk_x;
-
-   /* If high-curve block... */
-   if(nmap[blk_i] == HIGH_CURVATURE){
-      /* Rescan entire block in orthogonal direction. */
-      if((ret = scan4minutiae_horizontally(minutiae, bdata, iw, ih,
-                            imap[blk_i], nmap[blk_i],
-                            scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         /* Return code may be:                      */
-         /* 1. ret<0 (implying system error)          */
-         return(ret);
-   }
-   /* Otherwise, block is low-curvature. */
-   else{
-      /* 1. Rescan horizontally to the North. */
-      if((ret = rescan_partial_horizontally(NORTH, minutiae, bdata, iw, ih,
-                              imap, nmap, blk_x, blk_y, mw, mh,
-                              scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         /* Return code may be:                      */
-         /* 1. ret<0 (implying system error)          */
-         return(ret);
-
-      /* 2. Rescan horizontally to the East. */
-      if((ret = rescan_partial_horizontally(EAST, minutiae, bdata, iw, ih,
-                              imap, nmap, blk_x, blk_y, mw, mh,
-                              scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         return(ret);
-
-      /* 3. Rescan horizontally to the South. */
-      if((ret = rescan_partial_horizontally(SOUTH, minutiae, bdata, iw, ih,
-                              imap, nmap, blk_x, blk_y, mw, mh,
-                              scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         return(ret);
-
-      /* 4. Rescan horizontally to the West. */
-      if((ret = rescan_partial_horizontally(WEST, minutiae, bdata, iw, ih,
-                              imap, nmap, blk_x, blk_y, mw, mh,
-                              scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         return(ret);
-   } /* End low-curvature rescan. */
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1871,62 +1394,6 @@ int rescan4minutiae_horizontally(MINUTIAE *minutiae,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int rescan4minutiae_vertically(MINUTIAE *minutiae,
-                      unsigned char *bdata, const int iw, const int ih,
-                      const int *imap, const int *nmap,
-                      const int blk_x, const int blk_y,
-                      const int mw, const int mh,
-                      const int scan_x, const int scan_y,
-                      const int scan_w, const int scan_h,
-                      const LFSPARMS *lfsparms)
-{
-   int blk_i, ret;
-
-   /* Compute block index from block coordinates. */
-   blk_i = (blk_y*mw)+blk_x;
-
-   /* If high-curve block... */
-   if(nmap[blk_i] == HIGH_CURVATURE){
-      /* Rescan entire block in orthogonal direction. */
-      if((ret = scan4minutiae_vertically(minutiae, bdata, iw, ih,
-                            imap[blk_i], nmap[blk_i],
-                            scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         /* Return code may be:                      */
-         /* 1. ret<0 (implying system error)          */
-         return(ret);
-   }
-   /* Otherwise, block is low-curvature. */
-   else{
-      /* 1. Rescan vertically to the North. */
-      if((ret = rescan_partial_vertically(NORTH, minutiae, bdata, iw, ih,
-                              imap, nmap, blk_x, blk_y, mw, mh,
-                              scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         /* Return code may be:                      */
-         /* 1. ret<0 (implying system error)          */
-         return(ret);
-
-      /* 2. Rescan vertically to the East. */
-      if((ret = rescan_partial_vertically(EAST, minutiae, bdata, iw, ih,
-                              imap, nmap, blk_x, blk_y, mw, mh,
-                              scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         return(ret);
-
-      /* 3. Rescan vertically to the South. */
-      if((ret = rescan_partial_vertically(SOUTH, minutiae, bdata, iw, ih,
-                              imap, nmap, blk_x, blk_y, mw, mh,
-                              scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         return(ret);
-
-      /* 4. Rescan vertically to the West. */
-      if((ret = rescan_partial_vertically(WEST, minutiae, bdata, iw, ih,
-                              imap, nmap, blk_x, blk_y, mw, mh,
-                              scan_x, scan_y, scan_w, scan_h, lfsparms)))
-         return(ret);
-   } /* End low-curvature rescan. */
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1957,70 +1424,6 @@ int rescan4minutiae_vertically(MINUTIAE *minutiae,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int rescan_partial_horizontally(const int nbr_dir, MINUTIAE *minutiae,
-                      unsigned char *bdata, const int iw, const int ih,
-                      const int *imap, const int *nmap,
-                      const int blk_x, const int blk_y,
-                      const int mw, const int mh,
-                      const int scan_x, const int scan_y,
-                      const int scan_w, const int scan_h,
-                      const LFSPARMS *lfsparms)
-{
-   int nblk_i, blk_i;
-   int rescan_dir;
-   int rescan_x, rescan_y, rescan_w, rescan_h;
-   int ret;
-
-   /* Neighbor will either be NORTH, SOUTH, EAST, OR WEST. */
-   ret = get_nbr_block_index(&nblk_i, nbr_dir, blk_x, blk_y, mw, mh);
-   /* Will return:                               */
-   /*    1. Neighbor index found == FOUND        */
-   /*    2. Neighbor not found == NOT_FOUND      */
-   /*    3. System error < 0                     */
-
-   /* If system error ... */
-   if(ret < 0)
-      /* Return the error code. */
-      return(ret);
-
-   /* If neighbor not found ... */
-   if(ret == NOT_FOUND)
-      /* Nothing to do, so return normally. */
-      return(0);
-
-   /* Otherwise, neighboring block found ... */
-
-   /* If neighbor block is VALID... */
-   if(imap[nblk_i] != INVALID_DIR){
-
-      /* Compute block index from current (not neighbor) block coordinates. */
-      blk_i = (blk_y*mw)+blk_x;
-
-      /* Select feature scan direction based on neighbor IMAP. */
-      rescan_dir = choose_scan_direction(imap[nblk_i],
-                                         lfsparms->num_directions);
-      /* If new scan direction is HORIZONTAL... */
-      if(rescan_dir == SCAN_HORIZONTAL){
-         /* Adjust scan_x, scan_y, scan_w, scan_h for rescan. */
-         if((ret = adjust_horizontal_rescan(nbr_dir, &rescan_x, &rescan_y,
-                         &rescan_w, &rescan_h,
-                         scan_x, scan_y, scan_w, scan_h, lfsparms->blocksize)))
-            /* Return system error code. */
-            return(ret);
-         /* Rescan specified region in block vertically. */
-         /* Pass IMAP direction for the block, NOT its neighbor. */
-         if((ret = scan4minutiae_horizontally(minutiae, bdata, iw, ih,
-                         imap[blk_i], nmap[blk_i],
-                         rescan_x, rescan_y, rescan_w, rescan_h, lfsparms)))
-            /* Return code may be:                      */
-            /* 1. ret<0 (implying system error)          */
-            return(ret);
-      } /* Otherwise, block has already been scanned vertically. */
-   } /* Otherwise, neighbor has INVALID IMAP, so ignore rescan. */
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -2051,70 +1454,6 @@ int rescan_partial_horizontally(const int nbr_dir, MINUTIAE *minutiae,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int rescan_partial_vertically(const int nbr_dir, MINUTIAE *minutiae,
-                      unsigned char *bdata, const int iw, const int ih,
-                      const int *imap, const int *nmap,
-                      const int blk_x, const int blk_y,
-                      const int mw, const int mh,
-                      const int scan_x, const int scan_y,
-                      const int scan_w, const int scan_h,
-                      const LFSPARMS *lfsparms)
-{
-   int nblk_i, blk_i;
-   int rescan_dir;
-   int rescan_x, rescan_y, rescan_w, rescan_h;
-   int ret;
-
-   /* Neighbor will either be NORTH, SOUTH, EAST, OR WEST. */
-   ret = get_nbr_block_index(&nblk_i, nbr_dir, blk_x, blk_y, mw, mh);
-   /* Will return:                               */
-   /*    1. Neighbor index found == FOUND        */
-   /*    2. Neighbor not found == NOT_FOUND      */
-   /*    3. System error < 0                     */
-
-   /* If system error ... */
-   if(ret < 0)
-      /* Return the error code. */
-      return(ret);
-
-   /* If neighbor not found ... */
-   if(ret == NOT_FOUND)
-      /* Nothing to do, so return normally. */
-      return(0);
-
-   /* Otherwise, neighboring block found ... */
-
-   /* If neighbor block is VALID... */
-   if(imap[nblk_i] != INVALID_DIR){
-
-      /* Compute block index from current (not neighbor) block coordinates. */
-      blk_i = (blk_y*mw)+blk_x;
-
-      /* Select feature scan direction based on neighbor IMAP. */
-      rescan_dir = choose_scan_direction(imap[nblk_i],
-                                         lfsparms->num_directions);
-      /* If new scan direction is VERTICAL... */
-      if(rescan_dir == SCAN_VERTICAL){
-         /* Adjust scan_x, scan_y, scan_w, scan_h for rescan. */
-         if((ret = adjust_vertical_rescan(nbr_dir, &rescan_x, &rescan_y,
-                         &rescan_w, &rescan_h,
-                         scan_x, scan_y, scan_w, scan_h, lfsparms->blocksize)))
-            /* Return system error code. */
-            return(ret);
-         /* Rescan specified region in block vertically. */
-         /* Pass IMAP direction for the block, NOT its neighbor. */
-         if((ret = scan4minutiae_vertically(minutiae, bdata, iw, ih,
-                         imap[blk_i], nmap[blk_i],
-                         rescan_x, rescan_y, rescan_w, rescan_h, lfsparms)))
-            /* Return code may be:                      */
-            /* 1. ret<0 (implying system error)          */
-            return(ret);
-      } /* Otherwise, block has already been scanned horizontally. */
-   } /* Otherwise, neighbor has INVALID IMAP, so ignore rescan. */
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -2134,56 +1473,6 @@ int rescan_partial_vertically(const int nbr_dir, MINUTIAE *minutiae,
       FOUND     - neighbor index exists and returned
       Negative  - system error
 **************************************************************************/
-int get_nbr_block_index(int *oblk_i, const int nbr_dir,
-            const int blk_x, const int blk_y, const int mw, const int mh)
-{
-   int nx, ny, ni;
-
-   switch(nbr_dir){
-      case NORTH:
-         /* If neighbor doesn't exist above... */
-         if((ny = blk_y-1) < 0)
-            /* Done, so return normally. */
-            return(NOT_FOUND);
-         /* Get neighbor's block index. */
-         ni = (ny*mw)+blk_x;
-         break;
-      case EAST:
-         /* If neighbor doesn't exist to the right... */
-         if((nx = blk_x+1) >= mw)
-            /* Done, so return normally. */
-            return(NOT_FOUND);
-         /* Get neighbor's block index. */
-         ni = (blk_y*mw)+nx;
-         break;
-      case SOUTH:
-         /* If neighbor doesn't exist below... */
-         if((ny = blk_y+1) >= mh)
-            /* Return normally. */
-            return(NOT_FOUND);
-         /* Get neighbor's block index. */
-         ni = (ny*mw)+blk_x;
-         break;
-      case WEST:
-         /* If neighbor doesn't exist to the left... */
-         if((nx = blk_x-1) < 0)
-            /* Return normally. */
-            return(NOT_FOUND);
-         /* Get neighbor's block index. */
-         ni = (blk_y*mw)+nx;
-         break;
-      default:
-         fprintf(stderr,
-         "ERROR : get_nbr_block_index : illegal neighbor direction\n");
-          return(-200);
-   }
-
-   /* Assign output pointer. */
-   *oblk_i = ni;
-
-   /* Return neighbor FOUND. */
-   return(FOUND);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -2206,126 +1495,6 @@ int get_nbr_block_index(int *oblk_i, const int nbr_dir,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int adjust_horizontal_rescan(const int nbr_dir, int *rescan_x, int *rescan_y,
-            int *rescan_w, int *rescan_h, const int scan_x, const int scan_y,
-            const int scan_w, const int scan_h, const int blocksize)
-{
-   int half_blocksize, qtr_blocksize;
-
-   /* Compute half of blocksize. */
-   half_blocksize = blocksize>>1;
-   /* Compute quarter of blocksize. */
-   qtr_blocksize = blocksize>>2;
-
-   /* Neighbor will either be NORTH, SOUTH, EAST, OR WEST. */
-   switch(nbr_dir){
-      case NORTH:
-         /*
-               *************************
-               *     RESCAN NORTH      *
-               *        AREA           *
-               *************************
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               -------------------------
-         */
-         /* Rescan origin stays the same. */
-         *rescan_x = scan_x;
-         *rescan_y = scan_y;
-         /* Rescan width stays the same. */
-         *rescan_w = scan_w;
-         /* Rescan height is reduced to "qtr_blocksize" */
-         /* if scan_h is larger.                         */
-         *rescan_h = min(qtr_blocksize, scan_h);
-         break;
-      case EAST:
-         /*
-               ------------*************
-               |           *           *
-               |           *           *
-               |           *    E R    *
-               |           *    A E    *
-               |           *    S S    *
-               |           *    T C    *
-               |           *      A    *
-               |           *      N    *
-               |           *           *
-               |           *           *
-               ------------*************
-         */
-         /* Rescan x-orign is set to half_blocksize from right edge of */
-         /* block if scan width is larger.                            */
-         *rescan_x = max(scan_x+scan_w-half_blocksize, scan_x);
-         /* Rescan y-origin stays the same. */
-         *rescan_y = scan_y;
-         /* Rescan width is reduced to "half_blocksize" */
-         /* if scan width is larger.                   */
-         *rescan_w = min(half_blocksize, scan_w);
-         /* Rescan height stays the same. */
-         *rescan_h = scan_h;
-         break;
-      case SOUTH:
-         /*
-               -------------------------
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               *************************
-               *     RESCAN SOUTH      *
-               *        AREA           *
-               *************************
-         */
-         /* Rescan x-origin stays the same. */
-         *rescan_x = scan_x;
-         /* Rescan y-orign is set to qtr_blocksize from bottom edge of */
-         /* block if scan height is larger.                             */
-         *rescan_y = max(scan_y+scan_h-qtr_blocksize, scan_y);
-         /* Rescan width stays the same. */
-         *rescan_w = scan_w;
-         /* Rescan height is reduced to "qtr_blocksize" */
-         /* if scan height is larger.                    */
-         *rescan_h = min(qtr_blocksize, scan_h);
-         break;
-      case WEST:
-         /*
-               *************------------
-               *           *           |
-               *           *           |
-               *    W R    *           |
-               *    E E    *           |
-               *    S S    *           |
-               *    T C    *           |
-               *      A    *           |
-               *      N    *           |
-               *           *           |
-               *           *           |
-               *************------------
-         */
-         /* Rescan origin stays the same. */
-         *rescan_x = scan_x;
-         *rescan_y = scan_y;
-         /* Rescan width is reduced to "half_blocksize" */
-         /* if scan width is larger.                   */
-         *rescan_w = min(half_blocksize, scan_w);
-         /* Rescan height stays the same. */
-         *rescan_h = scan_h;
-         break;
-      default:
-         fprintf(stderr,
-         "ERROR : adjust_horizontal_rescan : illegal neighbor direction\n");
-          return(-210);
-   }
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -2348,128 +1517,6 @@ int adjust_horizontal_rescan(const int nbr_dir, int *rescan_x, int *rescan_y,
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-int adjust_vertical_rescan(const int nbr_dir, int *rescan_x, int *rescan_y,
-            int *rescan_w, int *rescan_h, const int scan_x, const int scan_y,
-            const int scan_w, const int scan_h, const int blocksize)
-{
-   int half_blocksize, qtr_blocksize;
-
-   /* Compute half of blocksize. */
-   half_blocksize = blocksize>>1;
-   /* Compute quarter of blocksize. */
-   qtr_blocksize = blocksize>>2;
-
-   /* Neighbor will either be NORTH, SOUTH, EAST, OR WEST. */
-   switch(nbr_dir){
-      case NORTH:
-         /*
-               *************************
-               *                       *
-               *     RESCAN NORTH      *
-               *        AREA           *
-               *                       *
-               *************************
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               -------------------------
-         */
-         /* Rescan origin stays the same. */
-         *rescan_x = scan_x;
-         *rescan_y = scan_y;
-         /* Rescan width stays the same. */
-         *rescan_w = scan_w;
-         /* Rescan height is reduced to "half_blocksize" */
-         /* if scan_h is larger.                         */
-         *rescan_h = min(half_blocksize, scan_h);
-         break;
-      case EAST:
-         /*
-               ------------------*******
-               |                 *     *
-               |                 *     *
-               |                 * E R *
-               |                 * A E *
-               |                 * S S *
-               |                 * T C *
-               |                 *   A *
-               |                 *   N *
-               |                 *     *
-               |                 *     *
-               ------------------*******
-         */
-         /* Rescan x-orign is set to qtr_blocksize from right edge of */
-         /* block if scan width is larger.                            */
-         *rescan_x = max(scan_x+scan_w-qtr_blocksize, scan_x);
-         /* Rescan y-origin stays the same. */
-         *rescan_y = scan_y;
-         /* Rescan width is reduced to "qtr_blocksize" */
-         /* if scan width is larger.                   */
-         *rescan_w = min(qtr_blocksize, scan_w);
-         /* Rescan height stays the same. */
-         *rescan_h = scan_h;
-         break;
-      case SOUTH:
-         /*
-               -------------------------
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               |                       |
-               *************************
-               *                       *
-               *     RESCAN SOUTH      *
-               *        AREA           *
-               *                       *
-               *************************
-         */
-         /* Rescan x-origin stays the same. */
-         *rescan_x = scan_x;
-         /* Rescan y-orign is set to half_blocksize from bottom edge of */
-         /* block if scan height is larger.                             */
-         *rescan_y = max(scan_y+scan_h-half_blocksize, scan_y);
-         /* Rescan width stays the same. */
-         *rescan_w = scan_w;
-         /* Rescan height is reduced to "half_blocksize" */
-         /* if scan height is larger.                    */
-         *rescan_h = min(half_blocksize, scan_h);
-         break;
-      case WEST:
-         /*
-               *******------------------
-               *     *                 |
-               *     *                 |
-               * W R *                 |
-               * E E *                 |
-               * S S *                 |
-               * T C *                 |
-               *   A *                 |
-               *   N *                 |
-               *     *                 |
-               *     *                 |
-               *******------------------
-         */
-         /* Rescan origin stays the same. */
-         *rescan_x = scan_x;
-         *rescan_y = scan_y;
-         /* Rescan width is reduced to "qtr_blocksize" */
-         /* if scan width is larger.                   */
-         *rescan_w = min(qtr_blocksize, scan_w);
-         /* Rescan height stays the same. */
-         *rescan_h = scan_h;
-         break;
-      default:
-         fprintf(stderr,
-         "ERROR : adjust_vertical_rescan : illegal neighbor direction\n");
-          return(-220);
-   }
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -2484,7 +1531,7 @@ int adjust_vertical_rescan(const int nbr_dir, int *rescan_x, int *rescan_y,
       cx        - x-pixel coord where 3rd pattern pair of mintuia was detected
       cy        - y-pixel coord where 3rd pattern pair of mintuia was detected
       y2        - y-pixel coord where 2nd pattern pair of mintuia was detected
-      feature_id - type of minutia (ex. index into feature_patterns[] list)
+      feature_id - type of minutia (ex. index into g_feature_patterns[] list)
       bdata     - binary image data (0==while & 1==black)
       iw        - width (in pixels) of image
       ih        - height (in pixels) of image
@@ -2498,81 +1545,6 @@ int adjust_vertical_rescan(const int nbr_dir, int *rescan_x, int *rescan_y,
       IGNORE    - minutia is to be ignored
       Negative  - system error
 **************************************************************************/
-int process_horizontal_scan_minutia(MINUTIAE *minutiae,
-                    const int cx, const int cy,
-                    const int x2, const int feature_id,
-                    unsigned char *bdata, const int iw, const int ih,
-                    const int imapval, const int nmapval,
-                    const LFSPARMS *lfsparms)
-{
-   MINUTIA *minutia;
-   int x_loc, y_loc;
-   int x_edge, y_edge;
-   int idir, ret;
-
-   /* Set x location of minutia point to be half way between */
-   /* first position of second feature pair and position of  */
-   /* third feature pair.                                    */
-   x_loc = (cx + x2)>>1;
-
-   /* Set same x location to neighboring edge pixel. */
-   x_edge = x_loc;
-
-   /* Feature location should always point to either ending  */
-   /* of ridge or (for bifurcations) ending of valley.       */
-   /* So, if detected feature is APPEARING...                */ 
-   if(g_feature_patterns[feature_id].appearing){
-      /* Set y location to second scan row. */
-      y_loc = cy+1;
-      /* Set y location of neighboring edge pixel to the first scan row. */
-      y_edge = cy;
-   }
-   /* Otherwise, feature is DISAPPEARING... */
-   else{
-      /* Set y location to first scan row. */
-      y_loc = cy;
-      /* Set y location of neighboring edge pixel to the second scan row. */
-      y_edge = cy+1;
-   }
-
-   /* If current minutia is in a high-curvature block... */
-   if(nmapval == HIGH_CURVATURE){
-      /* Adjust location and direction locally. */
-      if((ret = adjust_high_curvature_minutia(&idir, &x_loc, &y_loc,
-                           &x_edge, &y_edge, x_loc, y_loc, x_edge, y_edge,
-                           bdata, iw, ih, minutiae, lfsparms))){
-         /* Could be a system error or IGNORE minutia. */
-         return(ret);
-      }
-      /* Otherwise, we have our high-curvature minutia attributes. */
-   }
-   /* Otherwise, minutia is in fairly low-curvature block... */
-   else{
-      /* Get minutia direction based on current IMAP value. */
-      idir = get_low_curvature_direction(SCAN_HORIZONTAL,
-                     g_feature_patterns[feature_id].appearing,
-                     imapval, lfsparms->num_directions);
-   }
-
-   /* Create a minutia object based on derived attributes. */
-   if((ret = create_minutia(&minutia, x_loc, y_loc, x_edge, y_edge, idir,
-                     DEFAULT_RELIABILITY,
-                     g_feature_patterns[feature_id].type,
-                     g_feature_patterns[feature_id].appearing, feature_id)))
-      /* Return system error. */
-      return(ret);
-
-   /* Update the minutiae list with potential new minutia. */
-   ret = update_minutiae(minutiae, minutia, bdata, iw, ih, lfsparms);
-
-   /* If minuitia IGNORED and not added to the minutia list ... */
-   if(ret == IGNORE)
-      /* Deallocate the minutia. */
-      free_minutia(minutia);
-
-   /* Otherwise, return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -2587,7 +1559,7 @@ int process_horizontal_scan_minutia(MINUTIAE *minutiae,
       cx        - x-pixel coord where 3rd pattern pair of mintuia was detected
       cy        - y-pixel coord where 3rd pattern pair of mintuia was detected
       y2        - y-pixel coord where 2nd pattern pair of mintuia was detected
-      feature_id - type of minutia (ex. index into feature_patterns[] list)
+      feature_id - type of minutia (ex. index into g_feature_patterns[] list)
       bdata     - binary image data (0==while & 1==black)
       iw        - width (in pixels) of image
       ih        - height (in pixels) of image
@@ -2626,7 +1598,7 @@ int process_horizontal_scan_minutia_V2(MINUTIAE *minutiae,
 
    /* Feature location should always point to either ending  */
    /* of ridge or (for bifurcations) ending of valley.       */
-   /* So, if detected feature is APPEARING...                */ 
+   /* So, if detected feature is APPEARING...                */
    if(g_feature_patterns[feature_id].appearing){
       /* Set y location to second scan row. */
       y_loc = cy+1;
@@ -2711,7 +1683,7 @@ int process_horizontal_scan_minutia_V2(MINUTIAE *minutiae,
       cx        - x-pixel coord where 3rd pattern pair of mintuia was detected
       cy        - y-pixel coord where 3rd pattern pair of mintuia was detected
       x2        - x-pixel coord where 2nd pattern pair of mintuia was detected
-      feature_id - type of minutia (ex. index into feature_patterns[] list)
+      feature_id - type of minutia (ex. index into g_feature_patterns[] list)
       bdata     - binary image data (0==while & 1==black)
       iw        - width (in pixels) of image
       ih        - height (in pixels) of image
@@ -2725,80 +1697,6 @@ int process_horizontal_scan_minutia_V2(MINUTIAE *minutiae,
       IGNORE    - minutia is to be ignored
       Negative  - system error
 **************************************************************************/
-int process_vertical_scan_minutia(MINUTIAE *minutiae,
-                    const int cx, const int cy,
-                    const int y2, const int feature_id,
-                    unsigned char *bdata, const int iw, const int ih,
-                    const int imapval, const int nmapval,
-                    const LFSPARMS *lfsparms)
-{
-   MINUTIA *minutia;
-   int x_loc, y_loc;
-   int x_edge, y_edge;
-   int idir, ret;
-
-   /* Feature location should always point to either ending  */
-   /* of ridge or (for bifurcations) ending of valley.       */
-   /* So, if detected feature is APPEARING...                */ 
-   if(g_feature_patterns[feature_id].appearing){
-      /* Set x location to second scan column. */
-      x_loc = cx+1;
-      /* Set x location of neighboring edge pixel to the first scan column. */
-      x_edge = cx;
-   }
-   /* Otherwise, feature is DISAPPEARING... */
-   else{
-      /* Set x location to first scan column. */
-      x_loc = cx;
-      /* Set x location of neighboring edge pixel to the second scan column. */
-      x_edge = cx+1;
-   }
-
-   /* Set y location of minutia point to be half way between */
-   /* first position of second feature pair and position of  */
-   /* third feature pair.                                    */
-   y_loc = (cy + y2)>>1;
-   /* Set same y location to neighboring edge pixel. */
-   y_edge = y_loc;
-
-   /* If current minutia is in a high-curvature block... */
-   if(nmapval == HIGH_CURVATURE){
-      /* Adjust location and direction locally. */
-      if((ret = adjust_high_curvature_minutia(&idir, &x_loc, &y_loc,
-                           &x_edge, &y_edge, x_loc, y_loc, x_edge, y_edge,
-                           bdata, iw, ih, minutiae, lfsparms))){
-         /* Could be a system error or IGNORE minutia. */
-         return(ret);
-      }
-      /* Otherwise, we have our high-curvature minutia attributes. */  
-   }
-   /* Otherwise, minutia is in fairly low-curvature block... */
-   else{
-      /* Get minutia direction based on current IMAP value. */
-      idir = get_low_curvature_direction(SCAN_VERTICAL,
-                     g_feature_patterns[feature_id].appearing,
-                     imapval, lfsparms->num_directions);
-   }
-
-   /* Create a minutia object based on derived attributes. */
-   if((ret = create_minutia(&minutia, x_loc, y_loc, x_edge, y_edge, idir,
-                     DEFAULT_RELIABILITY,
-                     g_feature_patterns[feature_id].type,
-                     g_feature_patterns[feature_id].appearing, feature_id)))
-      /* Return system error. */
-      return(ret);
-
-   /* Update the minutiae list with potential new minutia. */
-   ret = update_minutiae(minutiae, minutia, bdata, iw, ih, lfsparms);
-
-   /* If minuitia IGNORED and not added to the minutia list ... */
-   if(ret == IGNORE)
-      /* Deallocate the minutia. */
-      free_minutia(minutia);
-
-   /* Otherwise, return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -2813,7 +1711,7 @@ int process_vertical_scan_minutia(MINUTIAE *minutiae,
       cx        - x-pixel coord where 3rd pattern pair of mintuia was detected
       cy        - y-pixel coord where 3rd pattern pair of mintuia was detected
       x2        - x-pixel coord where 2nd pattern pair of mintuia was detected
-      feature_id - type of minutia (ex. index into feature_patterns[] list)
+      feature_id - type of minutia (ex. index into g_feature_patterns[] list)
       bdata     - binary image data (0==while & 1==black)
       iw        - width (in pixels) of image
       ih        - height (in pixels) of image
@@ -2844,7 +1742,7 @@ int process_vertical_scan_minutia_V2(MINUTIAE *minutiae,
 
    /* Feature location should always point to either ending  */
    /* of ridge or (for bifurcations) ending of valley.       */
-   /* So, if detected feature is APPEARING...                */ 
+   /* So, if detected feature is APPEARING...                */
    if(g_feature_patterns[feature_id].appearing){
       /* Set x location to second scan column. */
       x_loc = cx+1;
@@ -2884,7 +1782,7 @@ int process_vertical_scan_minutia_V2(MINUTIAE *minutiae,
          /* Could be a system error or IGNORE minutia. */
          return(ret);
       }
-      /* Otherwise, we have our high-curvature minutia attributes. */  
+      /* Otherwise, we have our high-curvature minutia attributes. */
    }
    /* Otherwise, minutia is in fairly low-curvature block... */
    else{
@@ -2959,167 +1857,6 @@ int process_vertical_scan_minutia_V2(MINUTIAE *minutiae,
       IGNORE    - minutia point is to be ignored
       Negative  - system error
 **************************************************************************/
-int adjust_high_curvature_minutia(int *oidir, int *ox_loc, int *oy_loc,
-              int *ox_edge, int *oy_edge,
-              const int x_loc, const int y_loc,
-              const int x_edge, const int y_edge,
-              unsigned char *bdata, const int iw, const int ih,
-              MINUTIAE *minutiae, const LFSPARMS *lfsparms)
-{
-   int ret;
-   int *contour_x, *contour_y, *contour_ex, *contour_ey, ncontour;
-   int min_i;
-   double min_theta;
-   int feature_pix;
-   int mid_x, mid_y, mid_pix;
-   int idir;
-   int half_contour, angle_edge;
-
-   /* Set variable from parameter structure. */
-   half_contour = lfsparms->high_curve_half_contour;
-
-   /* Set edge length for computing contour's angle of curvature */
-   /* to one quarter of desired pixel length of entire contour.  */
-   /* Ex. If half_contour==14, then contour length==29=(2X14)+1  */
-   /* and angle_edge==7=(14/2).                                  */
-   angle_edge = half_contour>>1;
-
-   /* Get the pixel value of current feature. */
-   feature_pix = *(bdata + (y_loc * iw) + x_loc);
-
-   /* Extract feature's contour. */
-   if((ret = get_high_curvature_contour(&contour_x, &contour_y,
-                         &contour_ex, &contour_ey, &ncontour, half_contour,
-                         x_loc, y_loc, x_edge, y_edge, bdata, iw, ih))){
-      /* Returns with:                                                    */
-      /*    1. Successful or empty contour == 0                           */
-      /*       If contour is empty, then contour lists are not allocated. */
-      /*    2. Contour forms loop == LOOP_FOUND                           */
-      /*    3. Sysetm error < 0                                           */
-
-      /* If the contour forms a loop... */
-      if(ret == LOOP_FOUND){
-
-         /* If the order of the contour is clockwise, then the loops's     */
-         /* contour pixels are outside the corresponding edge pixels.  We  */
-         /* definitely do NOT want to fill based on the feature pixel in   */
-         /* this case, because it is OUTSIDE the loop.  For now we will    */
-         /* ignore the loop and the minutia that triggered its tracing.    */
-         /* It is likely that other minutia on the loop will be            */
-         /* detected that create a contour on the "inside" of the loop.    */
-         /* There is another issue here that could be addressed ...        */
-         /* It seems that many/multiple minutia are often detected within  */
-         /* the same loop, which currently requires retracing the loop,    */
-         /* locating minutia on opposite ends of the major axis of the     */
-         /* loop, and then determining that the minutia have already been  */
-         /* entered into the minutiae list upon processing the very first   */
-         /* minutia detected in the loop.  There is a lot of redundant     */
-         /* work being done here!                                          */
-         /* Is_loop_clockwise takes a default value to be returned if the  */
-         /* routine is unable to determine the direction of the contour.   */
-         /* In this case, we want to IGNORE the loop if we can't tell its  */
-         /* direction so that we do not inappropriately fill the loop, so  */
-         /* we are passing the default value TRUE.                         */
-         if((ret = is_loop_clockwise(contour_x, contour_y, ncontour, TRUE))){
-            /* Deallocate contour lists. */
-            free_contour(contour_x, contour_y, contour_ex, contour_ey);
-            /* If we had a system error... */
-            if(ret < 0)
-               /* Return the error code. */
-               return(ret);
-            /* Otherwise, loop is clockwise, so return IGNORE. */
-            return(IGNORE);
-         }
-
-         /* Otherwise, process the clockwise-ordered contour of the loop */
-         /* as it may contain minutia.  If no minutia found, then it is  */
-         /* filled in.                                                   */
-         ret = process_loop(minutiae, contour_x, contour_y,
-                            contour_ex, contour_ey, ncontour,
-                            bdata, iw, ih, lfsparms);
-         /* Returns with:                              */
-         /*    1. Successful processing of loop == 0   */
-         /*    2. System error < 0                     */
-
-         /* Deallocate contour lists. */
-         free_contour(contour_x, contour_y, contour_ex, contour_ey);
-
-         /* If loop processed successfully ... */
-         if(ret == 0)
-            /* Then either a minutia pair was extracted or the loop was */
-            /* filled.  Either way we want to IGNORE the minutia that   */
-            /* started the whole loop processing in the beginning.      */
-            return(IGNORE);
-
-         /* Otherwise, there was a system error. */
-         /* Return the resulting code.           */
-         return(ret);
-      }
-
-      /* Otherwise not a loop, so get_high_curvature_contour incurred */
-      /* a system error.  Return the error code.                      */
-      return(ret);
-   }
-
-   /* If contour is empty ... then contour lists were not allocated, so */
-   /* simply return IGNORE.  The contour comes back empty when there    */
-   /* were not a sufficient number of points found on the contour.      */
-   if(ncontour == 0)
-      return(IGNORE);
-
-   /* Otherwise, there are contour points to process. */
-
-   /* Given the contour, determine the point of highest curvature */
-   /* (ie. forming the minimum angle between contour walls).      */
-   if((ret = min_contour_theta(&min_i, &min_theta, angle_edge,
-                              contour_x, contour_y, ncontour))){
-      /* Deallocate contour lists. */
-      free_contour(contour_x, contour_y, contour_ex, contour_ey);
-      /* Returns IGNORE or system error.  Either way */
-      /* free the contour and return the code.       */
-      return(ret);
-   }
-
-   /* If the minimum theta found along the contour is too large... */
-   if(min_theta >= lfsparms->max_high_curve_theta){
-      /* Deallocate contour lists. */
-      free_contour(contour_x, contour_y, contour_ex, contour_ey);
-      /* Reject the high-curvature minutia, and return IGNORE. */
-      return(IGNORE);
-   }
-
-   /* Test to see if interior of curvature is OK.  Compute midpoint   */
-   /* between left and right points symmetrically distant (angle_edge */
-   /* pixels) from the contour's point of minimum theta.              */
-   mid_x = (contour_x[min_i-angle_edge] + contour_x[min_i+angle_edge])>>1;
-   mid_y = (contour_y[min_i-angle_edge] + contour_y[min_i+angle_edge])>>1;
-   mid_pix = *(bdata + (mid_y * iw) + mid_x);
-   /* If the interior pixel value is not the same as the feature's... */
-   if(mid_pix != feature_pix){
-      /* Deallocate contour lists. */
-      free_contour(contour_x, contour_y, contour_ex, contour_ey);
-      /* Reject the high-curvature minutia and return IGNORE. */
-      return(IGNORE);
-   }
-
-   /* Compute new direction based on line connecting adjusted feature */
-   /* location and the midpoint in the feature's interior.            */
-   idir = line2direction(contour_x[min_i], contour_y[min_i],
-                         mid_x, mid_y, lfsparms->num_directions);
-
-   /* Set minutia location to minimum theta position on the contour. */
-   *oidir = idir;
-   *ox_loc = contour_x[min_i];
-   *oy_loc = contour_y[min_i];
-   *ox_edge = contour_ex[min_i];
-   *oy_edge = contour_ey[min_i];
-
-   /* Deallocate contour buffers. */
-   free_contour(contour_x, contour_y, contour_ex, contour_ey);
-
-   /*Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -3462,50 +2199,5 @@ int get_low_curvature_direction(const int scan_dir, const int appearing,
 
    /* Return resulting direction on range [0..31]. */
    return(idir);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: lfs2nist_minutia_XYT - Converts XYT minutiae attributes in LFS native
-#cat:        representation to NIST internal representation
-
-   Input:
-      minutia  - LFS minutia structure containing attributes to be converted
-   Output:
-      ox       - NIST internal based x-pixel coordinate
-      oy       - NIST internal based y-pixel coordinate
-      ot       - NIST internal based minutia direction/orientation
-   Return Code:
-      Zero     - successful completion
-      Negative - system error
-**************************************************************************/
-void lfs2nist_minutia_XYT(int *ox, int *oy, int *ot,
-                          const MINUTIA *minutia, const int iw, const int ih)
-{
-   int x, y, t;
-   float degrees_per_unit;
-
-   /*       XYT's according to NIST internal rep:           */
-    /*      1. pixel coordinates with origin bottom-left    */
-   /*       2. orientation in degrees on range [0..360]     */
-   /*          with 0 pointing east and increasing counter  */
-   /*          clockwise (same as M1)                       */
-   /*       3. direction pointing out and away from the     */
-   /*             ridge ending or bifurcation valley        */
-   /*             (opposite direction from M1)              */
-
-   x = minutia->x;
-   y = ih - minutia->y;
-
-   degrees_per_unit = 180 / (float)NUM_DIRECTIONS;
-
-   t = (270 - sround(minutia->direction * degrees_per_unit)) % 360;
-   if(t < 0){
-      t += 360;
-   }
-
-   *ox = x;
-   *oy = y;
-   *ot = t;
 }
 

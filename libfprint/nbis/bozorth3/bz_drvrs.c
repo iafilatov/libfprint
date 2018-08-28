@@ -1,51 +1,43 @@
-/****************************************************************************** 
-
-This file is part of the Export Control subset of the United States NIST
-Biometric Image Software (NBIS) distribution:
-    http://fingerprint.nist.gov/NBIS/index.html
-
-It is our understanding that this falls within ECCN 3D980, which covers
-software associated with the development, production or use of certain
-equipment controlled in accordance with U.S. concerns about crime control
-practices in specific countries.
-
-Therefore, this file should not be exported, or made available on fileservers,
-except as allowed by U.S. export control laws.
-
-Do not remove this notice.
-
-******************************************************************************/
-
-/* NOTE: Despite the above notice (which I have not removed), this file is
- * being legally distributed within libfprint; the U.S. Export Administration
- * Regulations do not place export restrictions upon distribution of
- * "publicly available technology and software", as stated in EAR section
- * 734.3(b)(3)(i). libfprint qualifies as publicly available technology as per
- * the definition in section 734.7(a)(1).
- *
- * For further information, see https://fprint.freedesktop.org/us-export-control.html
- */
-
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
 
@@ -177,47 +169,3 @@ return bz_match_score( np, pstruct, gstruct );
 
 /**************************************************************************/
 
-int bozorth_main(
-		struct xyt_struct * pstruct,
-		struct xyt_struct * gstruct
-		)
-{
-int ms;
-int np;
-int probe_len;
-int gallery_len;
-
-
-
-#ifdef DEBUG
-	printf( "PROBE_INIT() called\n" );
-#endif
-probe_len   = bozorth_probe_init( pstruct );
-
-
-#ifdef DEBUG
-	printf( "GALLERY_INIT() called\n" );
-#endif
-gallery_len = bozorth_gallery_init( gstruct );
-
-
-#ifdef DEBUG
-	printf( "BZ_MATCH() called\n" );
-#endif
-np = bz_match( probe_len, gallery_len );
-
-
-#ifdef DEBUG
-	printf( "BZ_MATCH() returned %d edge pairs\n", np );
-	printf( "COMPUTE() called\n" );
-#endif
-ms = bz_match_score( np, pstruct, gstruct );
-
-
-#ifdef DEBUG
-	printf( "COMPUTE() returned %d\n", ms );
-#endif
-
-
-return ms;
-}

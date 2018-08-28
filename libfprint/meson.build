@@ -30,14 +30,17 @@ nbis_sources = [
     'nbis/bozorth3/bz_sort.c',
     'nbis/mindtct/binar.c',
     'nbis/mindtct/block.c',
+    'nbis/mindtct/chaincod.c',
     'nbis/mindtct/contour.c',
     'nbis/mindtct/detect.c',
     'nbis/mindtct/dft.c',
     'nbis/mindtct/free.c',
+    'nbis/mindtct/getmin.c',
     'nbis/mindtct/globals.c',
     'nbis/mindtct/imgutil.c',
     'nbis/mindtct/init.c',
     'nbis/mindtct/line.c',
+    'nbis/mindtct/link.c',
     'nbis/mindtct/log.c',
     'nbis/mindtct/loop.c',
     'nbis/mindtct/maps.c',
@@ -50,6 +53,7 @@ nbis_sources = [
     'nbis/mindtct/shape.c',
     'nbis/mindtct/sort.c',
     'nbis/mindtct/util.c',
+    'nbis/mindtct/xytreps.c',
 ]
 
 aeslib = false

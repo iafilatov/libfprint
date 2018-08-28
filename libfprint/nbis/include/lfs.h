@@ -1,23 +1,43 @@
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
 
@@ -33,6 +53,9 @@ identified are necessarily the best available for the purpose.
                         Comments added to guide changes to blocksize
                         or number of detected directions.
                UPDATED: 03/11/2005 by MDG
+               UPDATED: 01/31/2008 by Kenneth Ko
+               UPDATED: 09/04/2008 by Kenneth Ko
+               UPDATED: 01/11/2012 by Kenneth Ko
 
                FILE:    LFS.H
 
@@ -160,7 +183,7 @@ typedef struct shape{
 
 /* Parameters used by LFS for setting thresholds and  */
 /* defining testing criterion.                        */
-typedef struct lfsparms{
+typedef struct g_lfsparms{
    /* Image Controls */
    int    pad_value;
    int    join_line_radius;
@@ -236,8 +259,6 @@ typedef struct lfsparms{
    int    pores_steps_bwd;
    double pores_min_dist2;
    double pores_max_ratio;
-   int    remove_perimeter_pts;
-   int    min_pp_distance;
 
    /* Ridge Counting Controls */
    int    max_nbrs;
@@ -382,7 +403,7 @@ typedef struct lfsparms{
 /* Thresholds and factors used by HO39.  Renamed     */
 /* here to give more meaning.                        */
                                                      /* HO39 Name=Value */
-/* Minimum DFT power allowable in any one direction. */ 
+/* Minimum DFT power allowable in any one direction. */
 #define POWMAX_MIN          100000.0                 /*     thrhf=1e5f  */
 
 /* Minimum normalized power allowable in any one     */
@@ -587,9 +608,6 @@ typedef struct lfsparms{
 /* contour points to be considered a pore.                               */
 #define PORES_MAX_RATIO          2.25
 
-/* Points which are closer than this distance to scan perimeter will be removed */
-#define PERIMETER_PTS_DISTANCE 10
-
 
 /***** RIDGE COUNTING CONSTANTS *****/
 
@@ -689,15 +707,24 @@ typedef struct lfsparms{
 /*************************************************************************/
 
 /* binar.c */
+extern int binarize(unsigned char **, int *, int *,
+                     unsigned char *, const int, const int,
+                     int *, const int, const int,
+                     const ROTGRIDS *, const LFSPARMS *);
 extern int binarize_V2(unsigned char **, int *, int *,
                      unsigned char *, const int, const int,
                      int *, const int, const int,
                      const ROTGRIDS *, const LFSPARMS *);
+extern int binarize_image(unsigned char **, int *, int *,
+                     unsigned char *, const int, const int,
+                     const int *, const int, const int, const int,
+                     const ROTGRIDS *, const int);
 extern int binarize_image_V2(unsigned char **, int *, int *,
                      unsigned char *, const int, const int,
                      const int *, const int, const int,
                      const int, const ROTGRIDS *);
 extern int dirbinarize(const unsigned char *, const int, const ROTGRIDS *);
+extern int isobinarize(unsigned char *, const int, const int, const int);
 
 /* block.c */
 extern int block_offsets(int **, int *, int *, const int, const int,
@@ -709,9 +736,12 @@ extern int find_valid_block(int *, int *, int *, int *, int *,
                      const int, const int);
 extern void set_margin_blocks(int *, const int, const int, const int);
 
+/* chaincod.c */
+extern int chain_code_loop(int **, int *, const int *, const int *, const int);
+extern int is_chain_clockwise(const int *, const int, const int);
+
 /* contour.c */
-int allocate_contour(int **ocontour_x, int **ocontour_y,
-                     int **ocontour_ex, int **ocontour_ey, const int ncontour);
+extern int allocate_contour(int **, int **, int **, int **, const int);
 extern void free_contour(int *, int *, int *, int *);
 extern int get_high_curvature_contour(int **, int **, int **, int **, int *,
                      const int, const int, const int, const int, const int,
@@ -726,6 +756,11 @@ extern int trace_contour(int **, int **, int **, int **, int *,
 extern int search_contour(const int, const int, const int,
                      const int, const int, const int, const int, const int,
                      unsigned char *, const int, const int);
+extern int next_contour_pixel(int *, int *, int *, int *,
+                     const int, const int, const int, const int, const int,
+                     unsigned char *, const int, const int);
+extern int start_scan_nbr(const int, const int, const int, const int);
+extern int next_scan_nbr(const int, const int);
 extern int min_contour_theta(int *, double *, const int, const int *,
                      const int *, const int);
 extern void contour_limits(int *, int *, int *, int *, const int *,
@@ -734,24 +769,42 @@ extern void fix_edge_pixel_pair(int *, int *, int *, int *,
                      unsigned char *, const int, const int);
 
 /* detect.c */
-extern int get_minutiae(MINUTIAE **, int **, int **, int **,
-                 int **, int **, int *, int *,
-                 unsigned char **, int *, int *, int *,
-                 unsigned char *, const int, const int,
-                 const int, const double, const LFSPARMS *);
+extern int lfs_detect_minutiae( MINUTIAE **,
+                     int **, int **, int *, int *,
+                     unsigned char **, int *, int *,
+                     unsigned char *, const int, const int,
+                     const LFSPARMS *);
+
+extern int lfs_detect_minutiae_V2(MINUTIAE **,
+                     int **, int **, int **, int **, int *, int *,
+                     unsigned char **, int *, int *,
+                     unsigned char *, const int, const int,
+                     const LFSPARMS *);
 
 /* dft.c */
 extern int dft_dir_powers(double **, unsigned char *, const int,
                      const int, const int, const DFTWAVES *,
                      const ROTGRIDS *);
+extern void sum_rot_block_rows(int *, const unsigned char *, const int *,
+                     const int);
+extern void dft_power(double *, const int *, const DFTWAVE *, const int);
 extern int dft_power_stats(int *, double *, int *, double *, double **,
                      const int, const int, const int);
+extern void get_max_norm(double *, int *, double *, const double *, const int);
+extern int sort_dft_waves(int *, const double *, const double *, const int);
 
 /* free.c */
 extern void free_dir2rad(DIR2RAD *);
 extern void free_dftwaves(DFTWAVES *);
 extern void free_rotgrids(ROTGRIDS *);
 extern void free_dir_powers(double **, const int);
+
+/* getmin.c */
+extern int get_minutiae(MINUTIAE **, int **, int **, int **,
+                 int **, int **, int *, int *,
+                 unsigned char **, int *, int *, int *,
+                 unsigned char *, const int, const int,
+                 const int, const double, const LFSPARMS *);
 
 /* imgutil.c */
 extern void bits_6to8(unsigned char *, const int, const int);
@@ -771,15 +824,41 @@ extern int search_in_direction(int *, int *, int *, int *, const int,
 /* init.c */
 extern int init_dir2rad(DIR2RAD **, const int);
 extern int init_dftwaves(DFTWAVES **, const double *, const int, const int);
+extern int get_max_padding(const int, const int, const int, const int);
 extern int get_max_padding_V2(const int, const int, const int, const int);
 extern int init_rotgrids(ROTGRIDS **, const int, const int, const int,
                      const double, const int, const int, const int, const int);
 extern int alloc_dir_powers(double ***, const int, const int);
 extern int alloc_power_stats(int **, double **, int **, double **, const int);
 
+/* isempty.c */
+extern int is_image_empty(int *, const int, const int);
+extern int is_qmap_empty(int *, const int, const int);
+
+
 /* line.c */
 extern int line_points(int **, int **, int *,
                      const int, const int, const int, const int);
+extern int bresenham_line_points(int **, int **, int *,
+                     const int, const int, const int, const int);
+
+/* link.c */
+extern int link_minutiae(MINUTIAE *, unsigned char *, const int, const int,
+                     int *, const int, const int, const LFSPARMS *);
+extern int create_link_table(int **, int **, int **, int *, int *, int *,
+                     const int, const int, const MINUTIAE *, const int *,
+                     int *, const int, const int, unsigned char *,
+                     const int, const int, const LFSPARMS *);
+extern int update_link_table(int *, int *, int *, int *, int *, int *,
+                     const int, int *, int *, int *, int *,
+                     const int, const int, const int);
+extern int order_link_table(int *, int *, int *, const int, const int,
+                     const int, const int, const MINUTIAE *, const int);
+extern int process_link_table(const int *, const int *, const int *,
+                     const int, const int, const int, const int, MINUTIAE *,
+                     int *, unsigned char *, const int, const int,
+                     const LFSPARMS *);
+extern double link_score(const double, const double, const LFSPARMS *);
 
 /* loop.c */
 extern int get_loop_list(int **, MINUTIAE *, const int, unsigned char *,
@@ -799,7 +878,15 @@ extern int process_loop_V2(MINUTIAE *, const int *, const int *,
                      const int *, const int *, const int,
                      unsigned char *, const int, const int,
                      int *, const LFSPARMS *);
+extern void get_loop_aspect(int *, int *, double *, int *, int *, double *,
+                     const int *, const int *, const int);
 extern int fill_loop(const int *, const int *, const int,
+                     unsigned char *, const int, const int);
+extern void fill_partial_row(const int, const int, const int, const int,
+                     unsigned char *, const int, const int);
+extern void flood_loop(const int *, const int *, const int,
+                     unsigned char *, const int, const int);
+extern void flood_fill4(const int, const int, const int,
                      unsigned char *, const int, const int);
 
 /* maps.c */
@@ -819,6 +906,10 @@ extern int pixelize_map(int **, const int, const int,
 extern void smooth_direction_map(int *, int *, const int, const int,
                      const DIR2RAD *, const LFSPARMS *);
 extern int gen_high_curve_map(int **, int *, const int, const int,
+                     const LFSPARMS *);
+extern int gen_imap(int **, int *, int *,
+                     unsigned char *, const int, const int,
+                     const DIR2RAD *, const DFTWAVES *, const ROTGRIDS *,
                      const LFSPARMS *);
 extern int gen_initial_imap(int **, int *, const int, const int,
                      unsigned char *, const int, const int,
@@ -850,6 +941,7 @@ extern void average_8nbr_dir(int *, double *, int *, int *, const int,
 extern int num_valid_8nbrs(int *, const int, const int, const int, const int);
 extern void smooth_imap(int *, const int, const int, const DIR2RAD *,
                      const LFSPARMS *);
+extern int gen_nmap(int **, int *, const int, const int, const LFSPARMS *);
 extern int vorticity(int *, const int, const int, const int, const int,
                      const int);
 extern void accum_nbr_vorticity(int *, const int, const int, const int);
@@ -868,6 +960,9 @@ extern void skip_repeated_vertical_pair(int *, const int,
 /* minutia.c */
 extern int alloc_minutiae(MINUTIAE **, const int);
 extern int realloc_minutiae(MINUTIAE *, const int);
+extern int detect_minutiae(MINUTIAE *, unsigned char *, const int, const int,
+                     const int *, const int *, const int, const int,
+                     const LFSPARMS *);
 extern int detect_minutiae_V2(MINUTIAE *,
                      unsigned char *, const int, const int,
                      int *, int *, int *, const int, const int,
@@ -972,8 +1067,6 @@ extern int adjust_high_curvature_minutia_V2(int *, int *, int *,
                      int *, MINUTIAE *, const LFSPARMS *);
 extern int get_low_curvature_direction(const int, const int, const int,
                      const int);
-void lfs2nist_minutia_XYT(int *ox, int *oy, int *ot,
-                          const MINUTIA *minutia, const int iw, const int ih);
 
 /* quality.c */
 extern int gen_quality_map(int **, int *, int *, int *, int *,
@@ -981,6 +1074,12 @@ extern int gen_quality_map(int **, int *, int *, int *, int *,
 extern int combined_minutia_quality(MINUTIAE *, int *, const int, const int,
                      const int, unsigned char *, const int, const int,
                      const int, const double);
+double grayscale_reliability(MINUTIA *, unsigned char *,
+                     const int, const int, const int);
+extern void get_neighborhood_stats(double *, double *, MINUTIA *,
+                     unsigned char *, const int, const int, const int);
+extern int reliability_fr_quality_map(MINUTIAE *, int *, const int,
+                     const int, const int, const int, const int);
 
 /* remove.c */
 extern int remove_false_minutia(MINUTIAE *,
@@ -990,15 +1089,93 @@ extern int remove_false_minutia_V2(MINUTIAE *,
                   unsigned char *, const int, const int,
                   int *, int *, int *, const int, const int,
                   const LFSPARMS *);
+extern int remove_holes(MINUTIAE *, unsigned char *, const int, const int,
+                  const LFSPARMS *);
+extern int remove_hooks(MINUTIAE *,
+                  unsigned char *, const int, const int, const LFSPARMS *);
+extern int remove_hooks_islands_lakes_overlaps(MINUTIAE *, unsigned char *,
+                  const int, const int, const LFSPARMS *);
+extern int remove_islands_and_lakes(MINUTIAE *,
+                  unsigned char *, const int, const int, const LFSPARMS *);
+extern int remove_malformations(MINUTIAE *,
+                  unsigned char *, const int, const int,
+                  int *, const int, const int, const LFSPARMS *);
+extern int remove_near_invblock(MINUTIAE *, int *, const int, const int,
+                  const LFSPARMS *);
+extern int remove_near_invblock_V2(MINUTIAE *, int *,
+                  const int, const int, const LFSPARMS *);
+extern int remove_pointing_invblock(MINUTIAE *, int *, const int, const int,
+                  const LFSPARMS *);
+extern int remove_pointing_invblock_V2(MINUTIAE *,
+                  int *, const int, const int, const LFSPARMS *);
+extern int remove_overlaps(MINUTIAE *,
+                  unsigned char *, const int, const int, const LFSPARMS *);
+extern int remove_pores(MINUTIAE *,
+                  unsigned char *, const int, const int,
+                  int *, const int, const int, const LFSPARMS *);
+extern int remove_pores_V2(MINUTIAE *,
+                  unsigned char *, const int, const int,
+                  int *, int *, int *, const int, const int,
+                  const LFSPARMS *);
+extern int remove_or_adjust_side_minutiae(MINUTIAE *, unsigned char *,
+                  const int, const int, const LFSPARMS *);
+extern int remove_or_adjust_side_minutiae_V2(MINUTIAE *,
+                  unsigned char *, const int, const int,
+                  int *, const int, const int, const LFSPARMS *);
+
+/* results.c */
+extern int write_text_results(char *, const int, const int, const int,
+                 const MINUTIAE *, int *, int *, int *, int *, int *,
+                 const int, const int);
+extern int write_minutiae_XYTQ(char *ofile, const int,
+                 const MINUTIAE *, const int, const int);
+extern void dump_map(FILE *, int *, const int, const int);
+extern int drawimap(int *, const int, const int, unsigned char *,
+                  const int, const int, const ROTGRIDS *, const int);
+extern void drawimap2(int *, const int *, const int, const int,
+                  unsigned char *, const int, const int,
+                 const double, const int, const int);
+extern void drawblocks(const int *, const int, const int,
+                  unsigned char *, const int, const int, const int );
+extern int drawrotgrid(const ROTGRIDS *, const int, unsigned char *,
+                  const int, const int, const int, const int);
+extern void dump_link_table(FILE *, const int *, const int *, const int *,
+                  const int, const int, const int, const MINUTIAE *);
+extern int draw_direction_map(char *, int *,
+                  int *, const int, const int, const int,
+                  unsigned char *, const int, const int, const int);
+extern int draw_TF_map(char *, int *,
+                  int *, const int, const int, const int,
+                  unsigned char *, const int, const int, const int);
 
 /* ridges.c */
 extern int count_minutiae_ridges(MINUTIAE *,
                   unsigned char *, const int, const int,
                   const LFSPARMS *);
+extern int count_minutia_ridges(const int, MINUTIAE *,
+                  unsigned char *, const int, const int,
+                  const LFSPARMS *);
+extern int find_neighbors(int **, int *, const int, const int, MINUTIAE *);
+extern int update_nbr_dists(int *, double *, int *, const int,
+                  const int, const int, MINUTIAE *);
+extern int insert_neighbor(const int, const int, const double,
+                  int *, double *, int *, const int);
+extern int sort_neighbors(int *, const int, const int, MINUTIAE *);
+extern int ridge_count(const int, const int, MINUTIAE *,
+                  unsigned char *, const int, const int, const LFSPARMS *);
+extern int find_transition(int *, const int, const int,
+                  const int *, const int *, const int,
+                  unsigned char *, const int, const int);
+extern int validate_ridge_crossing(const int, const int,
+                  const int *, const int *, const int,
+                  unsigned char *, const int, const int, const int);
 
 /* shape.c */
+extern int alloc_shape(SHAPE **, const int, const int, const int, const int);
 extern void free_shape(SHAPE *);
+extern void dump_shape(FILE *, const SHAPE *);
 extern int shape_from_contour(SHAPE **, const int *, const int *, const int);
+extern void sort_row_on_x(ROW *);
 
 /* sort.c */
 extern int sort_indices_int_inc(int **, int *, const int);
@@ -1022,6 +1199,12 @@ extern double angle2line(const int, const int, const int, const int);
 extern int line2direction(const int, const int, const int, const int,
                      const int);
 extern int closest_dir_dist(const int, const int, const int);
+
+/* xytreps.c */
+extern void lfs2nist_minutia_XYT(int *, int *, int *,
+                                const MINUTIA *, const int, const int);
+extern void lfs2m1_minutia_XYT(int *, int *, int *, const MINUTIA *);
+extern void lfs2nist_format(MINUTIAE *, int, int);
 
 /*************************************************************************/
 /*        EXTERNAL GLOBAL VARIABLE DEFINITIONS                           */

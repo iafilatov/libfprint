@@ -1,25 +1,46 @@
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
+
 
 /***********************************************************************
       LIBRARY: LFS - NIST Latent Fingerprint System
@@ -35,15 +56,45 @@ identified are necessarily the best available for the purpose.
 
 ***********************************************************************
                ROUTINES:
+                        lfs_detect_minutiae()
                         lfs_detect_minutiae_V2()
-                        get_minutiae()
 
 ***********************************************************************/
 
 #include <stdio.h>
-#include <string.h>
 #include <lfs.h>
+#include <mytime.h>
 #include <log.h>
+
+/*************************************************************************
+#cat: lfs_detect_minutiae - Takes a grayscale fingerprint image (of arbitrary
+#cat:          size), and returns a map of directional ridge flow in the image
+#cat:          (2 versions), a binarized image designating ridges from valleys,
+#cat:          and a list of minutiae (including position, type, direction,
+#cat:          neighbors, and ridge counts to neighbors).
+
+   Input:
+      idata     - input 8-bit grayscale fingerprint image data
+      iw        - width (in pixels) of the image
+      ih        - height (in pixels) of the image
+      lfsparms  - parameters and thresholds for controlling LFS
+   Output:
+      ominutiae - resulting list of minutiae
+      oimap     - resulting IMAP
+                  {invalid (-1) or valid ridge directions}
+      onmap     - resulting NMAP
+                  {invalid (-1), high-curvature (-2), blanked blocks {-3} or
+                   valid ridge directions}
+      omw       - width (in blocks) of image maps
+      omh       - height (in blocks) of image maps
+      obdata    - resulting binarized image
+                  {0 = black pixel (ridge) and 255 = white pixel (valley)}
+      obw       - width (in pixels) of the binary image
+      obh       - height (in pixels) of the binary image
+   Return Code:
+      Zero      - successful completion
+      Negative  - system error
+**************************************************************************/
 
 /*************************************************************************
 #cat: lfs_detect_minutiae_V2 - Takes a grayscale fingerprint image (of
@@ -81,7 +132,7 @@ identified are necessarily the best available for the purpose.
       Zero      - successful completion
       Negative  - system error
 **************************************************************************/
-static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
+int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
                         int **odmap, int **olcmap, int **olfmap, int **ohcmap,
                         int *omw, int *omh,
                         unsigned char **obdata, int *obw, int *obh,
@@ -98,6 +149,8 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
    int mw, mh;
    int ret, maxpad;
    MINUTIAE *minutiae;
+
+   set_timer(total_timer);
 
    /******************/
    /* INITIALIZATION */
@@ -181,6 +234,7 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
    /******************/
    /*      MAPS      */
    /******************/
+   set_timer(imap_timer);
 
    /* Generate block maps from the input image. */
    if((ret = gen_image_maps(&direction_map, &low_contrast_map,
@@ -200,9 +254,12 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
 
    print2log("\nMAPS DONE\n");
 
+   time_accum(imap_timer, imap_time);
+
    /******************/
    /* BINARIZARION   */
    /******************/
+   set_timer(bin_timer);
 
    /* Initialize lookup table for pixel offsets to rotated grids */
    /* used for directional binarization.                         */
@@ -254,9 +311,12 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
 
    print2log("\nBINARIZATION DONE\n");
 
+   time_accum(bin_timer, bin_time);
+
    /******************/
    /*   DETECTION    */
    /******************/
+   set_timer(minutia_timer);
 
    /* Convert 8-bit grayscale binary image [0,255] to */
    /* 8-bit binary image [0,1].                       */
@@ -281,6 +341,10 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
       return(ret);
    }
 
+   time_accum(minutia_timer, minutia_time);
+
+   set_timer(rm_minutia_timer);
+
    if((ret = remove_false_minutia_V2(minutiae, bdata, iw, ih,
                        direction_map, low_flow_map, high_curve_map, mw, mh,
                        lfsparms))){
@@ -297,9 +361,13 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
 
    print2log("\nMINUTIA DETECTION DONE\n");
 
+   time_accum(rm_minutia_timer, rm_minutia_time);
+
    /******************/
    /*  RIDGE COUNTS  */
    /******************/
+   set_timer(ridge_count_timer);
+
    if((ret = count_minutiae_ridges(minutiae, bdata, iw, ih, lfsparms))){
       /* Free memory allocated to this point. */
       free(pdata);
@@ -313,6 +381,8 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
 
 
    print2log("\nNEIGHBOR RIDGE COUNT DONE\n");
+
+   time_accum(ridge_count_timer, ridge_count_time);
 
    /******************/
    /*    WRAP-UP     */
@@ -337,6 +407,28 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
    *obh = bh;
    *ominutiae = minutiae;
 
+   time_accum(total_timer, total_time);
+
+   /******************/
+   /* PRINT TIMINGS  */
+   /******************/
+   /* These Timings will print when TIMER is defined. */
+   /* print MAP generation timing statistics */
+   print_time(stderr, "TIMER: MAPS time   = %f (secs)\n", imap_time);
+   /* print binarization timing statistics */
+   print_time(stderr, "TIMER: Binarization time   = %f (secs)\n", bin_time);
+   /* print minutia detection timing statistics */
+   print_time(stderr, "TIMER: Minutia Detection time   = %f (secs)\n",
+              minutia_time);
+   /* print minutia removal timing statistics */
+   print_time(stderr, "TIMER: Minutia Removal time   = %f (secs)\n",
+              rm_minutia_time);
+   /* print neighbor ridge count timing statistics */
+   print_time(stderr, "TIMER: Neighbor Ridge Counting time   = %f (secs)\n",
+              ridge_count_time);
+   /* print total timing statistics */
+   print_time(stderr, "TIMER: Total time   = %f (secs)\n", total_time);
+
    /* If LOG_REPORT defined, close log report file. */
    if((ret = close_logfile()))
       return(ret);
@@ -344,112 +436,3 @@ static int lfs_detect_minutiae_V2(MINUTIAE **ominutiae,
    return(0);
 }
 
-/*************************************************************************
-**************************************************************************
-#cat:   get_minutiae - Takes a grayscale fingerprint image, binarizes the input
-#cat:                image, and detects minutiae points using LFS Version 2.
-#cat:                The routine passes back the detected minutiae, the
-#cat:                binarized image, and a set of image quality maps.
-
-   Input:
-      idata    - grayscale fingerprint image data
-      iw       - width (in pixels) of the grayscale image
-      ih       - height (in pixels) of the grayscale image
-      id       - pixel depth (in bits) of the grayscale image
-      ppmm     - the scan resolution (in pixels/mm) of the grayscale image
-      lfsparms - parameters and thresholds for controlling LFS
-   Output:
-      ominutiae         - points to a structure containing the
-                          detected minutiae
-      oquality_map      - resulting integrated image quality map
-      odirection_map    - resulting direction map
-      olow_contrast_map - resulting low contrast map
-      olow_flow_map     - resulting low ridge flow map
-      ohigh_curve_map   - resulting high curvature map
-      omap_w   - width (in blocks) of image maps
-      omap_h   - height (in blocks) of image maps
-      obdata   - points to binarized image data
-      obw      - width (in pixels) of binarized image
-      obh      - height (in pixels) of binarized image
-      obd      - pixel depth (in bits) of binarized image
-   Return Code:
-      Zero     - successful completion
-      Negative - system error
-**************************************************************************/
-int get_minutiae(MINUTIAE **ominutiae, int **oquality_map,
-                 int **odirection_map, int **olow_contrast_map,
-                 int **olow_flow_map, int **ohigh_curve_map,
-                 int *omap_w, int *omap_h,
-                 unsigned char **obdata, int *obw, int *obh, int *obd,
-                 unsigned char *idata, const int iw, const int ih,
-                 const int id, const double ppmm, const LFSPARMS *lfsparms)
-{
-   int ret;
-   MINUTIAE *minutiae = NULL;
-   int *direction_map = NULL, *low_contrast_map = NULL, *low_flow_map = NULL;
-   int *high_curve_map = NULL, *quality_map = NULL;
-   int map_w = 0, map_h = 0;
-   unsigned char *bdata = NULL;
-   int bw = 0, bh = 0;
-
-   /* If input image is not 8-bit grayscale ... */
-   if(id != 8){
-      fprintf(stderr, "ERROR : get_minutiae : input image pixel ");
-      fprintf(stderr, "depth = %d != 8.\n", id);
-      return(-2);
-   }
-
-   /* Detect minutiae in grayscale fingerpeint image. */
-   if((ret = lfs_detect_minutiae_V2(&minutiae,
-                                   &direction_map, &low_contrast_map,
-                                   &low_flow_map, &high_curve_map,
-                                   &map_w, &map_h,
-                                   &bdata, &bw, &bh,
-                                   idata, iw, ih, lfsparms))){
-      return(ret);
-   }
-
-   /* Build integrated quality map. */
-   if((ret = gen_quality_map(&quality_map,
-                            direction_map, low_contrast_map,
-                            low_flow_map, high_curve_map, map_w, map_h))){
-      free_minutiae(minutiae);
-      free(direction_map);
-      free(low_contrast_map);
-      free(low_flow_map);
-      free(high_curve_map);
-      free(bdata);
-      return(ret);
-   }
-
-   /* Assign reliability from quality map. */
-   if((ret = combined_minutia_quality(minutiae, quality_map, map_w, map_h,
-                                     lfsparms->blocksize,
-                                     idata, iw, ih, id, ppmm))){
-      free_minutiae(minutiae);
-      free(direction_map);
-      free(low_contrast_map);
-      free(low_flow_map);
-      free(high_curve_map);
-      free(quality_map);
-      free(bdata);
-      return(ret);
-   }
-
-   /* Set output pointers. */
-   *ominutiae = minutiae;
-   *oquality_map = quality_map;
-   *odirection_map = direction_map;
-   *olow_contrast_map = low_contrast_map;
-   *olow_flow_map = low_flow_map;
-   *ohigh_curve_map = high_curve_map;
-   *omap_w = map_w;
-   *omap_h = map_h;
-   *obdata = bdata;
-   *obw = bw;
-   *obh = bh;
-   *obd = id;
-
-   /* Return normally. */
-   return(0);
-}

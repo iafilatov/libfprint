@@ -84,7 +84,6 @@ void fpi_dev_set_user_data (struct fp_dev *dev, void *user_data);
 int fpi_dev_get_nr_enroll_stages(struct fp_dev *dev);
 void fpi_dev_set_nr_enroll_stages(struct fp_dev *dev, int nr_enroll_stages);
 struct fp_print_data *fpi_dev_get_verify_data(struct fp_dev *dev);
-enum fp_dev_state fpi_dev_get_dev_state(struct fp_dev *dev);
 
 enum fp_imgdev_state {
 	IMGDEV_STATE_INACTIVE,

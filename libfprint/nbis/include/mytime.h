@@ -41,101 +41,66 @@ of the software.
 
 *******************************************************************************/
 
-#ifndef _BZ_ARRAY_H
-#define _BZ_ARRAY_H
 
-#define STATIC     static
-/* #define BAD_BOUNDS 1 */
+#ifndef _MYTIME_H
+#define _MYTIME_H
 
-#define COLP_SIZE_1 20000
-#define COLP_SIZE_2 5
+/* this file needed to support timer and ticks */
+/* UPDATED: 03/16/2005 by MDG */
 
-#define COLS_SIZE_2 6
-#define SCOLS_SIZE_1 20000
-#define FCOLS_SIZE_1 20000
-
-#define SCOLPT_SIZE 20000
-#define FCOLPT_SIZE 20000
-
-#define SC_SIZE 20000
-
-
-#define RQ_SIZE 20000
-#define TQ_SIZE 20000
-#define ZZ_SIZE 20000
-
-
-
-#define RX_SIZE 100
-#define MM_SIZE 100
-#define NN_SIZE 20
-
-
-
-#define RK_SIZE 20000
-
-
-
-#define RR_SIZE     100
-#define AVN_SIZE      5
-#define AVV_SIZE_1 2000
-#define AVV_SIZE_2    5
-#define CT_SIZE    2000
-#define GCT_SIZE   2000
-#define CTT_SIZE   2000
-
-
-#ifdef BAD_BOUNDS
-#define CTP_SIZE_1 2000
-#define CTP_SIZE_2 1000
-#else
-#define CTP_SIZE_1 2000
-#define CTP_SIZE_2 2500
+#ifdef TIMER
+#include <sys/types.h>
 #endif
 
-
-
-/*
-rp[x] == ctp[][x] :: sct[x][]
-*/
-
-
-
-
-#define RF_SIZE_1 100
-#define RF_SIZE_2  10
-
-#define CF_SIZE_1 100
-#define CF_SIZE_2  10
-
-#define Y_SIZE 20000
-
-
-
-
-
-
-#define YL_SIZE_1    2
-#define YL_SIZE_2 2000
-
-
-
-
-#define YY_SIZE_1 1000
-#define YY_SIZE_2    2
-#define YY_SIZE_3 2000
-
-
-
-#ifdef BAD_BOUNDS
-#define SCT_SIZE_1 1000
-#define SCT_SIZE_2 1000
+#ifdef __MSYS__
+#include <sys/time.h>
 #else
-#define SCT_SIZE_1 2500
-#define SCT_SIZE_2 1000
+#include <sys/times.h>
 #endif
 
-#define CP_SIZE 20000
-#define RP_SIZE 20000
+#ifdef TIMER
+#define set_timer(_timer_); \
+   {  \
+      _timer_ = ticks();
+#else
+#define set_timer(_timer_);
+#endif
 
-#endif /* !_BZ_ARRAY_H */
+#ifdef TIMER
+#define time_accum(_timer_, _var_); \
+      _var_ += (ticks() - _timer_)/(float)ticksPerSec(); \
+   }
+#else
+#define time_accum(_timer_, _var_);
+#endif
+
+#ifdef TIMER
+#define print_time(_fp_, _fmt_, _var_); \
+    fprintf(_fp_, _fmt_, _var_);
+#else
+#define print_time(_fp_, _fmt_, _var_);
+#endif
+
+extern clock_t ticks(void);
+extern int ticksPerSec(void);
+
+extern clock_t total_timer;
+extern float total_time;
+
+extern clock_t imap_timer;
+extern float imap_time;
+
+extern clock_t bin_timer;
+extern float bin_time;
+
+extern clock_t minutia_timer;
+extern float minutia_time;
+
+extern clock_t rm_minutia_timer;
+extern float rm_minutia_time;
+
+extern clock_t ridge_count_timer;
+extern float ridge_count_time;
+
+#endif
+

@@ -1,25 +1,46 @@
 /*******************************************************************************
 
-License: 
-This software was developed at the National Institute of Standards and 
-Technology (NIST) by employees of the Federal Government in the course 
-of their official duties. Pursuant to title 17 Section 105 of the 
-United States Code, this software is not subject to copyright protection 
-and is in the public domain. NIST assumes no responsibility  whatsoever for 
-its use by other parties, and makes no guarantees, expressed or implied, 
-about its quality, reliability, or any other characteristic. 
+License:
+This software and/or related materials was developed at the National Institute
+of Standards and Technology (NIST) by employees of the Federal Government
+in the course of their official duties. Pursuant to title 17 Section 105
+of the United States Code, this software is not subject to copyright
+protection and is in the public domain.
 
-Disclaimer: 
-This software was developed to promote biometric standards and biometric
-technology testing for the Federal Government in accordance with the USA
-PATRIOT Act and the Enhanced Border Security and Visa Entry Reform Act.
-Specific hardware and software products identified in this software were used
-in order to perform the software development.  In no case does such
-identification imply recommendation or endorsement by the National Institute
-of Standards and Technology, nor does it imply that the products and equipment
-identified are necessarily the best available for the purpose.  
+This software and/or related materials have been determined to be not subject
+to the EAR (see Part 734.3 of the EAR for exact details) because it is
+a publicly available technology and software, and is freely distributed
+to any interested party with no licensing requirements.  Therefore, it is
+permissible to distribute this software as a free download from the internet.
+
+Disclaimer:
+This software and/or related materials was developed to promote biometric
+standards and biometric technology testing for the Federal Government
+in accordance with the USA PATRIOT Act and the Enhanced Border Security
+and Visa Entry Reform Act. Specific hardware and software products identified
+in this software were used in order to perform the software development.
+In no case does such identification imply recommendation or endorsement
+by the National Institute of Standards and Technology, nor does it imply that
+the products and equipment identified are necessarily the best available
+for the purpose.
+
+This software and/or related materials are provided "AS-IS" without warranty
+of any kind including NO WARRANTY OF PERFORMANCE, MERCHANTABILITY,
+NO WARRANTY OF NON-INFRINGEMENT OF ANY 3RD PARTY INTELLECTUAL PROPERTY
+or FITNESS FOR A PARTICULAR PURPOSE or for any purpose whatsoever, for the
+licensed product, however used. In no event shall NIST be liable for any
+damages and/or costs, including but not limited to incidental or consequential
+damages of any kind, including economic damage or injury to property and lost
+profits, regardless of whether NIST shall be advised, have reason to know,
+or in fact shall know of the possibility.
+
+By using this software, you agree to bear all risk relating to quality,
+use and performance of the software and/or related materials.  You agree
+to hold the Government harmless from any claim arising from your use
+of the software.
 
 *******************************************************************************/
+
 
 /***********************************************************************
       LIBRARY: LFS - NIST Latent Fingerprint System
@@ -36,8 +57,6 @@ identified are necessarily the best available for the purpose.
 
 ***********************************************************************
                ROUTINES:
-                        chain_code_loop()
-                        is_chain_clockwise()
                         get_loop_list()
                         on_loop()
                         on_island_lake()
@@ -48,160 +67,12 @@ identified are necessarily the best available for the purpose.
                         get_loop_aspect()
                         fill_loop()
                         fill_partial_row()
+                        flood_loop()
+                        flood_fill4()
 ***********************************************************************/
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <lfs.h>
-
-/*************************************************************************
-**************************************************************************
-#cat: chain_code_loop - Converts a feature's contour points into an
-#cat:            8-connected chain code vector.  This encoding represents
-#cat:            the direction taken between each adjacent point in the
-#cat:            contour.  Chain codes may be used for many purposes, such
-#cat:            as computing the perimeter or area of an object, and they
-#cat:            may be used in object detection and recognition.
-
-   Input:
-      contour_x - x-coord list for feature's contour points
-      contour_y - y-coord list for feature's contour points
-      ncontour  - number of points in contour
-   Output:
-      ochain    - resulting vector of chain codes
-      onchain   - number of codes in chain
-                  (same as number of points in contour)
-   Return Code:
-      Zero      - chain code successful derived
-      Negative  - system error
-**************************************************************************/
-static int chain_code_loop(int **ochain, int *onchain,
-               const int *contour_x, const int *contour_y, const int ncontour)
-{
-   int *chain;
-   int i, j, dx, dy;
-
-   /* If we don't have at least 3 points in the contour ... */
-   if(ncontour <= 3){
-      /* Then we don't have a loop, so set chain length to 0 */
-      /* and return without any allocations.                 */
-      *onchain = 0;
-      return(0);
-   }
-
-   /* Allocate chain code vector.  It will be the same length as the */
-   /* number of points in the contour.  There will be one chain code */
-   /* between each point on the contour including a code between the */
-   /* last to the first point on the contour (completing the loop).  */
-   chain = (int *)malloc(ncontour * sizeof(int));
-   /* If the allocation fails ... */
-   if(chain == (int *)NULL){
-      fprintf(stderr, "ERROR : chain_code_loop : malloc : chain\n");
-      return(-170);
-   }
-
-   /* For each neighboring point in the list (with "i" pointing to the */
-   /* previous neighbor and "j" pointing to the next neighbor...       */
-   for(i = 0, j=1; i < ncontour-1; i++, j++){
-      /* Compute delta in X between neighbors. */
-      dx = contour_x[j] - contour_x[i];
-      /* Compute delta in Y between neighbors. */
-      dy = contour_y[j] - contour_y[i];
-      /* Derive chain code index from neighbor deltas.                  */
-      /* The deltas are on the range [-1..1], so to use them as indices */
-      /* into the code list, they must first be incremented by one.     */
-      chain[i] = *(g_chaincodes_nbr8+((dy+1)*NBR8_DIM)+dx+1);
-   }
-
-   /* Now derive chain code between last and first points in the */
-   /* contour list.                                              */
-   dx = contour_x[0] - contour_x[i];
-   dy = contour_y[0] - contour_y[i];
-   chain[i] = *(g_chaincodes_nbr8+((dy+1)*NBR8_DIM)+dx+1);
-
-   /* Store results to the output pointers. */
-   *ochain = chain;
-   *onchain = ncontour;
-
-   /* Return normally. */
-   return(0);
-}   
-
-/*************************************************************************
-**************************************************************************
-#cat: is_chain_clockwise - Takes an 8-connected chain code vector and
-#cat:            determines if the codes are ordered clockwise or
-#cat:            counter-clockwise.
-#cat:            The routine also requires a default return value be
-#cat:            specified in the case the the routine is not able to
-#cat:            definitively determine the chains direction.  This allows
-#cat:            the default response to be application-specific.
-
-   Input:
-      chain       - chain code vector
-      nchain      - number of codes in chain
-      default_ret - default return code (used when we can't tell the order)
-   Return Code:
-      TRUE      - chain determined to be ordered clockwise
-      FALSE     - chain determined to be ordered counter-clockwise
-      Default   - could not determine the order of the chain
-**************************************************************************/
-static int is_chain_clockwise(const int *chain, const int nchain,
-                       const int default_ret)
-{
-   int i, j, d, sum;
-
-   /* Initialize turn-accumulator to 0. */
-   sum = 0;
-
-   /* Foreach neighboring code in chain, compute the difference in  */
-   /* direction and accumulate.  Left-hand turns increment, whereas */
-   /* right-hand decrement.                                         */
-   for(i = 0, j =1; i < nchain-1; i++, j++){
-      /* Compute delta in neighbor direction. */
-      d = chain[j] - chain[i];
-      /* Make the delta the "inner" distance. */
-      /* If delta >= 4, for example if chain_i==2 and chain_j==7 (which   */
-      /* means the contour went from a step up to step down-to-the-right) */
-      /* then 5=(7-2) which is >=4, so -3=(5-8) which means that the      */
-      /* change in direction is a righ-hand turn of 3 units).             */
-      if(d >= 4)
-         d -= 8;
-      /* If delta <= -4, for example if chain_i==7 and chain_j==2 (which  */
-      /* means the contour went from a step down-to-the-right to step up) */
-      /* then -5=(2-7) which is <=-4, so 3=(-5+8) which means that the    */
-      /* change in direction is a left-hand turn of 3 units).             */
-      else if (d <= -4)
-         d += 8;
-
-      /* The delta direction is then accumulated. */
-      sum += d;
-   }
-
-   /* Now we need to add in the final delta direction between the last */
-   /* and first codes in the chain.                                    */
-   d = chain[0] - chain[i];
-   if(d >= 4)
-      d -= 8;
-   else if (d <= -4)
-      d += 8;
-   sum += d;
-
-   /* If the final turn_accumulator == 0, then we CAN'T TELL the       */
-   /* direction of the chain code, so return the default return value. */
-   if(sum == 0)
-      return(default_ret);
-   /* Otherwise, if the final turn-accumulator is positive ... */
-   else if(sum > 0)
-      /* Then we had a greater amount of left-hand turns than right-hand     */
-      /* turns, so the chain is in COUNTER-CLOCKWISE order, so return FALSE. */
-      return(FALSE);
-   /* Otherwise, the final turn-accumulator is negative ... */
-   else
-      /* So we had a greater amount of right-hand turns than left-hand  */
-      /* turns, so the chain is in CLOCKWISE order, so return TRUE.     */
-      return(TRUE);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -228,78 +99,6 @@ static int is_chain_clockwise(const int *chain, const int nchain,
       Zero     - successful completion
       Negative - system error
 **************************************************************************/
-int get_loop_list(int **oonloop, MINUTIAE *minutiae, const int loop_len,
-                  unsigned char *bdata, const int iw, const int ih)
-{
-   int i, ret;
-   int *onloop;
-   MINUTIA *minutia;
-
-   /* Allocate a list of onloop flags (one for each minutia in list). */
-   onloop = (int *)malloc(minutiae->num * sizeof(int));
-   if(onloop == (int *)NULL){
-      fprintf(stderr, "ERROR : get_loop_list : malloc : onloop\n");
-      return(-320);
-   }
-
-   i = 0;
-   /* Foreach minutia remaining in list ... */
-   while(i < minutiae->num){
-      /* Assign a temporary pointer. */
-      minutia = minutiae->list[i];
-      /* If current minutia is a bifurcation ... */
-      if(minutia->type == BIFURCATION){
-         /* Check to see if it is on a loop of specified length. */
-         ret = on_loop(minutia, loop_len, bdata, iw, ih);
-         /* If minutia is on a loop... */
-         if(ret == LOOP_FOUND){
-            /* Then set the onloop flag to TRUE. */
-            onloop[i] = TRUE;
-            /* Advance to next minutia in the list. */
-            i++;
-         }
-         /* If on loop test IGNORED ... */
-         else if (ret == IGNORE){
-            /* Remove the current minutia from the list. */
-            if((ret = remove_minutia(i, minutiae))){
-               /* Deallocate working memory. */
-               free(onloop);
-               /* Return error code. */
-               return(ret);
-            }
-            /* No need to advance because next minutia has "slid" */
-            /* into position pointed to by 'i'.                   */
-         }
-         /* If the minutia is NOT on a loop... */
-         else if (ret == FALSE){
-            /* Then set the onloop flag to FALSE. */
-            onloop[i] = FALSE;
-            /* Advance to next minutia in the list. */
-            i++;
-         }
-         /* Otherwise, an ERROR occurred while looking for loop. */
-         else{
-            /* Deallocate working memory. */
-            free(onloop);
-            /* Return error code. */
-            return(ret);
-         }
-      }
-      /* Otherwise, the current minutia is a ridge-ending... */
-      else{
-         /* Ridge-endings will never be on a loop, so set flag to FALSE. */
-         onloop[i] = FALSE;
-            /* Advance to next minutia in the list. */
-         i++;
-      }
-   }
-
-   /* Store flag list to output pointer. */
-   *oonloop = onloop;
-
-   /* Return normally. */
-   return(0);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -558,7 +357,7 @@ int on_hook(const MINUTIA *minutia1, const MINUTIA *minutia2,
    /* If trace had an error in following the contour ... */
    if(ret != 0)
       return(ret);
-   
+
 
    /* Otherwise, the trace successfully followed the contour, but did */
    /* not encounter the 2nd minutia point within the specified number */
@@ -650,107 +449,6 @@ int is_loop_clockwise(const int *contour_x, const int *contour_y,
 
 /*************************************************************************
 **************************************************************************
-#cat: get_loop_aspect - Takes a contour list (determined to form a complete
-#cat:            loop) and measures the loop's aspect (the largest and smallest
-#cat:            distances across the loop) and returns the points on the
-#cat:            loop where these distances occur.
-
-   Input:
-      contour_x - x-coord list for loop's contour points
-      contour_y - y-coord list for loop's contour points
-      ncontour  - number of points in contour
-   Output:
-      omin_fr   - contour point index where minimum aspect occurs
-      omin_to   - opposite contour point index where minimum aspect occurs
-      omin_dist - the minimum distance across the loop
-      omax_fr   - contour point index where maximum aspect occurs
-      omax_to   - contour point index where maximum aspect occurs
-      omax_dist - the maximum distance across the loop
-**************************************************************************/
-static void get_loop_aspect(int *omin_fr, int *omin_to, double *omin_dist,
-              int *omax_fr, int *omax_to, double *omax_dist,
-              const int *contour_x, const int *contour_y, const int ncontour)
-{
-   int halfway, limit;
-   int i, j;
-   double dist;
-   double min_dist, max_dist;
-   int min_i, max_i, min_j, max_j;
-
-   /* Compute half the perimeter of the loop. */
-   halfway = ncontour>>1;
-
-   /* Take opposite points on the contour and walk half way    */
-   /* around the loop.                                         */
-   i = 0;
-   j = halfway;
-   /* Compute squared distance between opposite points on loop. */
-   dist = squared_distance(contour_x[i], contour_y[i],
-                           contour_x[j], contour_y[j]);
-
-   /* Initialize running minimum and maximum distances along loop. */
-   min_dist = dist;
-   min_i = i;
-   min_j = j;
-   max_dist = dist;
-   max_i = i;
-   max_j = j;
-   /* Bump to next pair of opposite points. */
-   i++;
-   /* Make sure j wraps around end of list. */
-   j++;
-   j %= ncontour;
-
-   /* If the loop is of even length, then we only need to walk half */
-   /* way around as the other half will be exactly redundant.  If   */
-   /* the loop is of odd length, then the second half will not be   */
-   /* be exactly redundant and the difference "may" be meaningful.  */
-   /* If execution speed is an issue, then probably get away with   */
-   /* walking only the fist half of the loop under ALL conditions.  */
-
-   /* If loop has odd length ... */
-   if(ncontour % 2)
-      /* Walk the loop's entire perimeter. */
-      limit = ncontour;
-   /* Otherwise the loop has even length ... */
-   else
-      /* Only walk half the perimeter. */
-      limit = halfway;
-
-   /* While we have not reached our perimeter limit ... */
-   while(i < limit){
-      /* Compute squared distance between opposite points on loop. */
-      dist = squared_distance(contour_x[i], contour_y[i],
-                              contour_x[j], contour_y[j]);
-      /* Check the running minimum and maximum distances. */
-      if(dist < min_dist){
-         min_dist = dist;
-         min_i = i;
-         min_j = j;
-      }
-      if(dist > max_dist){
-         max_dist = dist;
-         max_i = i;
-         max_j = j;
-      }
-      /* Bump to next pair of opposite points. */
-      i++;
-      /* Make sure j wraps around end of list. */
-      j++;
-      j %= ncontour;
-   }
-
-   /* Assign minimum and maximum distances to output pointers. */
-   *omin_fr = min_i;
-   *omin_to = min_j;
-   *omin_dist = min_dist;
-   *omax_fr = max_i;
-   *omax_to = max_j;
-   *omax_dist = max_dist;
-}
-
-/*************************************************************************
-**************************************************************************
 #cat: process_loop - Takes a contour list that has been determined to form
 #cat:            a complete loop, and processes it. If the loop is sufficiently
 #cat:            large and elongated, then two minutia points are calculated
@@ -776,131 +474,6 @@ static void get_loop_aspect(int *omin_fr, int *omin_to, double *omin_dist,
       Zero      - loop processed successfully
       Negative  - system error
 **************************************************************************/
-int process_loop(MINUTIAE *minutiae,
-             const int *contour_x, const int *contour_y,
-             const int *contour_ex, const int *contour_ey, const int ncontour,
-             unsigned char *bdata, const int iw, const int ih,
-             const LFSPARMS *lfsparms)
-{
-   int idir, type, appearing;
-   double min_dist, max_dist;
-   int min_fr, max_fr, min_to, max_to;
-   int mid_x, mid_y, mid_pix;
-   int feature_pix;
-   int ret;
-   MINUTIA *minutia;
-
-   /* If contour is empty, then just return. */
-   if(ncontour <= 0)
-      return(0);
-
-   /* If loop is large enough ... */
-   if(ncontour > lfsparms->min_loop_len){
-      /* Get pixel value of feature's interior. */
-      feature_pix = *(bdata + (contour_y[0] * iw) + contour_x[0]);
-
-      /* Get the aspect dimensions of the loop in units of */
-      /* squared distance.                                 */
-      get_loop_aspect(&min_fr, &min_to, &min_dist,
-                      &max_fr, &max_to, &max_dist,
-                      contour_x, contour_y, ncontour);
-
-      /* If loop passes aspect ratio tests ... loop is sufficiently  */
-      /* narrow or elongated ...                                     */
-      if((min_dist < lfsparms->min_loop_aspect_dist) ||
-         ((max_dist/min_dist) >= lfsparms->min_loop_aspect_ratio)){
-
-         /* Update minutiae list with opposite points of max distance */
-         /* on the loop.                                             */
-
-         /* First, check if interior point has proper pixel value. */
-         mid_x = (contour_x[max_fr]+contour_x[max_to])>>1;
-         mid_y = (contour_y[max_fr]+contour_y[max_to])>>1;
-         mid_pix = *(bdata + (mid_y * iw) + mid_x);
-         /* If interior point is the same as the feature... */
-         if(mid_pix == feature_pix){
-
-            /* 1. Treat maximum distance point as a potential minutia. */
-
-            /* Compute direction from maximum loop point to its */
-            /* opposite point.                                  */
-            idir = line2direction(contour_x[max_fr], contour_y[max_fr],
-                                  contour_x[max_to], contour_y[max_to],
-                                  lfsparms->num_directions);
-            /* Get type of minutia: BIFURCATION or RIDGE_ENDING. */
-            type = minutia_type(feature_pix);
-            /* Determine if minutia is appearing or disappearing. */
-            if((appearing = is_minutia_appearing(
-                           contour_x[max_fr], contour_y[max_fr],
-                           contour_ex[max_fr], contour_ey[max_fr])) < 0){
-               /* Return system error code. */
-               return(appearing);
-            }
-            /* Create new minutia object. */
-            if((ret = create_minutia(&minutia,
-                                    contour_x[max_fr], contour_y[max_fr],
-                                    contour_ex[max_fr], contour_ey[max_fr],
-                                    idir, DEFAULT_RELIABILITY,
-                                    type, appearing, LOOP_ID))){
-               /* Return system error code. */
-               return(ret);
-            }
-            /* Update the minutiae list with potential new minutia. */
-            ret = update_minutiae(minutiae, minutia, bdata, iw, ih, lfsparms);
-
-            /* If minuitia IGNORED and not added to the minutia list ... */
-            if(ret == IGNORE)
-               /* Deallocate the minutia. */
-               free_minutia(minutia);
-
-            /* 2. Treat point opposite of maximum distance point as */
-            /*    a potential minutia.                              */
-
-            /* Flip the direction 180 degrees. Make sure new direction */
-            /* is on the range [0..(ndirsX2)].                         */
-            idir += lfsparms->num_directions;
-            idir %= (lfsparms->num_directions<<1);
-
-            /* The type of minutia will stay the same. */
-
-            /* Determine if minutia is appearing or disappearing. */
-            if((appearing = is_minutia_appearing(
-                           contour_x[max_to], contour_y[max_to],
-                           contour_ex[max_to], contour_ey[max_to])) < 0){
-               /* Return system error code. */
-               return(appearing);
-            }
-            /* Create new minutia object. */
-            if((ret = create_minutia(&minutia,
-                                    contour_x[max_to], contour_y[max_to],
-                                    contour_ex[max_to], contour_ey[max_to],
-                                    idir, DEFAULT_RELIABILITY,
-                                    type, appearing, LOOP_ID))){
-               /* Return system error code. */
-               return(ret);
-            }
-            /* Update the minutiae list with potential new minutia. */
-            ret = update_minutiae(minutiae, minutia, bdata, iw, ih, lfsparms);
-
-            /* If minuitia IGNORED and not added to the minutia list ... */
-            if(ret == IGNORE)
-               /* Deallocate the minutia. */
-               free_minutia(minutia);
-
-            /* Done successfully processing this loop, so return normally. */
-            return(0);
-
-         } /* Otherwise, loop interior has problems. */
-      } /* Otherwise, loop is not the right shape for minutiae. */
-   } /* Otherwise, loop's perimeter is too small for minutiae. */
-
-   /* If we get here, we have a loop that is assumed to not contain */
-   /* minutiae, so remove the loop from the image.                   */
-   ret = fill_loop(contour_x, contour_y, ncontour, bdata, iw, ih);
-
-   /* Return either an error code from fill_loop or return normally. */
-   return(ret);
-}
 
 /*************************************************************************
 **************************************************************************
@@ -1087,39 +660,103 @@ int process_loop_V2(MINUTIAE *minutiae,
 
 /*************************************************************************
 **************************************************************************
-#cat: fill_partial_row - Fills a specified range of contiguous pixels on
-#cat:            a specified row of an 8-bit pixel image with a specified
-#cat:            pixel value.  NOTE, the pixel coordinates are assumed to
-#cat:            be within the image boundaries.
+#cat: get_loop_aspect - Takes a contour list (determined to form a complete
+#cat:            loop) and measures the loop's aspect (the largest and smallest
+#cat:            distances across the loop) and returns the points on the
+#cat:            loop where these distances occur.
 
    Input:
-      fill_pix - pixel value to fill with (should be on range [0..255]
-      frx      - x-pixel coord where fill should begin
-      tox      - x-pixel coord where fill should end (inclusive)
-      y        - y-pixel coord of current row being filled
-      bdata    - 8-bit image data
-      iw       - width (in pixels) of image
-      ih       - height (in pixels) of image
+      contour_x - x-coord list for loop's contour points
+      contour_y - y-coord list for loop's contour points
+      ncontour  - number of points in contour
    Output:
-      bdata    - 8-bit image data with partial row filled.
+      omin_fr   - contour point index where minimum aspect occurs
+      omin_to   - opposite contour point index where minimum aspect occurs
+      omin_dist - the minimum distance across the loop
+      omax_fr   - contour point index where maximum aspect occurs
+      omax_to   - contour point index where maximum aspect occurs
+      omax_dist - the maximum distance across the loop
 **************************************************************************/
-static void fill_partial_row(const int fill_pix, const int frx, const int tox,
-          const int y, unsigned char *bdata, const int iw, const int ih)
+void get_loop_aspect(int *omin_fr, int *omin_to, double *omin_dist,
+              int *omax_fr, int *omax_to, double *omax_dist,
+              const int *contour_x, const int *contour_y, const int ncontour)
 {
-   int x;
-   unsigned char *bptr;
+   int halfway, limit;
+   int i, j;
+   double dist;
+   double min_dist, max_dist;
+   int min_i, max_i, min_j, max_j;
 
-   /* Set pixel pointer to starting x-coord on current row. */
-   bptr = bdata+(y*iw)+frx;
+   /* Compute half the perimeter of the loop. */
+   halfway = ncontour>>1;
 
-   /* Foreach pixel between starting and ending x-coord on row */
-   /* (including the end points) ...                           */
-   for(x = frx; x <= tox; x++){
-      /* Set current pixel with fill pixel value. */
-      *bptr = fill_pix;
-      /* Bump to next pixel in the row. */
-      bptr++;
+   /* Take opposite points on the contour and walk half way    */
+   /* around the loop.                                         */
+   i = 0;
+   j = halfway;
+   /* Compute squared distance between opposite points on loop. */
+   dist = squared_distance(contour_x[i], contour_y[i],
+                           contour_x[j], contour_y[j]);
+
+   /* Initialize running minimum and maximum distances along loop. */
+   min_dist = dist;
+   min_i = i;
+   min_j = j;
+   max_dist = dist;
+   max_i = i;
+   max_j = j;
+   /* Bump to next pair of opposite points. */
+   i++;
+   /* Make sure j wraps around end of list. */
+   j++;
+   j %= ncontour;
+
+   /* If the loop is of even length, then we only need to walk half */
+   /* way around as the other half will be exactly redundant.  If   */
+   /* the loop is of odd length, then the second half will not be   */
+   /* be exactly redundant and the difference "may" be meaningful.  */
+   /* If execution speed is an issue, then probably get away with   */
+   /* walking only the fist half of the loop under ALL conditions.  */
+
+   /* If loop has odd length ... */
+   if(ncontour % 2)
+      /* Walk the loop's entire perimeter. */
+      limit = ncontour;
+   /* Otherwise the loop has even length ... */
+   else
+      /* Only walk half the perimeter. */
+      limit = halfway;
+
+   /* While we have not reached our perimeter limit ... */
+   while(i < limit){
+      /* Compute squared distance between opposite points on loop. */
+      dist = squared_distance(contour_x[i], contour_y[i],
+                              contour_x[j], contour_y[j]);
+      /* Check the running minimum and maximum distances. */
+      if(dist < min_dist){
+         min_dist = dist;
+         min_i = i;
+         min_j = j;
+      }
+      if(dist > max_dist){
+         max_dist = dist;
+         max_i = i;
+         max_j = j;
+      }
+      /* Bump to next pair of opposite points. */
+      i++;
+      /* Make sure j wraps around end of list. */
+      j++;
+      j %= ncontour;
    }
+
+   /* Assign minimum and maximum distances to output pointers. */
+   *omin_fr = min_i;
+   *omin_to = min_j;
+   *omin_dist = min_dist;
+   *omax_fr = max_i;
+   *omax_to = max_j;
+   *omax_dist = max_dist;
 }
 
 /*************************************************************************
@@ -1253,3 +890,119 @@ int fill_loop(const int *contour_x, const int *contour_y,
    return(0);
 }
 
+/*************************************************************************
+**************************************************************************
+#cat: fill_partial_row - Fills a specified range of contiguous pixels on
+#cat:            a specified row of an 8-bit pixel image with a specified
+#cat:            pixel value.  NOTE, the pixel coordinates are assumed to
+#cat:            be within the image boundaries.
+
+   Input:
+      fill_pix - pixel value to fill with (should be on range [0..255]
+      frx      - x-pixel coord where fill should begin
+      tox      - x-pixel coord where fill should end (inclusive)
+      y        - y-pixel coord of current row being filled
+      bdata    - 8-bit image data
+      iw       - width (in pixels) of image
+      ih       - height (in pixels) of image
+   Output:
+      bdata    - 8-bit image data with partial row filled.
+**************************************************************************/
+void fill_partial_row(const int fill_pix, const int frx, const int tox,
+          const int y, unsigned char *bdata, const int iw, const int ih)
+{
+   int x;
+   unsigned char *bptr;
+
+   /* Set pixel pointer to starting x-coord on current row. */
+   bptr = bdata+(y*iw)+frx;
+
+   /* Foreach pixel between starting and ending x-coord on row */
+   /* (including the end points) ...                           */
+   for(x = frx; x <= tox; x++){
+      /* Set current pixel with fill pixel value. */
+      *bptr = fill_pix;
+      /* Bump to next pixel in the row. */
+      bptr++;
+   }
+}
+
+/*************************************************************************
+**************************************************************************
+#cat: flood_loop - Fills a given contour (determined to form a complete loop)
+#cat:            with a specified pixel value using a recursive flood-fill
+#cat:            technique.
+#cat:            NOTE, this fill approach will NOT always work with the
+#cat:            contours generated in this application because they
+#cat:            are NOT guaranteed to be ENTIRELY surrounded by 8-connected
+#cat:            pixels not equal to the fill pixel value.  This is unfortunate
+#cat:            because the flood-fill is a simple algorithm that will handle
+#cat:            complex/concaved shapes.
+
+   Input:
+      contour_x  - x-coord list for loop's contour points
+      contour_y  - y-coord list for loop's contour points
+      ncontour   - number of points in contour
+      bdata      - binary image data (0==while & 1==black)
+      iw         - width (in pixels) of image
+      ih         - height (in pixels) of image
+   Output:
+      bdata      - binary image data with loop filled
+**************************************************************************/
+
+/*************************************************************************
+**************************************************************************
+#cat: flood_fill4 - Recursively floods a region of an 8-bit pixel image with a
+#cat:               specified pixel value given a starting (seed) point.  The
+#cat:               recursion is based neighbors being 4-connected.
+
+   Input:
+      fill_pix - 8-bit pixel value to be filled with (on range [0..255]
+      x        - starting x-pixel coord
+      y        - starting y-pixel coord
+      bdata    - 8-bit pixel image data
+      iw       - width (in pixels) of image
+      ih       - height (in pixels) of image
+   Output:
+      bdata    - 8-bit pixel image data with region filled
+**************************************************************************/
+void flood_fill4(const int fill_pix, const int x, const int y,
+                 unsigned char *bdata, const int iw, const int ih)
+{
+   unsigned char *pptr;
+   int y_north, y_south, x_east, x_west;
+
+   /* Get address of current pixel. */
+   pptr =  bdata + (y*iw) + x;
+   /* If pixel needs to be filled ... */
+   if(*pptr != fill_pix){
+      /* Fill the current pixel. */
+      *pptr = fill_pix;
+
+      /* Recursively invoke flood on the pixel's 4 neighbors.   */
+      /* Test to make sure neighbors are within image boudaries */
+      /* before invoking each flood.                            */
+      y_north = y-1;
+      y_south = y+1;
+      x_west = x-1;
+      x_east = x+1;
+
+      /* Invoke North */
+      if(y_north >= 0)
+         flood_fill4(fill_pix, x, y_north, bdata, iw, ih);
+
+      /* Invoke East */
+      if(x_east < iw)
+         flood_fill4(fill_pix, x_east, y, bdata, iw, ih);
+
+      /* Invoke South */
+      if(y_south < ih)
+         flood_fill4(fill_pix, x, y_south, bdata, iw, ih);
+
+      /* Invoke West */
+      if(x_west >= 0)
+         flood_fill4(fill_pix, x_west, y, bdata, iw, ih);
+   }
+
+   /* Otherwise, there is nothing to be done. */
+}

@@ -45,92 +45,92 @@ of the software.
 /***********************************************************************
       LIBRARY: LFS - NIST Latent Fingerprint System
 
-      FILE:    FREE.C
+      FILE:    XYTREPS.C
       AUTHOR:  Michael D. Garris
-      DATE:    03/16/1999
+      DATE:    09/16/2004
+      UPDATED: 01/11/2012
 
-      Contains routines responsible for deallocating
-      memories required by the NIST Latent Fingerprint System (LFS).
+      Contains routines useful in converting minutiae in LFS "native"
+      representation into other representations, such as
+      M1 (ANSI INCITS 378-2004) & NIST internal representations.
 
 ***********************************************************************
                ROUTINES:
-                        free_dir2rad()
-                        free_dftwaves()
-                        free_rotgrids()
-                        free_dir_powers()
+                        lfs2nist_minutia_XTY()
+                        lfs2m1_minutia_XTY()
+                        lfs2nist_format()
+
 ***********************************************************************/
 
-#include <stdio.h>
 #include <lfs.h>
+#include <defs.h>
 
 /*************************************************************************
 **************************************************************************
-#cat: free_dir2rad - Deallocates memory associated with a DIR2RAD structure
+#cat: lfs2nist_minutia_XYT - Converts XYT minutiae attributes in LFS native
+#cat:        representation to NIST internal representation
 
    Input:
-      dir2rad - pointer to memory to be freed
-*************************************************************************/
-void free_dir2rad(DIR2RAD *dir2rad)
-{
-   free(dir2rad->cos);
-   free(dir2rad->sin);
-   free(dir2rad);
-}
-
-/*************************************************************************
-**************************************************************************
-#cat: free_dftwaves - Deallocates the memory associated with a DFTWAVES
-#cat:                 structure
-
-   Input:
-      dftwaves - pointer to memory to be freed
+      minutia  - LFS minutia structure containing attributes to be converted
+   Output:
+      ox       - NIST internal based x-pixel coordinate
+      oy       - NIST internal based y-pixel coordinate
+      ot       - NIST internal based minutia direction/orientation
 **************************************************************************/
-void free_dftwaves(DFTWAVES *dftwaves)
+void lfs2nist_minutia_XYT(int *ox, int *oy, int *ot,
+                          const MINUTIA *minutia, const int iw, const int ih)
 {
-   int i;
+   int x, y, t;
+   float degrees_per_unit;
 
-   for(i = 0; i < dftwaves->nwaves; i++){
-       free(dftwaves->waves[i]->cos);
-       free(dftwaves->waves[i]->sin);
-       free(dftwaves->waves[i]);
+   /*       XYT's according to NIST internal rep:           */
+    /*      1. pixel coordinates with origin bottom-left    */
+   /*       2. orientation in degrees on range [0..360]     */
+   /*          with 0 pointing east and increasing counter  */
+   /*          clockwise (same as M1)                       */
+   /*       3. direction pointing out and away from the     */
+   /*             ridge ending or bifurcation valley        */
+   /*             (opposite direction from M1)              */
+
+   x = minutia->x;
+   y = ih - minutia->y;
+
+   degrees_per_unit = 180 / (float)NUM_DIRECTIONS;
+
+   t = (270 - sround(minutia->direction * degrees_per_unit)) % 360;
+   if(t < 0){
+      t += 360;
    }
-   free(dftwaves->waves);
-   free(dftwaves);
+
+   *ox = x;
+   *oy = y;
+   *ot = t;
 }
 
 /*************************************************************************
 **************************************************************************
-#cat: free_rotgrids - Deallocates the memory associated with a ROTGRIDS
-#cat:                 structure
+#cat: lfs2m1_minutia_XYT - Converts XYT minutiae attributes in LFS native
+#cat:        representation to M1 (ANSI INCITS 378-2004) representation
 
    Input:
-      rotgrids - pointer to memory to be freed
+      minutia  - LFS minutia structure containing attributes to be converted
+   Output:
+      ox       - M1 based x-pixel coordinate
+      oy       - M1 based y-pixel coordinate
+      ot       - M1 based minutia direction/orientation
 **************************************************************************/
-void free_rotgrids(ROTGRIDS *rotgrids)
-{
-   int i;
-
-   for(i = 0; i < rotgrids->ngrids; i++)
-      free(rotgrids->grids[i]);
-   free(rotgrids->grids);
-   free(rotgrids);
-}
 
 /*************************************************************************
 **************************************************************************
-#cat: free_dir_powers - Deallocate memory associated with DFT power vectors
-
+#cat:   lfs2nist_format - Takes a minutiae data structure and converts
+#cat:                     the XYT minutiae attributes in LFS native
+#cat:                     representation to NIST internal representation
    Input:
-      powers - vectors of DFT power values (N Waves X M Directions)
-      nwaves - number of DFT wave forms used
+      iminutiae - minutiae data structure
+      iw        - width (in pixels) of the grayscale image
+      ih        - height (in pixels) of the grayscale image
+   Output:
+      iminutiae - overwrite each minutia element in the minutiae data
+                  sturcture convernt to nist internal minutiae format
 **************************************************************************/
-void free_dir_powers(double **powers, const int nwaves)
-{
-   int w;
-
-   for(w = 0; w < nwaves; w++)
-      free(powers[w]);
-
-   free(powers);
-}
 
