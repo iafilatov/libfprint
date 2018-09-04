@@ -86,11 +86,6 @@ enum fp_imgdev_enroll_state {
 	IMG_ACQUIRE_STATE_DEACTIVATING,
 };
 
-enum fp_imgdev_verify_state {
-	IMG_VERIFY_STATE_NONE = 0,
-	IMG_VERIFY_STATE_ACTIVATING
-};
-
 struct fp_img_dev;
 libusb_device_handle *fpi_imgdev_get_usb_dev(struct fp_img_dev *dev);
 void fpi_imgdev_set_user_data(struct fp_img_dev *imgdev,
