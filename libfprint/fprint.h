@@ -163,11 +163,10 @@ int fp_dev_supports_dscv_print(struct fp_dev *dev, struct fp_dscv_print *print) 
 
 /**
  * fp_capture_result:
- * Whether a capture failed or completed.
- *
  * @FP_CAPTURE_COMPLETE: Capture completed successfully, the capture data has been returned to the caller.
  * @FP_CAPTURE_FAIL: Capture failed
  *
+ * Whether a capture failed or completed.
  */
 enum fp_capture_result {
 	FP_CAPTURE_COMPLETE = 0,
