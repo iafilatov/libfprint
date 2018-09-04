@@ -215,7 +215,7 @@ read:
 			p += sizeof SOL + 4;
 			int j;
 			for (j = 0; j < RAW_IMAGE_WIDTH; j++) {
-				/**
+				/*
 				 * Convert from 4 to 8 bits
 				 * The SECUGEN-FDU2000 has 4 lines of data, so we need to join 2 bytes into 1
 				 */
