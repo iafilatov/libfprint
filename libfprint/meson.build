@@ -66,7 +66,7 @@ foreach driver: drivers
         drivers_sources += [ 'drivers/upekts.c' ]
     endif
     if driver == 'upektc'
-        drivers_sources += [ 'drivers/upektc.c', 'drivers/upektc.h' ]
+        drivers_sources += [ 'drivers/upektc.c', 'drivers/upektc.h', 'drivers/upek_proto.c', 'drivers/upek_proto.h' ]
     endif
     if driver == 'upeksonly'
         drivers_sources += [ 'drivers/upeksonly.c', 'drivers/upeksonly.h' ]
@@ -122,7 +122,7 @@ foreach driver: drivers
         drivers_sources += [ 'drivers/vfs5011.c', 'drivers/vfs5011_proto.h' ]
     endif
     if driver == 'upektc_img'
-        drivers_sources += [ 'drivers/upektc_img.c', 'drivers/upektc_img.h' ]
+        drivers_sources += [ 'drivers/upektc_img.c', 'drivers/upektc_img.h', 'drivers/upek_proto.c', 'drivers/upek_proto.h' ]
     endif
     if driver == 'etes603'
         drivers_sources += [ 'drivers/etes603.c' ]
