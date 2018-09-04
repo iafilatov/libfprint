@@ -94,7 +94,6 @@ fp_async_capture_stop
 <FILE>print_data</FILE>
 fp_finger
 fp_print_data
-fp_print_data
 fp_print_data_get_data
 fp_print_data_from_data
 fp_print_data_save
