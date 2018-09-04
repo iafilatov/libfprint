@@ -248,7 +248,7 @@ static struct fp_dscv_dev *discover_dev(libusb_device *udev)
  * Scans the system and returns a list of discovered devices. This is your
  * entry point into finding a fingerprint reader to operate.
  *
- * Returns: a %NULL-terminated list of discovered devices. Must be freed with
+ * Returns: a nul-terminated list of discovered devices. Must be freed with
  * fp_dscv_devs_free() after use.
  */
 API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)

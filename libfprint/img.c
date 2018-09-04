@@ -87,7 +87,7 @@ struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize)
 
 /**
  * fp_img_free:
- * @img: the image to destroy. If NULL, function simply returns.
+ * @img: the image to destroy. If %NULL, function simply returns.
  *
  * Frees an image. Must be called when you are finished working with an image.
  */
