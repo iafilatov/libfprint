@@ -40,7 +40,7 @@ void fpi_drvcb_open_complete(struct fp_dev *dev, int status)
  * fp_async_dev_open:
  * @ddev:
  * @callback:
- * @user_data
+ * @user_data:
  *
  * Returns:
  */
@@ -103,7 +103,7 @@ void fpi_drvcb_close_complete(struct fp_dev *dev)
  * fp_async_dev_close:
  * @dev:
  * @callback:
- * @user_data
+ * @user_data:
  */
 API_EXPORTED void fp_async_dev_close(struct fp_dev *dev,
 	fp_operation_stop_cb callback, void *user_data)
