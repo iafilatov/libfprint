@@ -304,12 +304,12 @@ void fp_img_free(struct fp_img *img);
  * @fd: a file descriptor
  * @events: Event flags to poll for from `<poll.h>`
  *
- * A structure representing a file descriptor and the events to poll
+ * A structure representing a file descriptor and the @events to poll
  * for, as returned by fp_get_pollfds().
  */
 struct fp_pollfd {
 	int fd;
-	short events;
+	short int events;
 };
 
 int fp_handle_events_timeout(struct timeval *timeout);
@@ -326,7 +326,7 @@ int fp_get_next_timeout(struct timeval *tv);
  * event source is added. The @events argument is a flag as defined in
  * `<poll.h>` such as `POLLIN`, or `POLLOUT`. See fp_set_pollfd_notifiers().
  */
-typedef void (*fp_pollfd_added_cb)(int fd, short events);
+typedef void (*fp_pollfd_added_cb)(int fd, short int events);
 
 /**
  * fp_pollfd_removed_cb:
