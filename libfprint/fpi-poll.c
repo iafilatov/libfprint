@@ -89,8 +89,8 @@ struct fpi_timeout {
 
 static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
 {
-	struct fpi_timeout *a = (struct fpi_timeout *) _a;
-	struct fpi_timeout *b = (struct fpi_timeout *) _b;
+	fpi_timeout *a = (fpi_timeout *) _a;
+	fpi_timeout *b = (fpi_timeout *) _b;
 	struct timeval *tv_a = &a->expiry;
 	struct timeval *tv_b = &b->expiry;
 
@@ -118,12 +118,12 @@ static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
  *
  * Returns: an #fpi_timeout structure
  */
-struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
+fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 	void *data)
 {
 	struct timespec ts;
 	struct timeval add_msec;
-	struct fpi_timeout *timeout;
+	fpi_timeout *timeout;
 	int r;
 
 	fp_dbg("in %dms", msec);
@@ -158,7 +158,7 @@ struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
  * Cancels a timeout scheduled with fpi_timeout_add(), and frees the
  * @timeout structure.
  */
-void fpi_timeout_cancel(struct fpi_timeout *timeout)
+void fpi_timeout_cancel(fpi_timeout *timeout)
 {
 	G_DEBUG_HERE();
 	active_timers = g_slist_remove(active_timers, timeout);

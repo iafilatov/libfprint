@@ -672,7 +672,7 @@ static void activate_loop(fpi_ssm *ssm)
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data;
 	int r;
-	struct fpi_timeout *timeout;
+	fpi_timeout *timeout;
 
 	data = fpi_imgdev_get_user_data(dev);
 

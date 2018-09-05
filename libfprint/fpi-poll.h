@@ -32,7 +32,7 @@ typedef void (*fpi_timeout_fn)(void *data);
  * An opaque structure representing a scheduled function call, created with
  * fpi_timeout_add().
  */
-struct fpi_timeout;
-struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
+typedef struct fpi_timeout fpi_timeout;
+fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 	void *data);
-void fpi_timeout_cancel(struct fpi_timeout *timeout);
+void fpi_timeout_cancel(fpi_timeout *timeout);
