@@ -18,8 +18,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+/**
+ * fpi_timeout_fn:
+ * @data: the data passed to fpi_timeout_add()
+ *
+ * The prototype of the callback function for fpi_timeout_add().
+ */
 typedef void (*fpi_timeout_fn)(void *data);
 
+/**
+ * fpi_timeout:
+ *
+ * An opaque structure representing a scheduled function call, created with
+ * fpi_timeout_add().
+ */
 struct fpi_timeout;
 struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 	void *data);

@@ -162,3 +162,12 @@ fpi_ssm_get_user_data
 fpi_ssm_get_error
 fpi_ssm_get_cur_state
 </SECTION>
+
+<SECTION>
+<INCLUDE>fpi-poll.h</INCLUDE>
+<FILE>fpi-poll</FILE>
+fpi_timeout
+fpi_timeout_fn
+fpi_timeout_add
+fpi_timeout_cancel
+</SECTION>
