@@ -30,19 +30,38 @@
 
 /* async drv <--> lib comms */
 
+/**
+ * fpi_ssm:
+ *
+ * Sequential state machine that iterates sequentially over
+ * a predefined series of states. Can be aborted by either completion or
+ * abortion error conditions.
+ */
 typedef struct fpi_ssm fpi_ssm;
-typedef void (*ssm_completed_fn)(fpi_ssm *ssm);
-typedef void (*ssm_handler_fn)(fpi_ssm *ssm);
 
-/* sequential state machine: state machine that iterates sequentially over
- * a predefined series of states. can be aborted by either completion or
- * abortion error conditions. */
+/**
+ * ssm_completed_fn:
+ * @ssm: a #fpi_ssm state machine
+ *
+ * The callback called when a state machine completes successfully,
+ * as set when calling fpi_ssm_start().
+ */
+typedef void (*ssm_completed_fn)(fpi_ssm *ssm);
+
+/**
+ * ssm_handler_fn:
+ * @ssm: a #fpi_ssm state machine
+ *
+ * The callback called when a state machine transitions from one
+ * state to the next, as set when calling fpi_ssm_new().
+ */
+typedef void (*ssm_handler_fn)(fpi_ssm *ssm);
 
 /* for library and drivers */
 fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
 	int nr_states);
 void fpi_ssm_free(fpi_ssm *machine);
-void fpi_ssm_start(fpi_ssm *machine, ssm_completed_fn callback);
+void fpi_ssm_start(fpi_ssm *ssm, ssm_completed_fn callback);
 void fpi_ssm_start_subsm(fpi_ssm *parent, fpi_ssm *child);
 
 /* for drivers */
