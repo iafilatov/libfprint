@@ -56,7 +56,7 @@ enum activate_states {
 	ACTIVATE_NUM_STATES,
 };
 
-static void upektc_next_init_cmd(struct fpi_ssm *ssm)
+static void upektc_next_init_cmd(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = fpi_imgdev_get_user_data(dev);
@@ -70,7 +70,7 @@ static void upektc_next_init_cmd(struct fpi_ssm *ssm)
 
 static void write_init_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = fpi_imgdev_get_user_data(dev);
 
@@ -81,24 +81,24 @@ static void write_init_cb(struct libusb_transfer *transfer)
 		else
 			upektc_next_init_cmd(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
 
 static void read_init_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED)
 		upektc_next_init_cmd(ssm);
 	else
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	g_free(transfer->buffer);
 	libusb_free_transfer(transfer);
 }
 
-static void activate_run_state(struct fpi_ssm *ssm)
+static void activate_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = fpi_imgdev_get_user_data(dev);
@@ -109,7 +109,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
 		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_out,
@@ -118,7 +118,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 		}
 	}
 	break;
@@ -128,7 +128,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -141,14 +141,14 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 	}
 	break;
 	}
 }
 
-static void activate_sm_complete(struct fpi_ssm *ssm)
+static void activate_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	fp_dbg("status %d", fpi_ssm_get_error(ssm));
@@ -283,31 +283,31 @@ enum capture_states {
 
 static void capture_cmd_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length)) {
 		fpi_ssm_next_state(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
 
 static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	unsigned char *data = transfer->buffer;
 	struct fp_img *img;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fp_dbg("request is not completed, %d", transfer->status);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	} else if (transfer->length != transfer->actual_length) {
 		fp_dbg("expected %d, sent %d bytes", transfer->length, transfer->actual_length);
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		goto out;
 	}
 
@@ -321,7 +321,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void capture_run_state(struct fpi_ssm *ssm)
+static void capture_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = fpi_imgdev_get_user_data(dev);
@@ -332,7 +332,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
 		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_out,
@@ -341,7 +341,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 		}
 	}
 	break;
@@ -351,7 +351,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -363,14 +363,14 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 	}
 	break;
 	};
 }
 
-static void capture_sm_complete(struct fpi_ssm *ssm)
+static void capture_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = fpi_imgdev_get_user_data(dev);
@@ -388,7 +388,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 static void start_capture(struct fp_img_dev *dev)
 {
 	struct upektc_dev *upekdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 
 	if (upekdev->deactivating) {
 		complete_deactivation(dev);
@@ -404,7 +404,7 @@ static void start_capture(struct fp_img_dev *dev)
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct upektc_dev *upekdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
+	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
 		ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	upekdev->init_idx = 0;

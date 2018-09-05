@@ -199,7 +199,7 @@ static int result_code(struct fp_img_dev *dev, int result)
 /* Callback of asynchronous send */
 static void async_send_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
@@ -214,7 +214,7 @@ static void async_send_cb(struct libusb_transfer *transfer)
 			/* Transfer not completed, return IO error */
 			fp_err("transfer not completed, status = %d", transfer->status);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 
@@ -224,7 +224,7 @@ static void async_send_cb(struct libusb_transfer *transfer)
 			fp_err("length mismatch, got %d, expected %d",
 				transfer->actual_length, transfer->length);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 	}
@@ -242,7 +242,7 @@ out:
 }
 
 /* Submit asynchronous send */
-static void async_send(struct fpi_ssm *ssm)
+static void async_send(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
@@ -255,7 +255,7 @@ static void async_send(struct fpi_ssm *ssm)
 		/* Allocation transfer failed, return no memory error */
 		fp_err("allocation of usb transfer failed");
 		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -275,7 +275,7 @@ static void async_send(struct fpi_ssm *ssm)
 		libusb_free_transfer(vdev->transfer);
 		fp_err("submit of usb transfer failed");
 		fpi_imgdev_session_error(dev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 }
@@ -283,7 +283,7 @@ static void async_send(struct fpi_ssm *ssm)
 /* Callback of asynchronous recv */
 static void async_recv_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
@@ -298,7 +298,7 @@ static void async_recv_cb(struct libusb_transfer *transfer)
 			/* Transfer not completed, return IO error */
 			fp_err("transfer not completed, status = %d", transfer->status);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 
@@ -308,7 +308,7 @@ static void async_recv_cb(struct libusb_transfer *transfer)
 			fp_err("seqnum mismatch, got %04x, expected %04x",
 				get_seqnum(vdev->buffer[1], vdev->buffer[0]), vdev->seqnum);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 	}
@@ -329,7 +329,7 @@ out:
 }
 
 /* Submit asynchronous recv */
-static void async_recv(struct fpi_ssm *ssm)
+static void async_recv(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
@@ -342,7 +342,7 @@ static void async_recv(struct fpi_ssm *ssm)
 		/* Allocation transfer failed, return no memory error */
 		fp_err("allocation of usb transfer failed");
 		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -357,17 +357,17 @@ static void async_recv(struct fpi_ssm *ssm)
 		libusb_free_transfer(vdev->transfer);
 		fp_err("submit of usb transfer failed");
 		fpi_imgdev_session_error(dev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 }
 
-static void async_load(struct fpi_ssm *ssm);
+static void async_load(fpi_ssm *ssm);
 
 /* Callback of asynchronous load */
 static void async_load_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
@@ -382,7 +382,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 			/* Transfer not completed */
 			fp_err("transfer not completed, status = %d, length = %d", transfer->status, vdev->length);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 
@@ -391,7 +391,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 			/* Received incomplete frame, return protocol error */
 			fp_err("received incomplete frame");
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 	}
@@ -406,7 +406,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 			/* Buffer full, image too large, return no memory error */
 			fp_err("buffer full, image too large");
 			fpi_imgdev_session_error(dev, -ENOMEM);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			goto out;
 		}
 		else
@@ -430,7 +430,7 @@ out:
 }
 
 /* Submit asynchronous load */
-static void async_load(struct fpi_ssm *ssm)
+static void async_load(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
@@ -444,7 +444,7 @@ static void async_load(struct fpi_ssm *ssm)
 		/* Allocation transfer failed, return no memory error */
 		fp_err("allocation of usb transfer failed");
 		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -462,7 +462,7 @@ static void async_load(struct fpi_ssm *ssm)
 		libusb_free_transfer(vdev->transfer);
 		fp_err("submit of usb transfer failed");
 		fpi_imgdev_session_error(dev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 }
@@ -470,7 +470,7 @@ static void async_load(struct fpi_ssm *ssm)
 /* Callback of asynchronous sleep */
 static void async_sleep_cb(void *data)
 {
-	struct fpi_ssm *ssm = data;
+	fpi_ssm *ssm = data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
 
@@ -481,7 +481,7 @@ static void async_sleep_cb(void *data)
 }
 
 /* Submit asynchronous sleep */
-static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
+static void async_sleep(unsigned int msec, fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
@@ -494,7 +494,7 @@ static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
 		/* Failed to add timeout */
 		fp_err("failed to add timeout");
 		fpi_imgdev_session_error(dev, -ETIME);
-		fpi_ssm_mark_aborted(ssm, -ETIME);
+		fpi_ssm_mark_failed(ssm, -ETIME);
 	}
 }
 
@@ -507,7 +507,7 @@ enum
 };
 
 /* Exec swap sequential state machine */
-static void m_swap_state(struct fpi_ssm *ssm)
+static void m_swap_state(fpi_ssm *ssm)
 {
 	switch (fpi_ssm_get_cur_state(ssm))
 	{
@@ -524,11 +524,11 @@ static void m_swap_state(struct fpi_ssm *ssm)
 }
 
 /* Start swap sequential state machine */
-static void m_swap(struct fpi_ssm *ssm, unsigned char *data, size_t length)
+static void m_swap(fpi_ssm *ssm, unsigned char *data, size_t length)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *subsm;
+	fpi_ssm *subsm;
 
 	/* Prepare data for sending */
 	memcpy(vdev->buffer, data, length);
@@ -542,7 +542,7 @@ static void m_swap(struct fpi_ssm *ssm, unsigned char *data, size_t length)
 }
 
 /* Retrieve fingerprint image */
-static void vfs_get_print(struct fpi_ssm *ssm, unsigned int param, int type)
+static void vfs_get_print(fpi_ssm *ssm, unsigned int param, int type)
 {
 	unsigned char data[2][0x0e] = {
 		{	0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
@@ -562,7 +562,7 @@ static void vfs_get_print(struct fpi_ssm *ssm, unsigned int param, int type)
 }
 
 /* Set a parameter value on the device */
-static void vfs_set_param(struct fpi_ssm *ssm, unsigned int param, unsigned int value)
+static void vfs_set_param(fpi_ssm *ssm, unsigned int param, unsigned int value)
 {
 	unsigned char data[0x0a] = { 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
@@ -579,7 +579,7 @@ static void vfs_set_param(struct fpi_ssm *ssm, unsigned int param, unsigned int 
 }
 
 /* Abort previous print */
-static void vfs_abort_print(struct fpi_ssm *ssm)
+static void vfs_abort_print(fpi_ssm *ssm)
 {
 	unsigned char data[0x06] = { 0x00, 0x00, 0x00, 0x00, 0x0E, 0x00 };
 
@@ -590,7 +590,7 @@ static void vfs_abort_print(struct fpi_ssm *ssm)
 }
 
 /* Poke a value on a region */
-static void vfs_poke(struct fpi_ssm *ssm, unsigned int addr, unsigned int value, unsigned int size)
+static void vfs_poke(fpi_ssm *ssm, unsigned int addr, unsigned int value, unsigned int size)
 {
 	unsigned char data[0x0f] = { 0x00, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
@@ -612,7 +612,7 @@ static void vfs_poke(struct fpi_ssm *ssm, unsigned int addr, unsigned int value,
 }
 
 /* Get current finger state */
-static void vfs_get_finger_state(struct fpi_ssm *ssm)
+static void vfs_get_finger_state(fpi_ssm *ssm)
 {
 	unsigned char data[0x06] = { 0x00, 0x00, 0x00, 0x00, 0x16, 0x00 };
 
@@ -623,7 +623,7 @@ static void vfs_get_finger_state(struct fpi_ssm *ssm)
 }
 
 /* Load raw image from reader */
-static void vfs_img_load(struct fpi_ssm *ssm)
+static void vfs_img_load(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
@@ -754,7 +754,7 @@ static void img_copy(struct vfs101_dev *vdev, struct fp_img *img)
 }
 
 /* Extract fingerpint image from raw data */
-static void img_extract(struct fpi_ssm *ssm)
+static void img_extract(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
@@ -912,7 +912,7 @@ enum
 };
 
 /* Exec loop sequential state machine */
-static void m_loop_state(struct fpi_ssm *ssm)
+static void m_loop_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
@@ -961,7 +961,7 @@ static void m_loop_state(struct fpi_ssm *ssm)
 			/* Unknown state */
 			fp_err("unknown device state 0x%02x", vdev->buffer[0x0a]);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			break;
 		}
 		break;
@@ -1018,7 +1018,7 @@ static void m_loop_state(struct fpi_ssm *ssm)
 				/* reach max loop counter, return protocol error */
 				fp_err("finger not removed from the scanner");
 				fpi_imgdev_session_error(dev, -EIO);
-				fpi_ssm_mark_aborted(ssm, -EIO);
+				fpi_ssm_mark_failed(ssm, -EIO);
 			}
 		}
 		else
@@ -1108,7 +1108,7 @@ static void m_loop_state(struct fpi_ssm *ssm)
 			/* reach max loop counter, return protocol error */
 			fp_err("waiting abort reach max loop counter");
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 		}
 		break;
 
@@ -1120,7 +1120,7 @@ static void m_loop_state(struct fpi_ssm *ssm)
 }
 
 /* Complete loop sequential state machine */
-static void m_loop_complete(struct fpi_ssm *ssm)
+static void m_loop_complete(fpi_ssm *ssm)
 {
 	/* Free sequential state machine */
 	fpi_ssm_free(ssm);
@@ -1176,7 +1176,7 @@ enum
 };
 
 /* Exec init sequential state machine */
-static void m_init_state(struct fpi_ssm *ssm)
+static void m_init_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
@@ -1237,7 +1237,7 @@ static void m_init_state(struct fpi_ssm *ssm)
 			/* reach max loop counter, return protocol error */
 			fp_err("waiting abort reach max loop counter");
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 		}
 		break;
 
@@ -1273,7 +1273,7 @@ static void m_init_state(struct fpi_ssm *ssm)
 				/* reach max loop counter, return protocol error */
 				fp_err("finger not removed from the scanner");
 				fpi_imgdev_session_error(dev, -EIO);
-				fpi_ssm_mark_aborted(ssm, -EIO);
+				fpi_ssm_mark_failed(ssm, -EIO);
 			}
 		}
 		else
@@ -1417,11 +1417,11 @@ static void m_init_state(struct fpi_ssm *ssm)
 }
 
 /* Complete init sequential state machine */
-static void m_init_complete(struct fpi_ssm *ssm)
+static void m_init_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm_loop;
+	fpi_ssm *ssm_loop;
 
 	if (!fpi_ssm_get_error(ssm) && vdev->active)
 	{
@@ -1442,7 +1442,7 @@ static void m_init_complete(struct fpi_ssm *ssm)
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 
 	/* Check if already active */
 	if (vdev->active)

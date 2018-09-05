@@ -24,7 +24,7 @@
   </part>
 
   <part>
-    <title>API Documentation</title>
+    <title>Library API Documentation</title>
     <xi:include href="xml/events.xml"/>
     <xi:include href="xml/discovery.xml"/>
 
@@ -36,11 +36,10 @@
     <xi:include href="xml/img.xml"/>
   </part>
 
-  <!--
   <part>
     <title>Writing Drivers</title>
+    <xi:include href="xml/fpi-ssm.xml"/>
   </part>
-  -->
 
   <index id="api-index">
     <title>API Index</title>

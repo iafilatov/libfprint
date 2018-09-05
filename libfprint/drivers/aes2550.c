@@ -200,7 +200,7 @@ enum capture_states {
 };
 
 /* Returns number of processed bytes */
-static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
+static int process_strip_data(fpi_ssm *ssm, unsigned char *data)
 {
 	unsigned char *stripdata;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
@@ -231,20 +231,20 @@ static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
 
 static void capture_reqs_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length)) {
 		fpi_ssm_next_state(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
 
 static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
@@ -265,14 +265,14 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 		/* marking machine complete will re-trigger finger detection loop */
 		fpi_ssm_mark_completed(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
 
 static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
@@ -280,7 +280,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fp_dbg("request is not completed, %d", transfer->status);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	}
 
@@ -293,7 +293,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 			r = process_strip_data(ssm, data);
 			if (r < 0) {
 				fp_dbg("Processing strip data failed: %d", r);
-				fpi_ssm_mark_aborted(ssm, -EPROTO);
+				fpi_ssm_mark_failed(ssm, -EPROTO);
 				goto out;
 			}
 			aesdev->heartbeat_cnt = 0;
@@ -323,7 +323,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void capture_run_state(struct fpi_ssm *ssm)
+static void capture_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
@@ -333,7 +333,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
 		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, capture_reqs,
@@ -341,7 +341,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 		}
 	}
 	break;
@@ -351,7 +351,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -363,7 +363,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 	}
 	break;
@@ -371,7 +371,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
 		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, capture_set_idle_reqs,
@@ -379,14 +379,14 @@ static void capture_run_state(struct fpi_ssm *ssm)
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 		}
 	}
 	break;
 	};
 }
 
-static void capture_sm_complete(struct fpi_ssm *ssm)
+static void capture_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
@@ -404,7 +404,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 static void start_capture(struct fp_img_dev *dev)
 {
 	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 
 	if (aesdev->deactivating) {
 		complete_deactivation(dev);
@@ -444,25 +444,25 @@ enum activate_states {
 
 static void init_reqs_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length)) {
 		fpi_ssm_next_state(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
 
 static void init_read_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_next_state(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	g_free(transfer->buffer);
 	libusb_free_transfer(transfer);
@@ -472,18 +472,18 @@ static void init_read_data_cb(struct libusb_transfer *transfer)
  * need more info for implementaion */
 static void calibrate_read_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_next_state(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	g_free(transfer->buffer);
 	libusb_free_transfer(transfer);
 }
 
-static void activate_run_state(struct fpi_ssm *ssm)
+static void activate_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
@@ -493,7 +493,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
 		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, init_reqs,
@@ -501,7 +501,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 		}
 	}
 	break;
@@ -511,7 +511,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -523,7 +523,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 	}
 	break;
@@ -531,7 +531,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
 		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, calibrate_reqs,
@@ -539,7 +539,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 		}
 	}
 	break;
@@ -549,7 +549,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -561,14 +561,14 @@ static void activate_run_state(struct fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 	}
 	break;
 	}
 }
 
-static void activate_sm_complete(struct fpi_ssm *ssm)
+static void activate_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	fp_dbg("status %d", fpi_ssm_get_error(ssm));
@@ -581,7 +581,7 @@ static void activate_sm_complete(struct fpi_ssm *ssm)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
+	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
 		ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, activate_sm_complete);
