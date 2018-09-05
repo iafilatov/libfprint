@@ -20,6 +20,7 @@
 #define FP_COMPONENT "drv"
 
 #include "fp_internal.h"
+#include "fpi-ssm.h"
 
 #include <config.h>
 #include <errno.h>
@@ -67,6 +68,21 @@
  * whether the ssm completed or failed. An error code of zero indicates
  * successful completion.
  */
+
+/* sequential state machine: state machine that iterates sequentially over
+ * a predefined series of states. can be aborted by either completion or
+ * abortion error conditions. */
+struct fpi_ssm {
+	struct fp_dev *dev;
+	struct fpi_ssm *parentsm;
+	void *priv;
+	int nr_states;
+	int cur_state;
+	gboolean completed;
+	int error;
+	ssm_completed_fn callback;
+	ssm_handler_fn handler;
+};
 
 /* Allocate a new ssm */
 struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,

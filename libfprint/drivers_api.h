@@ -36,6 +36,7 @@
 #include <libusb.h>
 
 #include "fprint.h"
+#include "fpi-ssm.h"
 #include "assembling.h"
 #include "drivers/driver_ids.h"
 
@@ -210,35 +211,6 @@ struct fpi_timeout;
 struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 	void *data);
 void fpi_timeout_cancel(struct fpi_timeout *timeout);
-
-/* async drv <--> lib comms */
-
-struct fpi_ssm;
-typedef void (*ssm_completed_fn)(struct fpi_ssm *ssm);
-typedef void (*ssm_handler_fn)(struct fpi_ssm *ssm);
-
-/* sequential state machine: state machine that iterates sequentially over
- * a predefined series of states. can be aborted by either completion or
- * abortion error conditions. */
-
-/* for library and drivers */
-struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
-	int nr_states);
-void fpi_ssm_free(struct fpi_ssm *machine);
-void fpi_ssm_start(struct fpi_ssm *machine, ssm_completed_fn callback);
-void fpi_ssm_start_subsm(struct fpi_ssm *parent, struct fpi_ssm *child);
-
-/* for drivers */
-void fpi_ssm_next_state(struct fpi_ssm *machine);
-void fpi_ssm_jump_to_state(struct fpi_ssm *machine, int state);
-void fpi_ssm_mark_completed(struct fpi_ssm *machine);
-void fpi_ssm_mark_aborted(struct fpi_ssm *machine, int error);
-struct fp_dev *fpi_ssm_get_dev(struct fpi_ssm *machine);
-void fpi_ssm_set_user_data(struct fpi_ssm *machine,
-	void *user_data);
-void *fpi_ssm_get_user_data(struct fpi_ssm *machine);
-int fpi_ssm_get_error(struct fpi_ssm *machine);
-int fpi_ssm_get_cur_state(struct fpi_ssm *machine);
 
 void fpi_drvcb_open_complete(struct fp_dev *dev, int status);
 void fpi_drvcb_close_complete(struct fp_dev *dev);
