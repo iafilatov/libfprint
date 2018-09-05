@@ -135,7 +135,7 @@ struct uru4k_dev {
 	unsigned char powerup_hwstat;
 
 	int scanpwr_irq_timeouts;
-	struct fpi_timeout *scanpwr_irq_timeout;
+	fpi_timeout *scanpwr_irq_timeout;
 
 	int fwfixer_offset;
 	unsigned char fwfixer_value;

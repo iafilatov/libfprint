@@ -341,12 +341,10 @@ int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 	struct fp_print_data **gallery, int match_threshold, size_t *match_offset);
 struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
 
-/* polling and timeouts */
+/* polling */
 
 void fpi_poll_init(void);
 void fpi_poll_exit(void);
-
-typedef void (*fpi_timeout_fn)(void *data);
 
 void fpi_drvcb_open_complete(struct fp_dev *dev, int status);
 void fpi_drvcb_close_complete(struct fp_dev *dev);

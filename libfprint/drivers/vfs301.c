@@ -38,7 +38,7 @@ static void async_sleep_cb(void *data)
 static void async_sleep(unsigned int msec, fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct fpi_timeout *timeout;
+	fpi_timeout *timeout;
 
 	/* Add timeout */
 	timeout = fpi_timeout_add(msec, async_sleep_cb, ssm);

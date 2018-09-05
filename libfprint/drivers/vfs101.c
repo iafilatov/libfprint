@@ -106,7 +106,7 @@ struct vfs101_dev
 	int ignore_error;
 
 	/* Timeout */
-	struct fpi_timeout *timeout;
+	fpi_timeout *timeout;
 
 	/* Loop counter */
 	int counter;

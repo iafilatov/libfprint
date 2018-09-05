@@ -20,6 +20,7 @@
 #define FP_COMPONENT "poll"
 
 #include "fp_internal.h"
+#include "fpi-poll.h"
 
 #include <config.h>
 #include <errno.h>
@@ -63,6 +64,15 @@
  * your main loop.
  */
 
+/**
+ * SECTION:fpi-poll
+ * @title: Timeouts
+ *
+ * Helper functions to schedule a function call to be made after a timeout. This
+ * is useful to avoid making blocking calls while waiting for hardware to answer
+ * for example.
+ */
+
 /* this is a singly-linked list of pending timers, sorted with the timer that
  * is expiring soonest at the head. */
 static GSList *active_timers = NULL;
@@ -79,8 +89,8 @@ struct fpi_timeout {
 
 static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
 {
-	struct fpi_timeout *a = (struct fpi_timeout *) _a;
-	struct fpi_timeout *b = (struct fpi_timeout *) _b;
+	fpi_timeout *a = (fpi_timeout *) _a;
+	fpi_timeout *b = (fpi_timeout *) _b;
 	struct timeval *tv_a = &a->expiry;
 	struct timeval *tv_b = &b->expiry;
 
@@ -92,15 +102,28 @@ static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
 		return 0;
 }
 
-/* A timeout is the asynchronous equivalent of sleeping. You create a timeout
+/**
+ * fpi_timeout_add:
+ * @msec: the time before calling the function, in milliseconds (1/1000ths of a second)
+ * @callback: function to callback
+ * @data: data to pass to @callback
+ *
+ * A timeout is the asynchronous equivalent of sleeping. You create a timeout
  * saying that you'd like to have a function invoked at a certain time in
- * the future. */
-struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
+ * the future.
+ *
+ * Note that you should hold onto the return value of this function to cancel it
+ * use fpi_timeout_cancel(), otherwise the callback could be called while the driver
+ * is being torn down. %NULL is returned on failure.
+ *
+ * Returns: an #fpi_timeout structure
+ */
+fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 	void *data)
 {
 	struct timespec ts;
 	struct timeval add_msec;
-	struct fpi_timeout *timeout;
+	fpi_timeout *timeout;
 	int r;
 
 	fp_dbg("in %dms", msec);
@@ -128,7 +151,14 @@ struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 	return timeout;
 }
 
-void fpi_timeout_cancel(struct fpi_timeout *timeout)
+/**
+ * fpi_timeout_cancel:
+ * @timeout: an #fpi_timeout structure
+ *
+ * Cancels a timeout scheduled with fpi_timeout_add(), and frees the
+ * @timeout structure.
+ */
+void fpi_timeout_cancel(fpi_timeout *timeout)
 {
 	G_DEBUG_HERE();
 	active_timers = g_slist_remove(active_timers, timeout);
