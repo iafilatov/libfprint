@@ -156,7 +156,7 @@ fpi_ssm_start_subsm
 fpi_ssm_next_state
 fpi_ssm_jump_to_state
 fpi_ssm_mark_completed
-fpi_ssm_mark_aborted
+fpi_ssm_mark_failed
 fpi_ssm_set_user_data
 fpi_ssm_get_user_data
 fpi_ssm_get_error

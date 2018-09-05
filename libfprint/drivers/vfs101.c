@@ -214,7 +214,7 @@ static void async_send_cb(struct libusb_transfer *transfer)
 			/* Transfer not completed, return IO error */
 			fp_err("transfer not completed, status = %d", transfer->status);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 
@@ -224,7 +224,7 @@ static void async_send_cb(struct libusb_transfer *transfer)
 			fp_err("length mismatch, got %d, expected %d",
 				transfer->actual_length, transfer->length);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 	}
@@ -255,7 +255,7 @@ static void async_send(fpi_ssm *ssm)
 		/* Allocation transfer failed, return no memory error */
 		fp_err("allocation of usb transfer failed");
 		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -275,7 +275,7 @@ static void async_send(fpi_ssm *ssm)
 		libusb_free_transfer(vdev->transfer);
 		fp_err("submit of usb transfer failed");
 		fpi_imgdev_session_error(dev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 }
@@ -298,7 +298,7 @@ static void async_recv_cb(struct libusb_transfer *transfer)
 			/* Transfer not completed, return IO error */
 			fp_err("transfer not completed, status = %d", transfer->status);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 
@@ -308,7 +308,7 @@ static void async_recv_cb(struct libusb_transfer *transfer)
 			fp_err("seqnum mismatch, got %04x, expected %04x",
 				get_seqnum(vdev->buffer[1], vdev->buffer[0]), vdev->seqnum);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 	}
@@ -342,7 +342,7 @@ static void async_recv(fpi_ssm *ssm)
 		/* Allocation transfer failed, return no memory error */
 		fp_err("allocation of usb transfer failed");
 		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -357,7 +357,7 @@ static void async_recv(fpi_ssm *ssm)
 		libusb_free_transfer(vdev->transfer);
 		fp_err("submit of usb transfer failed");
 		fpi_imgdev_session_error(dev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 }
@@ -382,7 +382,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 			/* Transfer not completed */
 			fp_err("transfer not completed, status = %d, length = %d", transfer->status, vdev->length);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 
@@ -391,7 +391,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 			/* Received incomplete frame, return protocol error */
 			fp_err("received incomplete frame");
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			goto out;
 		}
 	}
@@ -406,7 +406,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 			/* Buffer full, image too large, return no memory error */
 			fp_err("buffer full, image too large");
 			fpi_imgdev_session_error(dev, -ENOMEM);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			goto out;
 		}
 		else
@@ -444,7 +444,7 @@ static void async_load(fpi_ssm *ssm)
 		/* Allocation transfer failed, return no memory error */
 		fp_err("allocation of usb transfer failed");
 		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -462,7 +462,7 @@ static void async_load(fpi_ssm *ssm)
 		libusb_free_transfer(vdev->transfer);
 		fp_err("submit of usb transfer failed");
 		fpi_imgdev_session_error(dev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 }
@@ -494,7 +494,7 @@ static void async_sleep(unsigned int msec, fpi_ssm *ssm)
 		/* Failed to add timeout */
 		fp_err("failed to add timeout");
 		fpi_imgdev_session_error(dev, -ETIME);
-		fpi_ssm_mark_aborted(ssm, -ETIME);
+		fpi_ssm_mark_failed(ssm, -ETIME);
 	}
 }
 
@@ -961,7 +961,7 @@ static void m_loop_state(fpi_ssm *ssm)
 			/* Unknown state */
 			fp_err("unknown device state 0x%02x", vdev->buffer[0x0a]);
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			break;
 		}
 		break;
@@ -1018,7 +1018,7 @@ static void m_loop_state(fpi_ssm *ssm)
 				/* reach max loop counter, return protocol error */
 				fp_err("finger not removed from the scanner");
 				fpi_imgdev_session_error(dev, -EIO);
-				fpi_ssm_mark_aborted(ssm, -EIO);
+				fpi_ssm_mark_failed(ssm, -EIO);
 			}
 		}
 		else
@@ -1108,7 +1108,7 @@ static void m_loop_state(fpi_ssm *ssm)
 			/* reach max loop counter, return protocol error */
 			fp_err("waiting abort reach max loop counter");
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 		}
 		break;
 
@@ -1237,7 +1237,7 @@ static void m_init_state(fpi_ssm *ssm)
 			/* reach max loop counter, return protocol error */
 			fp_err("waiting abort reach max loop counter");
 			fpi_imgdev_session_error(dev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 		}
 		break;
 
@@ -1273,7 +1273,7 @@ static void m_init_state(fpi_ssm *ssm)
 				/* reach max loop counter, return protocol error */
 				fp_err("finger not removed from the scanner");
 				fpi_imgdev_session_error(dev, -EIO);
-				fpi_ssm_mark_aborted(ssm, -EIO);
+				fpi_ssm_mark_failed(ssm, -EIO);
 			}
 		}
 		else

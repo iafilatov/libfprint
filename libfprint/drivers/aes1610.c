@@ -104,9 +104,9 @@ static void generic_ignore_data_cb(struct libusb_transfer *transfer)
 	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	else if (transfer->length != transfer->actual_length)
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
 
@@ -121,7 +121,7 @@ static void generic_write_regv_cb(struct fp_img_dev *dev, int result,
 	if (result == 0)
 		fpi_ssm_next_state(ssm);
 	else
-		fpi_ssm_mark_aborted(ssm, result);
+		fpi_ssm_mark_failed(ssm, result);
 }
 
 /* read the specified number of bytes from the IN endpoint but throw them
@@ -134,7 +134,7 @@ static void generic_read_ignore_data(fpi_ssm *ssm, size_t bytes)
 	int r;
 
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -147,7 +147,7 @@ static void generic_read_ignore_data(fpi_ssm *ssm, size_t bytes)
 	if (r < 0) {
 		g_free(data);
 		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 	}
 }
 
@@ -564,10 +564,10 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	int sum, i;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	} else if (transfer->length != transfer->actual_length) {
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		goto out;
 	}
 
@@ -594,7 +594,7 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	}
 
 	if (sum < 0) {
-		fpi_ssm_mark_aborted(ssm, sum);
+		fpi_ssm_mark_failed(ssm, sum);
 		goto out;
 	}
 	fp_dbg("sum=%d", sum);
@@ -672,7 +672,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -684,7 +684,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 		break;
 	};

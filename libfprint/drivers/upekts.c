@@ -494,15 +494,15 @@ static void initsm_read_msg_response_cb(fpi_ssm *ssm,
 	if (status != READ_MSG_RESPONSE) {
 		fp_err("expected response, got %d seq=%x in state %d", status, seq,
 			fpi_ssm_get_cur_state(ssm));
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 	} else if (subcmd != expect_subcmd) {
 		fp_warn("expected response to subcmd 0x%02x, got response to %02x in "
 			"state %d", expect_subcmd, subcmd, fpi_ssm_get_cur_state(ssm));
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 	} else if (seq != upekdev->seq) {
 		fp_err("expected response to cmd seq=%02x, got response to %02x "
 			"in state %d", upekdev->seq, seq, fpi_ssm_get_cur_state(ssm));
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 	} else {
 		fp_dbg("state %d completed", fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_next_state(ssm);
@@ -556,19 +556,19 @@ static void initsm_read_msg_cmd_cb(fpi_ssm *ssm,
 	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	if (status == READ_MSG_ERROR) {
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 		return;
 	} else if (status != READ_MSG_CMD) {
 		fp_err("expected command, got %d seq=%x in state %d", status, seq,
 			fpi_ssm_get_cur_state(ssm));
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 		return;
 	}
 	upekdev->seq = seq;
 	if (seq != expect_seq) {
 		fp_err("expected seq=%x, got %x in state %d", expect_seq, seq,
 			fpi_ssm_get_cur_state(ssm));
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 		return;
 	}
 
@@ -596,7 +596,7 @@ static void ctrl400_cb(struct libusb_transfer *transfer)
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED)
 		fpi_ssm_next_state(ssm);
 	else
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 	g_free(transfer->buffer);
 	libusb_free_transfer(transfer);
 }
@@ -607,7 +607,7 @@ static void initsm_read_msg_handler(fpi_ssm *ssm,
 	int r = read_msg_async(fpi_ssm_get_dev(ssm), callback, ssm);
 	if (r < 0) {
 		fp_err("async read msg failed in state %d", fpi_ssm_get_cur_state(ssm));
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 	}
 }
 
@@ -621,7 +621,7 @@ static void initsm_send_msg_cb(struct libusb_transfer *transfer)
 	} else {
 		fp_err("failed, state=%d rqlength=%d actual_length=%d", fpi_ssm_get_cur_state(ssm),
 			transfer->length, transfer->actual_length);
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 	}
 	libusb_free_transfer(transfer);
 }
@@ -636,7 +636,7 @@ static void initsm_send_msg28_handler(fpi_ssm *ssm,
 	transfer = alloc_send_cmd28_transfer(dev, subcmd, data, innerlen,
 		initsm_send_msg_cb, ssm);
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -645,7 +645,7 @@ static void initsm_send_msg28_handler(fpi_ssm *ssm,
 		fp_err("urb submission failed error %d in state %d", r, fpi_ssm_get_cur_state(ssm));
 		g_free(transfer->buffer);
 		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 }
 
@@ -662,7 +662,7 @@ static void initsm_run_state(fpi_ssm *ssm)
 
 		transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 		
@@ -676,7 +676,7 @@ static void initsm_run_state(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 		break;
 	case READ_MSG03:
@@ -686,7 +686,7 @@ static void initsm_run_state(fpi_ssm *ssm)
 		transfer = alloc_send_cmdresponse_transfer(dev, ++upekdev->seq,
 			init_resp03, sizeof(init_resp03), initsm_send_msg_cb, ssm);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -694,7 +694,7 @@ static void initsm_run_state(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(transfer->buffer);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 		break;
 	case READ_MSG05:
@@ -751,9 +751,9 @@ static void send_resp07_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	else if (transfer->length != transfer->actual_length)
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
 	libusb_free_transfer(transfer);
@@ -767,17 +767,17 @@ static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
 	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
 
 	if (status == READ_MSG_ERROR) {
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 		return;
 	} else if (status != READ_MSG_CMD) {
 		fp_err("expected command, got %d seq=%x", status, seq);
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 		return;
 	}
 	upekdev->seq = seq;
 	if (seq != 1) {
 		fp_err("expected seq=1, got %x", seq);
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 		return;
 	}
 
@@ -797,7 +797,7 @@ static void deinitsm_state_handler(fpi_ssm *ssm)
 		transfer = alloc_send_cmdresponse_transfer(dev, 0x07, &dummy, 1,
 			send_resp07_cb, ssm);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -805,13 +805,13 @@ static void deinitsm_state_handler(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(transfer->buffer);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 		break;
 	case READ_MSG01: ;
 		r = read_msg_async(dev, read_msg01_cb, ssm);
 		if (r < 0)
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		break;
 	}
 }
@@ -875,7 +875,7 @@ static void enroll_start_sm_cb_initsm(fpi_ssm *initsm)
 
 	fpi_ssm_free(initsm);
 	if (error)
-		fpi_ssm_mark_aborted(enroll_start_ssm, error);
+		fpi_ssm_mark_failed(enroll_start_ssm, error);
 	else
 		fpi_ssm_next_state(enroll_start_ssm);
 }
@@ -885,9 +885,9 @@ static void enroll_start_sm_cb_init(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	else if (transfer->length != transfer->actual_length)
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
 	libusb_free_transfer(transfer);
@@ -902,15 +902,15 @@ static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
 
 	if (status != READ_MSG_RESPONSE) {
 		fp_err("expected response, got %d seq=%x", status, seq);
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 	} else if (subcmd != 0) {
 		fp_warn("expected response to subcmd 0, got response to %02x",
 			subcmd);
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 	} else if (seq != upekdev->seq) {
 		fp_err("expected response to cmd seq=%02x, got response to %02x",
 			upekdev->seq, seq);
-		fpi_ssm_mark_aborted(ssm, -1);
+		fpi_ssm_mark_failed(ssm, -1);
 	} else {
 		fpi_ssm_next_state(ssm);
 	}
@@ -932,7 +932,7 @@ static void enroll_start_sm_run_state(fpi_ssm *ssm)
 		transfer = alloc_send_cmd28_transfer(dev, 0x02, enroll_init,
 			sizeof(enroll_init), enroll_start_sm_cb_init, ssm);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -940,7 +940,7 @@ static void enroll_start_sm_run_state(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(transfer->buffer);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 		break;
 	case READ_ENROLL_MSG28: ;
@@ -950,7 +950,7 @@ static void enroll_start_sm_run_state(fpi_ssm *ssm)
 		 * include a 30 01 poll somewhere? */
 		r = read_msg_async(dev, enroll_start_sm_cb_msg28, ssm);
 		if (r < 0)
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		break;
 	}
 }
@@ -1183,7 +1183,7 @@ static void verify_start_sm_cb_initsm(fpi_ssm *initsm)
 
 	err = fpi_ssm_get_error(initsm);
 	if (err)
-		fpi_ssm_mark_aborted(verify_start_ssm, err);
+		fpi_ssm_mark_failed(verify_start_ssm, err);
 	else
 		fpi_ssm_next_state(verify_start_ssm);
 	fpi_ssm_free(initsm);
@@ -1193,9 +1193,9 @@ static void verify_init_2803_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	else if (transfer->length != transfer->actual_length)
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
 	libusb_free_transfer(transfer);
@@ -1225,7 +1225,7 @@ static void verify_start_sm_run_state(fpi_ssm *ssm)
 			verify_init_2803_cb, ssm);
 		g_free(data);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -1233,7 +1233,7 @@ static void verify_start_sm_run_state(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(transfer->buffer);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 		}
 		break;
 	}

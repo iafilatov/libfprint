@@ -77,7 +77,7 @@ static void sm_write_reg_cb(struct libusb_transfer *transfer)
 	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	else
 		fpi_ssm_next_state(ssm);
 
@@ -94,7 +94,7 @@ static void sm_write_reg(fpi_ssm *ssm, unsigned char reg,
 	int r;
 	
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -107,7 +107,7 @@ static void sm_write_reg(fpi_ssm *ssm, unsigned char reg,
 	if (r < 0) {
 		g_free(data);
 		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 	}
 }
 
@@ -116,7 +116,7 @@ static void sm_exec_cmd_cb(struct libusb_transfer *transfer)
 	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	else
 		fpi_ssm_next_state(ssm);
 
@@ -133,7 +133,7 @@ static void sm_exec_cmd(fpi_ssm *ssm, unsigned char cmd,
 	int r;
 	
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -146,7 +146,7 @@ static void sm_exec_cmd(fpi_ssm *ssm, unsigned char cmd,
 	if (r < 0) {
 		g_free(data);
 		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 	}
 }
 
@@ -196,7 +196,7 @@ static void capture_cb(struct libusb_transfer *transfer)
 	struct v5s_dev *vdev = fpi_imgdev_get_user_data(dev);
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	}
 
@@ -227,7 +227,7 @@ static void capture_iterate(fpi_ssm *ssm)
 	int r;
 
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -238,7 +238,7 @@ static void capture_iterate(fpi_ssm *ssm)
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
 		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 	}
 }
 

@@ -335,7 +335,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 			fp_dbg("transfer length error: expected %d, got %d",
 			       transfer->length, transfer->actual_length);
 			elan_dev_reset(elandev);
-			fpi_ssm_mark_aborted(ssm, -EPROTO);
+			fpi_ssm_mark_failed(ssm, -EPROTO);
 		} else if (transfer->endpoint & LIBUSB_ENDPOINT_IN) {
 			/* just finished receiving */
 			dbg_buf(elandev->last_read, transfer->actual_length);
@@ -348,17 +348,17 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 		break;
 	case LIBUSB_TRANSFER_CANCELLED:
 		fp_dbg("transfer cancelled");
-		fpi_ssm_mark_aborted(ssm, -ECANCELED);
+		fpi_ssm_mark_failed(ssm, -ECANCELED);
 		elan_deactivate(dev);
 		break;
 	case LIBUSB_TRANSFER_TIMED_OUT:
 		fp_dbg("transfer timed out");
-		fpi_ssm_mark_aborted(ssm, -ETIMEDOUT);
+		fpi_ssm_mark_failed(ssm, -ETIMEDOUT);
 		break;
 	default:
 		fp_dbg("transfer failed: %d", transfer->status);
 		elan_dev_reset(elandev);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 }
 
@@ -383,7 +383,7 @@ static void elan_cmd_read(fpi_ssm *ssm)
 
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 	elandev->cur_transfer = transfer;
@@ -398,7 +398,7 @@ static void elan_cmd_read(fpi_ssm *ssm)
 	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
 	int r = libusb_submit_transfer(transfer);
 	if (r < 0)
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 }
 
 static void elan_run_cmd(fpi_ssm *ssm, const struct elan_cmd *cmd,
@@ -421,7 +421,7 @@ static void elan_run_cmd(fpi_ssm *ssm, const struct elan_cmd *cmd,
 
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 	elandev->cur_transfer = transfer;
@@ -432,7 +432,7 @@ static void elan_run_cmd(fpi_ssm *ssm, const struct elan_cmd *cmd,
 	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
 	int r = libusb_submit_transfer(transfer);
 	if (r < 0)
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 }
 
 enum stop_capture_states {
@@ -521,12 +521,12 @@ static void capture_run_state(fpi_ssm *ssm)
 				fpi_imgdev_report_finger_status(dev, TRUE);
 			elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		} else
-			fpi_ssm_mark_aborted(ssm, -EBADMSG);
+			fpi_ssm_mark_failed(ssm, -EBADMSG);
 		break;
 	case CAPTURE_CHECK_ENOUGH_FRAMES:
 		r = elan_save_img_frame(elandev);
 		if (r < 0)
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		else if (elandev->num_frames < ELAN_MAX_FRAMES) {
 			/* quickly stop if finger is removed */
 			elandev->cmd_timeout = ELAN_FINGER_TIMEOUT;
@@ -660,7 +660,7 @@ static void calibrate_run_state(fpi_ssm *ssm)
 				     ELAN_CMD_TIMEOUT);
 		else {
 			fp_dbg("calibration failed");
-			fpi_ssm_mark_aborted(ssm, -1);
+			fpi_ssm_mark_failed(ssm, -1);
 		}
 		break;
 	case CALIBRATE_CHECK_STATUS:
@@ -680,7 +680,7 @@ static void calibrate_run_state(fpi_ssm *ssm)
 			    && elandev->last_read[0] == 0x01)
 				elandev->calib_status = 0x01;
 			if (!fpi_timeout_add(50, fpi_ssm_next_state_async, ssm))
-				fpi_ssm_mark_aborted(ssm, -ETIME);
+				fpi_ssm_mark_failed(ssm, -ETIME);
 		}
 		break;
 	case CALIBRATE_REPEAT_STATUS:

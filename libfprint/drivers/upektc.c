@@ -81,7 +81,7 @@ static void write_init_cb(struct libusb_transfer *transfer)
 		else
 			upektc_next_init_cmd(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
@@ -93,7 +93,7 @@ static void read_init_data_cb(struct libusb_transfer *transfer)
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED)
 		upektc_next_init_cmd(ssm);
 	else
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	g_free(transfer->buffer);
 	libusb_free_transfer(transfer);
 }
@@ -109,7 +109,7 @@ static void activate_run_state(fpi_ssm *ssm)
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
 		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_out,
@@ -118,7 +118,7 @@ static void activate_run_state(fpi_ssm *ssm)
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 		}
 	}
 	break;
@@ -128,7 +128,7 @@ static void activate_run_state(fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -141,7 +141,7 @@ static void activate_run_state(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 	}
 	break;
@@ -289,7 +289,7 @@ static void capture_cmd_cb(struct libusb_transfer *transfer)
 		(transfer->length == transfer->actual_length)) {
 		fpi_ssm_next_state(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
@@ -303,11 +303,11 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fp_dbg("request is not completed, %d", transfer->status);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	} else if (transfer->length != transfer->actual_length) {
 		fp_dbg("expected %d, sent %d bytes", transfer->length, transfer->actual_length);
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		goto out;
 	}
 
@@ -332,7 +332,7 @@ static void capture_run_state(fpi_ssm *ssm)
 	{
 		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
 		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_out,
@@ -341,7 +341,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		r = libusb_submit_transfer(transfer);
 		if (r < 0) {
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 		}
 	}
 	break;
@@ -351,7 +351,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -363,7 +363,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 	}
 	break;

@@ -676,7 +676,7 @@ static void async_tx_cb(struct libusb_transfer *transfer)
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fp_warn("transfer is not completed (status=%d)",
 			transfer->status);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		libusb_free_transfer(transfer);
 	} else {
 		unsigned char endpoint = transfer->endpoint;
@@ -691,7 +691,7 @@ static void async_tx_cb(struct libusb_transfer *transfer)
 					length, actual_length);
 			/* Chained with the answer */
 			if (async_tx(idev, EP_IN, async_tx_cb, ssm))
-				fpi_ssm_mark_aborted(ssm, -EIO);
+				fpi_ssm_mark_failed(ssm, -EIO);
 		} else if (endpoint == EP_IN) {
 			dev->ans_len = actual_length;
 			fpi_ssm_next_state(ssm);
@@ -724,7 +724,7 @@ static void m_exit_state(fpi_ssm *ssm)
 
 	return;
 err:
-	fpi_ssm_mark_aborted(ssm, -EIO);
+	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
 static void m_exit_complete(fpi_ssm *ssm)
@@ -827,7 +827,7 @@ static void m_capture_state(fpi_ssm *ssm)
 
 	return;
 err:
-	fpi_ssm_mark_aborted(ssm, -EIO);
+	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
 static void m_capture_complete(fpi_ssm *ssm)
@@ -945,7 +945,7 @@ static void m_finger_state(fpi_ssm *ssm)
 
 	return;
 err:
-	fpi_ssm_mark_aborted(ssm, -EIO);
+	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
 static void m_finger_complete(fpi_ssm *ssm)
@@ -1131,7 +1131,7 @@ static void m_tunevrb_state(fpi_ssm *ssm)
 
 	return;
 err:
-	fpi_ssm_mark_aborted(ssm, -EIO);
+	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
 static void m_tunevrb_complete(fpi_ssm *ssm)
@@ -1255,7 +1255,7 @@ static void m_tunedc_state(fpi_ssm *ssm)
 
 	return;
 err:
-	fpi_ssm_mark_aborted(ssm, -EIO);
+	fpi_ssm_mark_failed(ssm, -EIO);
 
 }
 
@@ -1375,7 +1375,7 @@ static void m_init_state(fpi_ssm *ssm)
 
 	return;
 err:
-	fpi_ssm_mark_aborted(ssm, -EIO);
+	fpi_ssm_mark_failed(ssm, -EIO);
 
 }
 

@@ -47,7 +47,7 @@ static void async_sleep(unsigned int msec, fpi_ssm *ssm)
 		/* Failed to add timeout */
 		fp_err("failed to add timeout");
 		fpi_imgdev_session_error(dev, -ETIME);
-		fpi_ssm_mark_aborted(ssm, -ETIME);
+		fpi_ssm_mark_failed(ssm, -ETIME);
 	}
 }
 

@@ -34,8 +34,8 @@
  * fpi_ssm:
  *
  * Sequential state machine that iterates sequentially over
- * a predefined series of states. Can be aborted by either completion or
- * abortion error conditions.
+ * a predefined series of states. Can be terminated by either completion or
+ * failure error conditions.
  */
 typedef struct fpi_ssm fpi_ssm;
 
@@ -68,7 +68,7 @@ void fpi_ssm_start_subsm(fpi_ssm *parent, fpi_ssm *child);
 void fpi_ssm_next_state(fpi_ssm *machine);
 void fpi_ssm_jump_to_state(fpi_ssm *machine, int state);
 void fpi_ssm_mark_completed(fpi_ssm *machine);
-void fpi_ssm_mark_aborted(fpi_ssm *machine, int error);
+void fpi_ssm_mark_failed(fpi_ssm *machine, int error);
 struct fp_dev *fpi_ssm_get_dev(fpi_ssm *machine);
 void fpi_ssm_set_user_data(fpi_ssm *machine,
 	void *user_data);

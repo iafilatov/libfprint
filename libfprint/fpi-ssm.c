@@ -58,7 +58,7 @@
  * To mark successful completion of a SSM, either iterate beyond the final
  * state or call fpi_ssm_mark_completed() from any state.
  *
- * To mark failed completion of a SSM, call fpi_ssm_mark_aborted() from any
+ * To mark failed completion of a SSM, call fpi_ssm_mark_failed() from any
  * state. You must pass a non-zero error code.
  *
  * Your state handling function looks at the return value of
@@ -68,7 +68,7 @@
  * Typically, the state handling function fires off an asynchronous
  * communication with the device (such as a libsub transfer), and the
  * callback function iterates the machine to the next state
- * upon success (or aborts the machine on failure).
+ * upon success (or fails).
  *
  * Your completion callback should examine the return value of
  * fpi_ssm_get_error() in order to determine whether the #fpi_ssm completed or
@@ -184,7 +184,7 @@ static void __ssm_call_handler(fpi_ssm *machine)
  * @callback: the #ssm_completed_fn callback to call on completion
  *
  * Starts a state machine. You can also use this function to restart
- * a completed or aborted state machine. The @callback will be called
+ * a completed or failed state machine. The @callback will be called
  * on completion.
  */
 void fpi_ssm_start(fpi_ssm *ssm, ssm_completed_fn callback)
@@ -202,7 +202,7 @@ static void __subsm_complete(fpi_ssm *ssm)
 	fpi_ssm *parent = ssm->parentsm;
 	BUG_ON(!parent);
 	if (ssm->error)
-		fpi_ssm_mark_aborted(parent, ssm->error);
+		fpi_ssm_mark_failed(parent, ssm->error);
 	else
 		fpi_ssm_next_state(parent);
 	fpi_ssm_free(ssm);
@@ -215,9 +215,9 @@ static void __subsm_complete(fpi_ssm *ssm)
  *
  * Starts a state machine as a child of another. if the child completes
  * successfully, the parent will be advanced to the next state. if the
- * child aborts, the parent will be aborted with the same error code.
+ * child fails, the parent will be marked as failed with the same error code.
  *
- * The child will be automatically freed upon completion or abortion.
+ * The child will be automatically freed upon completion or failure.
  */
 void fpi_ssm_start_subsm(fpi_ssm *parent, fpi_ssm *child)
 {
@@ -242,13 +242,13 @@ void fpi_ssm_mark_completed(fpi_ssm *machine)
 }
 
 /**
- * fpi_ssm_mark_aborted:
+ * fpi_ssm_mark_failed:
  * @machine: an #fpi_ssm state machine
  * @error: the error code
  *
- * Mark a state machine as aborted with error.
+ * Mark a state machine as failed with @error as the error code.
  */
-void fpi_ssm_mark_aborted(fpi_ssm *machine, int error)
+void fpi_ssm_mark_failed(fpi_ssm *machine, int error)
 {
 	fp_dbg("error %d from state %d", error, machine->cur_state);
 	BUG_ON(error == 0);
@@ -307,7 +307,7 @@ int fpi_ssm_get_cur_state(fpi_ssm *machine)
  * fpi_ssm_get_error:
  * @machine: an #fpi_ssm state machine
  *
- * Returns the error code set by fpi_ssm_mark_aborted().
+ * Returns the error code set by fpi_ssm_mark_failed().
  *
  * Returns: a error code
  */

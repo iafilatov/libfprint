@@ -184,7 +184,7 @@ static void generic_write_regv_cb(struct fp_img_dev *dev, int result,
 	if (result == 0)
 		fpi_ssm_next_state(ssm);
 	else
-		fpi_ssm_mark_aborted(ssm, result);
+		fpi_ssm_mark_failed(ssm, result);
 }
 
 /* check that read succeeded but ignore all data */
@@ -193,9 +193,9 @@ static void generic_ignore_data_cb(struct libusb_transfer *transfer)
 	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	else if (transfer->length != transfer->actual_length)
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
 
@@ -213,7 +213,7 @@ static void generic_read_ignore_data(fpi_ssm *ssm, size_t bytes)
 	int r;
 
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -225,7 +225,7 @@ static void generic_read_ignore_data(fpi_ssm *ssm, size_t bytes)
 	if (r < 0) {
 		g_free(data);
 		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 	}
 }
 
@@ -444,23 +444,23 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 	int threshold;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	} else if (transfer->length != transfer->actual_length) {
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		goto out;
 	}
 
 	threshold = regval_from_dump(data + 1 + 192*8 + 1 + 16*2 + 1 + 8,
 		AES2501_REG_DATFMT);
 	if (threshold < 0) {
-		fpi_ssm_mark_aborted(ssm, threshold);
+		fpi_ssm_mark_failed(ssm, threshold);
 		goto out;
 	}
 
 	sum = sum_histogram_values(data + 1 + 192*8, threshold & 0x0f);
 	if (sum < 0) {
-		fpi_ssm_mark_aborted(ssm, sum);
+		fpi_ssm_mark_failed(ssm, sum);
 		goto out;
 	}
 	fp_dbg("sum=%d", sum);
@@ -553,7 +553,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		unsigned char *data;
 
 		if (!transfer) {
-			fpi_ssm_mark_aborted(ssm, -ENOMEM);
+			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			break;
 		}
 
@@ -565,7 +565,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		if (r < 0) {
 			g_free(data);
 			libusb_free_transfer(transfer);
-			fpi_ssm_mark_aborted(ssm, r);
+			fpi_ssm_mark_failed(ssm, r);
 		}
 		break;
 	};
@@ -717,7 +717,7 @@ void activate_read_regs_cb(struct fp_img_dev *dev, int status,
 	struct aes2501_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	if (status != 0) {
-		fpi_ssm_mark_aborted(ssm, status);
+		fpi_ssm_mark_failed(ssm, status);
 	} else {
 		fp_dbg("reg 0xaf = %x", regs[0x5f]);
 		if (regs[0x5f] != 0x6b || ++aesdev->read_regs_retry_count == 13)
@@ -734,7 +734,7 @@ static void activate_init3_cb(struct fp_img_dev *dev, int result,
 	if (result == 0)
 		fpi_ssm_jump_to_state(ssm, READ_REGS);
 	else
-		fpi_ssm_mark_aborted(ssm, result);
+		fpi_ssm_mark_failed(ssm, result);
 }
 
 static void activate_run_state(fpi_ssm *ssm)

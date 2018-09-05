@@ -45,7 +45,7 @@ static void aesX660_send_cmd_timeout(fpi_ssm *ssm, const unsigned char *cmd,
 	int r;
 
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -56,7 +56,7 @@ static void aesX660_send_cmd_timeout(fpi_ssm *ssm, const unsigned char *cmd,
 	if (r < 0) {
 		fp_dbg("failed to submit transfer\n");
 		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 	}
 }
 
@@ -75,7 +75,7 @@ static void aesX660_read_response(fpi_ssm *ssm, size_t buf_len,
 	int r;
 
 	if (!transfer) {
-		fpi_ssm_mark_aborted(ssm, -ENOMEM);
+		fpi_ssm_mark_failed(ssm, -ENOMEM);
 		return;
 	}
 
@@ -89,7 +89,7 @@ static void aesX660_read_response(fpi_ssm *ssm, size_t buf_len,
 		fp_dbg("Failed to submit rx transfer: %d\n", r);
 		g_free(data);
 		libusb_free_transfer(transfer);
-		fpi_ssm_mark_aborted(ssm, r);
+		fpi_ssm_mark_failed(ssm, r);
 	}
 }
 
@@ -103,7 +103,7 @@ static void aesX660_send_cmd_cb(struct libusb_transfer *transfer)
 	} else {
 		fp_dbg("tx transfer status: %d, actual_len: %.4x\n",
 			transfer->status, transfer->actual_length);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
@@ -115,13 +115,13 @@ static void aesX660_read_calibrate_data_cb(struct libusb_transfer *transfer)
 
 	if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) ||
 		(transfer->length != transfer->actual_length)) {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	}
 	/* Calibrate response was read correctly? */
 	if (data[AESX660_RESPONSE_TYPE_OFFSET] != AESX660_CALIBRATE_RESPONSE) {
 		fp_dbg("Bogus calibrate response: %.2x\n", data[0]);
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		goto out;
 	}
 
@@ -159,13 +159,13 @@ static void finger_det_read_fd_data_cb(struct libusb_transfer *transfer)
 	if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) ||
 	   (transfer->length != transfer->actual_length)) {
 		fp_dbg("Failed to read FD data\n");
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	}
 
 	if (data[AESX660_RESPONSE_TYPE_OFFSET] != AESX660_FINGER_DET_RESPONSE) {
 		fp_dbg("Bogus FD response: %.2x\n", data[0]);
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		goto out;
 	}
 
@@ -190,7 +190,7 @@ static void finger_det_set_idle_cmd_cb(struct libusb_transfer *transfer)
 		(transfer->length == transfer->actual_length)) {
 		fpi_ssm_mark_completed(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
@@ -313,7 +313,7 @@ static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
 		fpi_imgdev_report_finger_status(dev, FALSE);
 		fpi_ssm_mark_completed(ssm);
 	} else {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 	libusb_free_transfer(transfer);
 }
@@ -328,7 +328,7 @@ static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 	size_t copied, actual_len = transfer->actual_length;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	}
 
@@ -456,7 +456,7 @@ static void activate_read_id_cb(struct libusb_transfer *transfer)
 	if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) ||
 		(transfer->length != transfer->actual_length)) {
 		fp_dbg("read_id cmd failed\n");
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	}
 	/* ID was read correctly */
@@ -465,7 +465,7 @@ static void activate_read_id_cb(struct libusb_transfer *transfer)
 			data[4], data[3], data[5], data[6], data[7]);
 	} else {
 		fp_dbg("Bogus read ID response: %.2x\n", data[AESX660_RESPONSE_TYPE_OFFSET]);
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		goto out;
 	}
 
@@ -487,7 +487,7 @@ static void activate_read_id_cb(struct libusb_transfer *transfer)
 		break;
 	default:
 		fp_dbg("Failed to init device! init status: %.2x\n", data[7]);
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		break;
 
 	}
@@ -509,14 +509,14 @@ static void activate_read_init_cb(struct libusb_transfer *transfer)
 	if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) ||
 		(transfer->length != transfer->actual_length)) {
 		fp_dbg("read_init transfer status: %d, actual_len: %d\n", transfer->status, transfer->actual_length);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		goto out;
 	}
 	/* ID was read correctly */
 	if (data[0] != 0x42 || data[3] != 0x01) {
 		fp_dbg("Bogus read init response: %.2x %.2x\n", data[0],
 			data[3]);
-		fpi_ssm_mark_aborted(ssm, -EPROTO);
+		fpi_ssm_mark_failed(ssm, -EPROTO);
 		goto out;
 	}
 	aesdev->init_cmd_idx++;

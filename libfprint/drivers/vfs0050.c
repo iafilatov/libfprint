@@ -36,14 +36,14 @@ static void async_write_callback(struct libusb_transfer *transfer)
 	if (error != 0) {
 		fp_err("USB write transfer: %s", libusb_error_name(error));
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 
 	if (transferred != len) {
 		fp_err("Written only %d of %d bytes", transferred, len);
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 
@@ -78,14 +78,14 @@ static void async_read_callback(struct libusb_transfer *transfer)
 		fp_err("USB read transfer on endpoint %d: %s", ep - 0x80,
 		       libusb_error_name(error));
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 
 	if (transferred != len) {
 		fp_err("Received %d instead of %d bytes", transferred, len);
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 
@@ -134,7 +134,7 @@ static void async_abort_callback(struct libusb_transfer *transfer)
 	if (error != 0) {
 		fp_err("USB write transfer: %s", libusb_error_name(error));
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 
@@ -302,7 +302,7 @@ static void clear_ep2_ssm(fpi_ssm *ssm)
 	default:
 		fp_err("Unknown SUBSM1 state");
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 }
 
@@ -363,7 +363,7 @@ static void send_control_packet_ssm(fpi_ssm *ssm)
 		    (vdev->interrupt, empty_interrupt, VFS_INTERRUPT_SIZE)) {
 			fp_err("Unknown SUBSM2 state");
 			fpi_imgdev_session_error(idev, -EIO);
-			fpi_ssm_mark_aborted(ssm, -EIO);
+			fpi_ssm_mark_failed(ssm, -EIO);
 			break;
 		}
 		async_abort(ssm, 3);
@@ -380,7 +380,7 @@ static void send_control_packet_ssm(fpi_ssm *ssm)
 	default:
 		fp_err("Unknown SUBSM2 state");
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 }
 
@@ -423,7 +423,7 @@ static void interrupt_callback(struct libusb_transfer *transfer)
 		fp_err("USB read interrupt transfer: %s",
 		       libusb_error_name(error));
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 
@@ -432,7 +432,7 @@ static void interrupt_callback(struct libusb_transfer *transfer)
 		fp_err("Unknown interrupt size %d", transferred);
 		/* Abort ssm */
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 
@@ -461,7 +461,7 @@ static void interrupt_callback(struct libusb_transfer *transfer)
 
 	/* Abort ssm */
 	fpi_imgdev_session_error(idev, -EIO);
-	fpi_ssm_mark_aborted(ssm, -EIO);
+	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
 static void receive_callback(struct libusb_transfer *transfer)
@@ -476,7 +476,7 @@ static void receive_callback(struct libusb_transfer *transfer)
 		fp_err("USB read transfer: %s", libusb_error_name(error));
 
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
 
@@ -664,7 +664,7 @@ static void activate_ssm(fpi_ssm *ssm)
 	default:
 		fp_err("Unknown state");
 		fpi_imgdev_session_error(idev, -EIO);
-		fpi_ssm_mark_aborted(ssm, -EIO);
+		fpi_ssm_mark_failed(ssm, -EIO);
 	}
 }
 
