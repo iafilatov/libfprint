@@ -74,7 +74,7 @@
  * abortion error conditions. */
 struct fpi_ssm {
 	struct fp_dev *dev;
-	struct fpi_ssm *parentsm;
+	fpi_ssm *parentsm;
 	void *priv;
 	int nr_states;
 	int cur_state;
@@ -85,10 +85,10 @@ struct fpi_ssm {
 };
 
 /* Allocate a new ssm */
-struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
+fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
 	int nr_states)
 {
-	struct fpi_ssm *machine;
+	fpi_ssm *machine;
 	BUG_ON(nr_states < 1);
 
 	machine = g_malloc0(sizeof(*machine));
@@ -100,26 +100,26 @@ struct fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
 }
 
 struct fp_dev *
-fpi_ssm_get_dev(struct fpi_ssm *machine)
+fpi_ssm_get_dev(fpi_ssm *machine)
 {
 	return machine->dev;
 }
 
 void
-fpi_ssm_set_user_data(struct fpi_ssm *machine,
+fpi_ssm_set_user_data(fpi_ssm *machine,
 	void *user_data)
 {
 	machine->priv = user_data;
 }
 
 void *
-fpi_ssm_get_user_data(struct fpi_ssm *machine)
+fpi_ssm_get_user_data(fpi_ssm *machine)
 {
 	return machine->priv;
 }
 
 /* Free a ssm */
-void fpi_ssm_free(struct fpi_ssm *machine)
+void fpi_ssm_free(fpi_ssm *machine)
 {
 	if (!machine)
 		return;
@@ -127,14 +127,14 @@ void fpi_ssm_free(struct fpi_ssm *machine)
 }
 
 /* Invoke the state handler */
-static void __ssm_call_handler(struct fpi_ssm *machine)
+static void __ssm_call_handler(fpi_ssm *machine)
 {
 	fp_dbg("%p entering state %d", machine, machine->cur_state);
 	machine->handler(machine);
 }
 
 /* Start a ssm. You can also restart a completed or aborted ssm. */
-void fpi_ssm_start(struct fpi_ssm *ssm, ssm_completed_fn callback)
+void fpi_ssm_start(fpi_ssm *ssm, ssm_completed_fn callback)
 {
 	BUG_ON(!ssm->completed);
 	ssm->callback = callback;
@@ -144,9 +144,9 @@ void fpi_ssm_start(struct fpi_ssm *ssm, ssm_completed_fn callback)
 	__ssm_call_handler(ssm);
 }
 
-static void __subsm_complete(struct fpi_ssm *ssm)
+static void __subsm_complete(fpi_ssm *ssm)
 {
-	struct fpi_ssm *parent = ssm->parentsm;
+	fpi_ssm *parent = ssm->parentsm;
 	BUG_ON(!parent);
 	if (ssm->error)
 		fpi_ssm_mark_aborted(parent, ssm->error);
@@ -159,14 +159,14 @@ static void __subsm_complete(struct fpi_ssm *ssm)
  * parent will be advanced to the next state. if the child aborts, the parent
  * will be aborted with the same error code. the child will be automatically
  * freed upon completion/abortion. */
-void fpi_ssm_start_subsm(struct fpi_ssm *parent, struct fpi_ssm *child)
+void fpi_ssm_start_subsm(fpi_ssm *parent, fpi_ssm *child)
 {
 	child->parentsm = parent;
 	fpi_ssm_start(child, __subsm_complete);
 }
 
 /* Mark a ssm as completed successfully. */
-void fpi_ssm_mark_completed(struct fpi_ssm *machine)
+void fpi_ssm_mark_completed(fpi_ssm *machine)
 {
 	BUG_ON(machine->completed);
 	machine->completed = TRUE;
@@ -176,7 +176,7 @@ void fpi_ssm_mark_completed(struct fpi_ssm *machine)
 }
 
 /* Mark a ssm as aborted with error. */
-void fpi_ssm_mark_aborted(struct fpi_ssm *machine, int error)
+void fpi_ssm_mark_aborted(fpi_ssm *machine, int error)
 {
 	fp_dbg("error %d from state %d", error, machine->cur_state);
 	BUG_ON(error == 0);
@@ -185,7 +185,7 @@ void fpi_ssm_mark_aborted(struct fpi_ssm *machine, int error)
 }
 
 /* Iterate to next state of a ssm */
-void fpi_ssm_next_state(struct fpi_ssm *machine)
+void fpi_ssm_next_state(fpi_ssm *machine)
 {
 	BUG_ON(machine->completed);
 	machine->cur_state++;
@@ -196,7 +196,7 @@ void fpi_ssm_next_state(struct fpi_ssm *machine)
 	}
 }
 
-void fpi_ssm_jump_to_state(struct fpi_ssm *machine, int state)
+void fpi_ssm_jump_to_state(fpi_ssm *machine, int state)
 {
 	BUG_ON(machine->completed);
 	BUG_ON(state >= machine->nr_states);
@@ -204,12 +204,12 @@ void fpi_ssm_jump_to_state(struct fpi_ssm *machine, int state)
 	__ssm_call_handler(machine);
 }
 
-int fpi_ssm_get_cur_state(struct fpi_ssm *machine)
+int fpi_ssm_get_cur_state(fpi_ssm *machine)
 {
 	return machine->cur_state;
 }
 
-int fpi_ssm_get_error(struct fpi_ssm *machine)
+int fpi_ssm_get_error(fpi_ssm *machine)
 {
 	return machine->error;
 }

@@ -27,7 +27,7 @@
 /* Callback for async_write */
 static void async_write_callback(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
 	int transferred = transfer->actual_length, error =
@@ -51,7 +51,7 @@ static void async_write_callback(struct libusb_transfer *transfer)
 }
 
 /* Send data to EP1, the only out endpoint */
-static void async_write(struct fpi_ssm *ssm, void *data, int len)
+static void async_write(fpi_ssm *ssm, void *data, int len)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
@@ -67,7 +67,7 @@ static void async_write(struct fpi_ssm *ssm, void *data, int len)
 /* Callback for async_read */
 static void async_read_callback(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
 	int transferred = transfer->actual_length, error =
@@ -93,7 +93,7 @@ static void async_read_callback(struct libusb_transfer *transfer)
 }
 
 /* Receive data from the given ep and compare with expected */
-static void async_read(struct fpi_ssm *ssm, int ep, void *data, int len)
+static void async_read(fpi_ssm *ssm, int ep, void *data, int len)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
@@ -119,7 +119,7 @@ static void async_read(struct fpi_ssm *ssm, int ep, void *data, int len)
 /* Callback for async_read */
 static void async_abort_callback(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
 	int transferred = transfer->actual_length, error = transfer->status;
@@ -147,7 +147,7 @@ static void async_abort_callback(struct libusb_transfer *transfer)
 }
 
 /* Receive data from the given ep and compare with expected */
-static void async_abort(struct fpi_ssm *ssm, int ep)
+static void async_abort(fpi_ssm *ssm, int ep)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
@@ -279,7 +279,7 @@ static void submit_image(struct fp_img_dev *idev)
 /* Proto functions */
 
 /* SSM loop for clear_ep2 */
-static void clear_ep2_ssm(struct fpi_ssm *ssm)
+static void clear_ep2_ssm(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
@@ -307,17 +307,17 @@ static void clear_ep2_ssm(struct fpi_ssm *ssm)
 }
 
 /* Send command to clear EP2 */
-static void clear_ep2(struct fpi_ssm *ssm)
+static void clear_ep2(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
-	struct fpi_ssm *subsm =
+	fpi_ssm *subsm =
 	    fpi_ssm_new(fpi_imgdev_get_dev(idev), clear_ep2_ssm, SUBSM1_STATES);
 	fpi_ssm_set_user_data(subsm, idev);
 	fpi_ssm_start_subsm(ssm, subsm);
 }
 
-static void send_control_packet_ssm(struct fpi_ssm *ssm)
+static void send_control_packet_ssm(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
@@ -385,11 +385,11 @@ static void send_control_packet_ssm(struct fpi_ssm *ssm)
 }
 
 /* Send device state control packet */
-static void send_control_packet(struct fpi_ssm *ssm)
+static void send_control_packet(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
-	struct fpi_ssm *subsm =
+	fpi_ssm *subsm =
 	    fpi_ssm_new(fpi_imgdev_get_dev(idev), send_control_packet_ssm, SUBSM2_STATES);
 	fpi_ssm_set_user_data(subsm, idev);
 	fpi_ssm_start_subsm(ssm, subsm);
@@ -406,7 +406,7 @@ static void clear_data(struct vfs_dev_t *vdev)
 /* After receiving interrupt from EP3 */
 static void interrupt_callback(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
 
@@ -466,7 +466,7 @@ static void interrupt_callback(struct libusb_transfer *transfer)
 
 static void receive_callback(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
 
@@ -494,7 +494,7 @@ static void receive_callback(struct libusb_transfer *transfer)
 /* Stub to keep SSM alive when waiting an interrupt */
 static void wait_interrupt(void *data)
 {
-	struct fpi_ssm *ssm = data;
+	fpi_ssm *ssm = data;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
 
@@ -506,19 +506,19 @@ static void wait_interrupt(void *data)
 /* SSM stub to prepare device to another scan after orange light was on */
 static void another_scan(void *data)
 {
-	struct fpi_ssm *ssm = data;
+	fpi_ssm *ssm = data;
 	fpi_ssm_jump_to_state(ssm, SSM_TURN_ON);
 }
 
 /* Another SSM stub to continue after waiting for probable vdev->active changes */
 static void scan_completed(void *data)
 {
-	struct fpi_ssm *ssm = data;
+	fpi_ssm *ssm = data;
 	fpi_ssm_next_state(ssm);
 }
 
 /* Main SSM loop */
-static void activate_ssm(struct fpi_ssm *ssm)
+static void activate_ssm(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
@@ -671,7 +671,7 @@ static void activate_ssm(struct fpi_ssm *ssm)
 /* Driver functions */
 
 /* Callback for dev_activate ssm */
-static void dev_activate_callback(struct fpi_ssm *ssm)
+static void dev_activate_callback(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct vfs_dev_t *vdev = fpi_imgdev_get_user_data(idev);
@@ -691,7 +691,7 @@ static int dev_activate(struct fp_img_dev *idev, enum fp_imgdev_state state)
 	vdev->need_report = 1;
 	vdev->ssm_active = 1;
 
-	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(idev), activate_ssm, SSM_STATES);
+	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(idev), activate_ssm, SSM_STATES);
 	fpi_ssm_set_user_data(ssm, idev);
 	fpi_ssm_start(ssm, dev_activate_callback);
 	return 0;
@@ -713,7 +713,7 @@ static void dev_deactivate(struct fp_img_dev *idev)
 }
 
 /* Callback for dev_open ssm */
-static void dev_open_callback(struct fpi_ssm *ssm)
+static void dev_open_callback(fpi_ssm *ssm)
 {
 	/* Notify open complete */
 	fpi_imgdev_open_complete(fpi_ssm_get_user_data(ssm), 0);
@@ -738,7 +738,7 @@ static int dev_open(struct fp_img_dev *idev, unsigned long driver_data)
 	fpi_imgdev_set_user_data(idev, vdev);
 
 	/* Clearing previous device state */
-	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(idev), activate_ssm, SSM_STATES);
+	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(idev), activate_ssm, SSM_STATES);
 	fpi_ssm_set_user_data(ssm, idev);
 	fpi_ssm_start(ssm, dev_open_callback);
 	return 0;

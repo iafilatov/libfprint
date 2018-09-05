@@ -180,7 +180,7 @@ static int regval_from_dump(unsigned char *data, uint8_t target)
 static void generic_write_regv_cb(struct fp_img_dev *dev, int result,
 	void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 	if (result == 0)
 		fpi_ssm_next_state(ssm);
 	else
@@ -190,7 +190,7 @@ static void generic_write_regv_cb(struct fp_img_dev *dev, int result,
 /* check that read succeeded but ignore all data */
 static void generic_ignore_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
 		fpi_ssm_mark_aborted(ssm, -EIO);
@@ -205,7 +205,7 @@ static void generic_ignore_data_cb(struct libusb_transfer *transfer)
 
 /* read the specified number of bytes from the IN endpoint but throw them
  * away, then increment the SSM */
-static void generic_read_ignore_data(struct fpi_ssm *ssm, size_t bytes)
+static void generic_read_ignore_data(fpi_ssm *ssm, size_t bytes)
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
@@ -436,7 +436,7 @@ enum capture_states {
 static void capture_read_strip_cb(struct libusb_transfer *transfer)
 {
 	unsigned char *stripdata;
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2501_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
@@ -520,7 +520,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void capture_run_state(struct fpi_ssm *ssm)
+static void capture_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2501_dev *aesdev = fpi_imgdev_get_user_data(dev);
@@ -571,7 +571,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 	};
 }
 
-static void capture_sm_complete(struct fpi_ssm *ssm)
+static void capture_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2501_dev *aesdev = fpi_imgdev_get_user_data(dev);
@@ -589,7 +589,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 static void start_capture(struct fp_img_dev *dev)
 {
 	struct aes2501_dev *aesdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 
 	if (aesdev->deactivating) {
 		complete_deactivation(dev);
@@ -713,7 +713,7 @@ enum activate_states {
 void activate_read_regs_cb(struct fp_img_dev *dev, int status,
 	unsigned char *regs, void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 	struct aes2501_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
 	if (status != 0) {
@@ -730,14 +730,14 @@ void activate_read_regs_cb(struct fp_img_dev *dev, int status,
 static void activate_init3_cb(struct fp_img_dev *dev, int result,
 	void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 	if (result == 0)
 		fpi_ssm_jump_to_state(ssm, READ_REGS);
 	else
 		fpi_ssm_mark_aborted(ssm, result);
 }
 
-static void activate_run_state(struct fpi_ssm *ssm)
+static void activate_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 
@@ -791,7 +791,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	}
 }
 
-static void activate_sm_complete(struct fpi_ssm *ssm)
+static void activate_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	fp_dbg("status %d", fpi_ssm_get_error(ssm));
@@ -805,7 +805,7 @@ static void activate_sm_complete(struct fpi_ssm *ssm)
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct aes2501_dev *aesdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
+	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
 		ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	aesdev->read_regs_retry_count = 0;

@@ -200,7 +200,7 @@ enum capture_states {
 };
 
 /* Returns number of processed bytes */
-static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
+static int process_strip_data(fpi_ssm *ssm, unsigned char *data)
 {
 	unsigned char *stripdata;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
@@ -231,7 +231,7 @@ static int process_strip_data(struct fpi_ssm *ssm, unsigned char *data)
 
 static void capture_reqs_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length)) {
@@ -244,7 +244,7 @@ static void capture_reqs_cb(struct libusb_transfer *transfer)
 
 static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 
@@ -272,7 +272,7 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 
 static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
 	unsigned char *data = transfer->buffer;
@@ -323,7 +323,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void capture_run_state(struct fpi_ssm *ssm)
+static void capture_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
@@ -386,7 +386,7 @@ static void capture_run_state(struct fpi_ssm *ssm)
 	};
 }
 
-static void capture_sm_complete(struct fpi_ssm *ssm)
+static void capture_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
@@ -404,7 +404,7 @@ static void capture_sm_complete(struct fpi_ssm *ssm)
 static void start_capture(struct fp_img_dev *dev)
 {
 	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 
 	if (aesdev->deactivating) {
 		complete_deactivation(dev);
@@ -444,7 +444,7 @@ enum activate_states {
 
 static void init_reqs_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length)) {
@@ -457,7 +457,7 @@ static void init_reqs_cb(struct libusb_transfer *transfer)
 
 static void init_read_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_next_state(ssm);
@@ -472,7 +472,7 @@ static void init_read_data_cb(struct libusb_transfer *transfer)
  * need more info for implementaion */
 static void calibrate_read_data_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_next_state(ssm);
@@ -483,7 +483,7 @@ static void calibrate_read_data_cb(struct libusb_transfer *transfer)
 	libusb_free_transfer(transfer);
 }
 
-static void activate_run_state(struct fpi_ssm *ssm)
+static void activate_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
@@ -568,7 +568,7 @@ static void activate_run_state(struct fpi_ssm *ssm)
 	}
 }
 
-static void activate_sm_complete(struct fpi_ssm *ssm)
+static void activate_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	fp_dbg("status %d", fpi_ssm_get_error(ssm));
@@ -581,7 +581,7 @@ static void activate_sm_complete(struct fpi_ssm *ssm)
 
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
+	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
 		ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, activate_sm_complete);

@@ -306,7 +306,7 @@ static int read_regs(struct fp_img_dev *dev, uint16_t first_reg,
 
 static void response_cb(struct fp_img_dev *dev, int status, void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 	if (status == 0)
 		fpi_ssm_next_state(ssm);
 	else
@@ -316,7 +316,7 @@ static void response_cb(struct fp_img_dev *dev, int status, void *user_data)
 static void challenge_cb(struct fp_img_dev *dev, int status,
 	uint16_t num_regs, unsigned char *data, void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 	unsigned char *respdata;
 	PK11Context *ctx;
@@ -354,7 +354,7 @@ static void challenge_cb(struct fp_img_dev *dev, int status,
  * authentication scheme, where the device challenges the authenticity of the
  * driver.
  */
-static void sm_do_challenge_response(struct fpi_ssm *ssm)
+static void sm_do_challenge_response(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
@@ -508,7 +508,7 @@ static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 static void sm_write_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 
 	if (result)
 		fpi_ssm_mark_aborted(ssm, result);
@@ -516,7 +516,7 @@ static void sm_write_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
 		fpi_ssm_next_state(ssm);
 }
 
-static void sm_write_regs(struct fpi_ssm *ssm, uint16_t first_reg, uint16_t num_regs,
+static void sm_write_regs(fpi_ssm *ssm, uint16_t first_reg, uint16_t num_regs,
 	void *data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
@@ -525,7 +525,7 @@ static void sm_write_regs(struct fpi_ssm *ssm, uint16_t first_reg, uint16_t num_
 		fpi_ssm_mark_aborted(ssm, r);
 }
 
-static void sm_write_reg(struct fpi_ssm *ssm, uint16_t reg,
+static void sm_write_reg(fpi_ssm *ssm, uint16_t reg,
 	unsigned char value)
 {
 	sm_write_regs(ssm, reg, 1, &value);
@@ -534,7 +534,7 @@ static void sm_write_reg(struct fpi_ssm *ssm, uint16_t reg,
 static void sm_read_reg_cb(struct fp_img_dev *dev, int result,
 	uint16_t num_regs, unsigned char *data, void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
 	if (result) {
@@ -546,7 +546,7 @@ static void sm_read_reg_cb(struct fp_img_dev *dev, int result,
 	}
 }
 
-static void sm_read_regs(struct fpi_ssm *ssm, uint16_t reg, uint16_t num_regs)
+static void sm_read_regs(fpi_ssm *ssm, uint16_t reg, uint16_t num_regs)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
@@ -563,12 +563,12 @@ static void sm_read_regs(struct fpi_ssm *ssm, uint16_t reg, uint16_t num_regs)
 		fpi_ssm_mark_aborted(ssm, r);
 }
 
-static void sm_read_reg(struct fpi_ssm *ssm, uint16_t reg)
+static void sm_read_reg(fpi_ssm *ssm, uint16_t reg)
 {
 	sm_read_regs(ssm, reg, 1);
 }
 
-static void sm_set_hwstat(struct fpi_ssm *ssm, unsigned char value)
+static void sm_set_hwstat(fpi_ssm *ssm, unsigned char value)
 {
 	fp_dbg("set %02x", value);
 	sm_write_reg(ssm, REG_HWSTAT, value);
@@ -587,7 +587,7 @@ enum imaging_states {
 
 static void image_transfer_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 
 	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
 		fp_dbg("cancelled");
@@ -687,7 +687,7 @@ static int calc_dev2(struct uru4k_image *img)
 	return res / IMAGE_WIDTH;
 }
 
-static void imaging_run_state(struct fpi_ssm *ssm)
+static void imaging_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
@@ -810,7 +810,7 @@ static void imaging_run_state(struct fpi_ssm *ssm)
 	}
 }
 
-static void imaging_complete(struct fpi_ssm *ssm)
+static void imaging_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
@@ -862,7 +862,7 @@ enum rebootpwr_states {
 
 static void rebootpwr_pause_cb(void *data)
 {
-	struct fpi_ssm *ssm = data;
+	fpi_ssm *ssm = data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
@@ -874,7 +874,7 @@ static void rebootpwr_pause_cb(void *data)
 	}
 }
 
-static void rebootpwr_run_state(struct fpi_ssm *ssm)
+static void rebootpwr_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
@@ -939,7 +939,7 @@ enum powerup_states {
 
 static void powerup_pause_cb(void *data)
 {
-	struct fpi_ssm *ssm = data;
+	fpi_ssm *ssm = data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
@@ -953,7 +953,7 @@ static void powerup_pause_cb(void *data)
 	}
 }
 
-static void powerup_run_state(struct fpi_ssm *ssm)
+static void powerup_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
@@ -1024,7 +1024,7 @@ enum init_states {
 static void init_scanpwr_irq_cb(struct fp_img_dev *dev, int status,
 	uint16_t type, void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
 	if (status)
@@ -1042,7 +1042,7 @@ static void init_scanpwr_irq_cb(struct fp_img_dev *dev, int status,
 
 static void init_scanpwr_timeout(void *user_data)
 {
-	struct fpi_ssm *ssm = user_data;
+	fpi_ssm *ssm = user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
 
@@ -1058,7 +1058,7 @@ static void init_scanpwr_timeout(void *user_data)
 	}
 }
 
-static void init_run_state(struct fpi_ssm *ssm)
+static void init_run_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
@@ -1075,7 +1075,7 @@ static void init_run_state(struct fpi_ssm *ssm)
 			fpi_ssm_jump_to_state(ssm, INIT_CHECK_HWSTAT_POWERDOWN);
 		break;
 	case INIT_REBOOT_POWER: ;
-		struct fpi_ssm *rebootsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), rebootpwr_run_state,
+		fpi_ssm *rebootsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), rebootpwr_run_state,
 			REBOOTPWR_NUM_STATES);
 		fpi_ssm_set_user_data(rebootsm, dev);
 		fpi_ssm_start_subsm(ssm, rebootsm);
@@ -1094,7 +1094,7 @@ static void init_run_state(struct fpi_ssm *ssm)
 		urudev->irq_cb_data = ssm;
 		urudev->irq_cb = init_scanpwr_irq_cb;
 
-		struct fpi_ssm *powerupsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), powerup_run_state,
+		fpi_ssm *powerupsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), powerup_run_state,
 			POWERUP_NUM_STATES);
 		fpi_ssm_set_user_data(powerupsm, dev);
 		fpi_ssm_start_subsm(ssm, powerupsm);
@@ -1138,7 +1138,7 @@ static void init_run_state(struct fpi_ssm *ssm)
 	}
 }
 
-static void activate_initsm_complete(struct fpi_ssm *ssm)
+static void activate_initsm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r = fpi_ssm_get_error(ssm);
@@ -1160,7 +1160,7 @@ static void activate_initsm_complete(struct fpi_ssm *ssm)
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 	int r;
 
 	r = start_irq_handler(dev);
@@ -1196,7 +1196,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 static int execute_state_change(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = fpi_imgdev_get_user_data(dev);
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 
 	switch (urudev->activate_state) {
 	case IMGDEV_STATE_INACTIVE:

@@ -75,7 +75,7 @@ static void start_scan(struct fp_img_dev *dev);
 
 static void async_send_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct usbexchange_data *data = fpi_ssm_get_user_data(ssm);
 	struct usb_action *action;
 
@@ -119,7 +119,7 @@ out:
 
 static void async_recv_cb(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = transfer->user_data;
+	fpi_ssm *ssm = transfer->user_data;
 	struct usbexchange_data *data = fpi_ssm_get_user_data(ssm);
 	struct usb_action *action;
 
@@ -171,7 +171,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void usbexchange_loop(struct fpi_ssm *ssm)
+static void usbexchange_loop(fpi_ssm *ssm)
 {
 	struct usbexchange_data *data = fpi_ssm_get_user_data(ssm);
 	if (fpi_ssm_get_cur_state(ssm) >= data->stepcount) {
@@ -233,10 +233,10 @@ static void usbexchange_loop(struct fpi_ssm *ssm)
 	}
 }
 
-static void usb_exchange_async(struct fpi_ssm *ssm,
+static void usb_exchange_async(fpi_ssm *ssm,
 			       struct usbexchange_data *data)
 {
-	struct fpi_ssm *subsm = fpi_ssm_new(fpi_imgdev_get_dev(data->device),
+	fpi_ssm *subsm = fpi_ssm_new(fpi_imgdev_get_dev(data->device),
 					    usbexchange_loop,
 					    data->stepcount);
 	fpi_ssm_set_user_data(subsm, data);
@@ -395,7 +395,7 @@ static int process_chunk(struct vfs5011_data *data, int transferred)
 	return 0;
 }
 
-void submit_image(struct fpi_ssm *ssm, struct vfs5011_data *data)
+void submit_image(fpi_ssm *ssm, struct vfs5011_data *data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fp_img *img;
@@ -422,7 +422,7 @@ void submit_image(struct fpi_ssm *ssm, struct vfs5011_data *data)
 
 static void chunk_capture_callback(struct libusb_transfer *transfer)
 {
-	struct fpi_ssm *ssm = (struct fpi_ssm *)transfer->user_data;
+	fpi_ssm *ssm = (fpi_ssm *)transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data;
 
@@ -452,7 +452,7 @@ static void chunk_capture_callback(struct libusb_transfer *transfer)
 
 static int capture_chunk_async(struct vfs5011_data *data,
 			       libusb_device_handle *handle, int nline,
-			       int timeout, struct fpi_ssm *ssm)
+			       int timeout, fpi_ssm *ssm)
 {
 	fp_dbg("capture_chunk_async: capture %d lines, already have %d",
 		nline, data->lines_recorded);
@@ -472,7 +472,7 @@ static int capture_chunk_async(struct vfs5011_data *data,
 
 static void async_sleep_cb(void *data)
 {
-	struct fpi_ssm *ssm = data;
+	fpi_ssm *ssm = data;
 
 	fpi_ssm_next_state(ssm);
 }
@@ -665,7 +665,7 @@ struct usb_action vfs5011_initiate_capture[] = {
 
 /* ====================== lifprint interface ======================= */
 
-static void activate_loop(struct fpi_ssm *ssm)
+static void activate_loop(fpi_ssm *ssm)
 {
 	enum {READ_TIMEOUT = 0};
 
@@ -742,7 +742,7 @@ static void activate_loop(struct fpi_ssm *ssm)
 	}
 }
 
-static void activate_loop_complete(struct fpi_ssm *ssm)
+static void activate_loop_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data;
@@ -772,7 +772,7 @@ static void activate_loop_complete(struct fpi_ssm *ssm)
 }
 
 
-static void open_loop(struct fpi_ssm *ssm)
+static void open_loop(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data;
@@ -793,7 +793,7 @@ static void open_loop(struct fpi_ssm *ssm)
 	};
 }
 
-static void open_loop_complete(struct fpi_ssm *ssm)
+static void open_loop_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data;
@@ -829,7 +829,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 		return r;
 	}
 
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), open_loop, DEV_OPEN_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, open_loop_complete);
@@ -853,7 +853,7 @@ static void dev_close(struct fp_img_dev *dev)
 static void start_scan(struct fp_img_dev *dev)
 {
 	struct vfs5011_data *data;
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 
 	data = fpi_imgdev_get_user_data(dev);
 	data->loop_running = TRUE;

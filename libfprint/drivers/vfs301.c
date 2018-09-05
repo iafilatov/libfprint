@@ -29,13 +29,13 @@
 /* Callback of asynchronous sleep */
 static void async_sleep_cb(void *data)
 {
-	struct fpi_ssm *ssm = data;
+	fpi_ssm *ssm = data;
 
 	fpi_ssm_next_state(ssm);
 }
 
 /* Submit asynchronous sleep */
-static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
+static void async_sleep(unsigned int msec, fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fpi_timeout *timeout;
@@ -51,7 +51,7 @@ static void async_sleep(unsigned int msec, struct fpi_ssm *ssm)
 	}
 }
 
-static int submit_image(struct fpi_ssm *ssm)
+static int submit_image(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
@@ -103,7 +103,7 @@ enum
 };
 
 /* Exec loop sequential state machine */
-static void m_loop_state(struct fpi_ssm *ssm)
+static void m_loop_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
@@ -161,14 +161,14 @@ static void m_loop_state(struct fpi_ssm *ssm)
 }
 
 /* Complete loop sequential state machine */
-static void m_loop_complete(struct fpi_ssm *ssm)
+static void m_loop_complete(fpi_ssm *ssm)
 {
 	/* Free sequential state machine */
 	fpi_ssm_free(ssm);
 }
 
 /* Exec init sequential state machine */
-static void m_init_state(struct fpi_ssm *ssm)
+static void m_init_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
@@ -181,10 +181,10 @@ static void m_init_state(struct fpi_ssm *ssm)
 }
 
 /* Complete init sequential state machine */
-static void m_init_complete(struct fpi_ssm *ssm)
+static void m_init_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct fpi_ssm *ssm_loop;
+	fpi_ssm *ssm_loop;
 
 	if (!fpi_ssm_get_error(ssm)) {
 		/* Notify activate complete */
@@ -203,7 +203,7 @@ static void m_init_complete(struct fpi_ssm *ssm)
 /* Activate device */
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct fpi_ssm *ssm;
+	fpi_ssm *ssm;
 
 	/* Start init ssm */
 	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), m_init_state, 1);
