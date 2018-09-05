@@ -1,6 +1,6 @@
-<INCLUDE>fprint.h</INCLUDE>
 
 <SECTION>
+<INCLUDE>fprint.h</INCLUDE>
 <FILE>events</FILE>
 <TITLE>Initialisation and events handling</TITLE>
 fp_set_debug
@@ -17,6 +17,7 @@ fp_set_pollfd_notifiers
 </SECTION>
 
 <SECTION>
+<INCLUDE>fprint.h</INCLUDE>
 <FILE>discovery</FILE>
 <TITLE>Device discovery</TITLE>
 fp_dscv_dev
@@ -32,6 +33,7 @@ fp_dscv_dev_for_dscv_print
 </SECTION>
 
 <SECTION>
+<INCLUDE>fprint.h</INCLUDE>
 <FILE>drv</FILE>
 fp_driver
 fp_driver_get_name
@@ -41,6 +43,7 @@ fp_driver_get_scan_type
 </SECTION>
 
 <SECTION>
+<INCLUDE>fprint.h</INCLUDE>
 <FILE>dev</FILE>
 fp_dev
 fp_scan_type
@@ -91,6 +94,7 @@ fp_async_capture_stop
 </SECTION>
 
 <SECTION>
+<INCLUDE>fprint.h</INCLUDE>
 <FILE>print_data</FILE>
 fp_finger
 fp_print_data
@@ -106,6 +110,7 @@ fp_print_data_get_devtype
 </SECTION>
 
 <SECTION>
+<INCLUDE>fprint.h</INCLUDE>
 <FILE>dscv_print</FILE>
 fp_dscv_print
 fp_discover_prints
@@ -117,6 +122,7 @@ fp_dscv_print_delete
 </SECTION>
 
 <SECTION>
+<INCLUDE>fprint.h</INCLUDE>
 <FILE>img</FILE>
 fp_img
 fp_minutia
@@ -131,5 +137,6 @@ fp_img_get_minutiae
 </SECTION>
 
 <SECTION>
+<INCLUDE>fprint.h</INCLUDE>
 <FILE>poll</FILE>
 </SECTION>
