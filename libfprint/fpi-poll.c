@@ -20,6 +20,7 @@
 #define FP_COMPONENT "poll"
 
 #include "fp_internal.h"
+#include "fpi-poll.h"
 
 #include <config.h>
 #include <errno.h>

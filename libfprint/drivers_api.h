@@ -37,6 +37,7 @@
 
 #include "fprint.h"
 #include "fpi-ssm.h"
+#include "fpi-poll.h"
 #include "assembling.h"
 #include "drivers/driver_ids.h"
 
@@ -202,15 +203,6 @@ struct fp_img *fpi_img_new(size_t length);
 struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *dev);
 struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
 struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
-
-/* polling and timeouts */
-
-typedef void (*fpi_timeout_fn)(void *data);
-
-struct fpi_timeout;
-struct fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
-	void *data);
-void fpi_timeout_cancel(struct fpi_timeout *timeout);
 
 void fpi_drvcb_open_complete(struct fp_dev *dev, int status);
 void fpi_drvcb_close_complete(struct fp_dev *dev);
