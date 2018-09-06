@@ -37,7 +37,7 @@
 	if (condition) {			\
 		char *s;			\
 		s = g_strconcat ("BUG: (", #condition, ")", NULL); \
-		g_warning ("%s: %s() %s:%d", s, G_STRFUNC, __FILE__, __LINE__); \
+		fp_err ("%s: %s() %s:%d", s, G_STRFUNC, __FILE__, __LINE__); \
 		g_free (s);			\
 	} G_STMT_END
 #define BUG() BUG_ON(1)
