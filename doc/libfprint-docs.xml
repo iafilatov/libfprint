@@ -38,6 +38,7 @@
 
   <part>
     <title>Writing Drivers</title>
+    <xi:include href="xml/fpi-log.xml"/>
     <xi:include href="xml/fpi-ssm.xml"/>
     <xi:include href="xml/fpi-poll.xml"/>
   </part>

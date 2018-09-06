@@ -21,6 +21,19 @@
 #ifndef __FPI_LOG_H__
 #define __FPI_LOG_H__
 
+/**
+ * SECTION:fpi-log
+ * @title: Logging
+ *
+ * Logging in libfprint is handled through GLib's logging system, and behave the same
+ * way as in the GLib [Message Output and Debugging Functions](https://developer.gnome.org/glib/stable/glib-Message-Logging.html)
+ * documentation.
+ *
+ * You should include `fpi-log.h` as early as possible in your sources, just after
+ * setting the `FP_COMPONENT` define to a string unique to your sources. This will
+ * set the suffix of the `G_LOG_DOMAIN` used for printing.
+ */
+
 #ifdef FP_COMPONENT
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN "libfprint-"FP_COMPONENT
@@ -28,11 +41,43 @@
 
 #include <glib.h>
 
+/**
+ * fp_dbg:
+ *
+ * Same as g_debug().
+ *
+ */
 #define fp_dbg g_debug
+
+/**
+ * fp_info:
+ *
+ * Same as g_debug().
+ */
 #define fp_info g_debug
+
+/**
+ * fp_warn:
+ *
+ * Same as g_warning().
+ */
 #define fp_warn g_warning
+
+/**
+ * fp_err:
+ *
+ * Same as g_warning(). In the future, this might be changed to a
+ * g_assert() instead, so bear this in mind when adding those calls
+ * to your driver.
+ */
 #define fp_err g_warning
 
+/**
+ * BUG_ON:
+ * @condition: the condition to check
+ *
+ * Uses fp_err() to print an error if the @condition is true.
+ */
 #define BUG_ON(condition) G_STMT_START		\
 	if (condition) {			\
 		char *s;			\
@@ -40,6 +85,12 @@
 		fp_err ("%s: %s() %s:%d", s, G_STRFUNC, __FILE__, __LINE__); \
 		g_free (s);			\
 	} G_STMT_END
+
+/**
+ * BUG:
+ *
+ * Same as BUG_ON() but is always true.
+ */
 #define BUG() BUG_ON(1)
 
 #endif

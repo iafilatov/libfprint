@@ -142,6 +142,17 @@ fp_img_get_minutiae
 </SECTION>
 
 <SECTION>
+<INCLUDE>fpi-log.h</INCLUDE>
+<FILE>fpi-log</FILE>
+fp_dbg
+fp_info
+fp_warn
+fp_err
+BUG_ON
+BUG
+</SECTION>
+
+<SECTION>
 <INCLUDE>fpi-ssm.h</INCLUDE>
 <FILE>fpi-ssm</FILE>
 fpi_ssm
