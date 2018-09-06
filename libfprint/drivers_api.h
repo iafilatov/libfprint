@@ -22,12 +22,6 @@
 #define __DRIVERS_API_H__
 
 #include <config.h>
-
-#ifdef FP_COMPONENT
-#undef G_LOG_DOMAIN
-#define G_LOG_DOMAIN "libfprint-"FP_COMPONENT
-#endif
-
 #include <stdint.h>
 #include <errno.h>
 #include <string.h>
@@ -36,24 +30,11 @@
 #include <libusb.h>
 
 #include "fprint.h"
+#include "fpi-log.h"
 #include "fpi-ssm.h"
 #include "fpi-poll.h"
 #include "assembling.h"
 #include "drivers/driver_ids.h"
-
-#define fp_dbg g_debug
-#define fp_info g_debug
-#define fp_warn g_warning
-#define fp_err g_warning
-
-#define BUG_ON(condition) G_STMT_START		\
-	if (condition) {			\
-		char *s;			\
-		s = g_strconcat ("BUG: (", #condition, ")", NULL); \
-		g_warning ("%s: %s() %s:%d", s, G_STRFUNC, __FILE__, __LINE__); \
-		g_free (s);			\
-	} G_STMT_END
-#define BUG() BUG_ON(1)
 
 struct fp_dev;
 libusb_device_handle *fpi_dev_get_usb_dev(struct fp_dev *dev);
