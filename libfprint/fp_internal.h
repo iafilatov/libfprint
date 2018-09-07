@@ -22,36 +22,18 @@
 
 #include <config.h>
 
-#ifdef FP_COMPONENT
-#undef G_LOG_DOMAIN
-#define G_LOG_DOMAIN "libfprint-"FP_COMPONENT
-#endif
-
 #include <stdint.h>
 #include <errno.h>
 #include <glib.h>
 #include <libusb.h>
 
 #include "fprint.h"
+#include "fpi-log.h"
 #include "drivers/driver_ids.h"
 
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)( (char *)__mptr - offsetof(type,member) );})
-
-#define fp_dbg g_debug
-#define fp_info g_debug
-#define fp_warn g_warning
-#define fp_err g_warning
-
-#define BUG_ON(condition) G_STMT_START		\
-	if (condition) {			\
-		char *s;			\
-		s = g_strconcat ("BUG: (", #condition, ")", NULL); \
-		g_warning ("%s: %s() %s:%d", s, G_STRFUNC, __FILE__, __LINE__); \
-		g_free (s);			\
-	} G_STMT_END
-#define BUG() BUG_ON(1)
 
 enum fp_dev_state {
 	DEV_STATE_INITIAL = 0,
