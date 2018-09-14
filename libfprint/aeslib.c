@@ -87,7 +87,7 @@ static int do_write_regv(struct write_regv_data *wdata, int upper_bound)
 		data[data_offset++] = regwrite->value;
 	}
 
-	libusb_fill_bulk_transfer(transfer, wdata->imgdev->udev, EP_OUT, data,
+	libusb_fill_bulk_transfer(transfer, FP_DEV(wdata->imgdev)->udev, EP_OUT, data,
 		alloc_size, write_regv_trf_complete, wdata, BULK_TIMEOUT);
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {

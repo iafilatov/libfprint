@@ -139,7 +139,6 @@ enum fp_imgdev_verify_state {
 };
 
 struct fp_img_dev {
-	libusb_device_handle *udev;
 	struct fp_dev *parent;
 
 	enum fp_imgdev_action action;

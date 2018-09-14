@@ -536,7 +536,7 @@ API_EXPORTED struct fp_minutia **fp_img_get_minutiae(struct fp_img *img,
 libusb_device_handle *
 fpi_imgdev_get_usb_dev(struct fp_img_dev *dev)
 {
-	return dev->udev;
+	return FP_DEV(dev)->udev;
 }
 
 void

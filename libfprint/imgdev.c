@@ -40,9 +40,6 @@ static int img_dev_open(struct fp_dev *dev, unsigned long driver_data)
 	imgdev->enroll_stage = 0;
 	dev->nr_enroll_stages = IMG_ENROLL_STAGES;
 
-	/* for consistency in driver code, allow udev access through imgdev */
-	imgdev->udev = dev->udev;
-
 	if (imgdrv->open) {
 		r = imgdrv->open(imgdev, driver_data);
 		if (r)
