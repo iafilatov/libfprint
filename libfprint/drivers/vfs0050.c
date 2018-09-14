@@ -312,7 +312,7 @@ static void clear_ep2(fpi_ssm *ssm)
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
 	fpi_ssm *subsm =
-	    fpi_ssm_new(fpi_imgdev_get_dev(idev), clear_ep2_ssm, SUBSM1_STATES);
+	    fpi_ssm_new(FP_DEV(idev), clear_ep2_ssm, SUBSM1_STATES);
 	fpi_ssm_set_user_data(subsm, idev);
 	fpi_ssm_start_subsm(ssm, subsm);
 }
@@ -390,7 +390,7 @@ static void send_control_packet(fpi_ssm *ssm)
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
 	fpi_ssm *subsm =
-	    fpi_ssm_new(fpi_imgdev_get_dev(idev), send_control_packet_ssm, SUBSM2_STATES);
+	    fpi_ssm_new(FP_DEV(idev), send_control_packet_ssm, SUBSM2_STATES);
 	fpi_ssm_set_user_data(subsm, idev);
 	fpi_ssm_start_subsm(ssm, subsm);
 }
@@ -691,7 +691,7 @@ static int dev_activate(struct fp_img_dev *idev, enum fp_imgdev_state state)
 	vdev->need_report = 1;
 	vdev->ssm_active = 1;
 
-	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(idev), activate_ssm, SSM_STATES);
+	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(idev), activate_ssm, SSM_STATES);
 	fpi_ssm_set_user_data(ssm, idev);
 	fpi_ssm_start(ssm, dev_activate_callback);
 	return 0;
@@ -738,7 +738,7 @@ static int dev_open(struct fp_img_dev *idev, unsigned long driver_data)
 	fp_dev_set_instance_data(FP_DEV(idev), vdev);
 
 	/* Clearing previous device state */
-	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(idev), activate_ssm, SSM_STATES);
+	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(idev), activate_ssm, SSM_STATES);
 	fpi_ssm_set_user_data(ssm, idev);
 	fpi_ssm_start(ssm, dev_open_callback);
 	return 0;

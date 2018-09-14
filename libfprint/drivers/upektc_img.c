@@ -365,7 +365,7 @@ static void start_capture(struct fp_img_dev *dev)
 
 	upekdev->image_size = 0;
 
-	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), capture_run_state, CAPTURE_NUM_STATES);
+	ssm = fpi_ssm_new(FP_DEV(dev), capture_run_state, CAPTURE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
@@ -444,7 +444,7 @@ static void start_deactivation(struct fp_img_dev *dev)
 
 	upekdev->image_size = 0;
 
-	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), deactivate_run_state, DEACTIVATE_NUM_STATES);
+	ssm = fpi_ssm_new(FP_DEV(dev), deactivate_run_state, DEACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, deactivate_sm_complete);
 }
@@ -580,7 +580,7 @@ static void activate_sm_complete(fpi_ssm *ssm)
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
-	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state,
+	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(dev), activate_run_state,
 		ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	upekdev->seq = 0;

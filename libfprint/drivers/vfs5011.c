@@ -236,9 +236,9 @@ static void usbexchange_loop(fpi_ssm *ssm)
 static void usb_exchange_async(fpi_ssm *ssm,
 			       struct usbexchange_data *data)
 {
-	fpi_ssm *subsm = fpi_ssm_new(fpi_imgdev_get_dev(data->device),
-					    usbexchange_loop,
-					    data->stepcount);
+	fpi_ssm *subsm = fpi_ssm_new(FP_DEV(data->device),
+				     usbexchange_loop,
+				     data->stepcount);
 	fpi_ssm_set_user_data(subsm, data);
 	fpi_ssm_start_subsm(ssm, subsm);
 }
@@ -830,7 +830,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	fpi_ssm *ssm;
-	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), open_loop, DEV_OPEN_NUM_STATES);
+	ssm = fpi_ssm_new(FP_DEV(dev), open_loop, DEV_OPEN_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, open_loop_complete);
 
@@ -858,7 +858,7 @@ static void start_scan(struct fp_img_dev *dev)
 	data = FP_INSTANCE_DATA(FP_DEV(dev));
 	data->loop_running = TRUE;
 	fp_dbg("creating ssm");
-	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_loop, DEV_ACTIVATE_NUM_STATES);
+	ssm = fpi_ssm_new(FP_DEV(dev), activate_loop, DEV_ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fp_dbg("starting ssm");
 	fpi_ssm_start(ssm, activate_loop_complete);

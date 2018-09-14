@@ -191,7 +191,7 @@ static void m_init_complete(fpi_ssm *ssm)
 		fpi_imgdev_activate_complete(dev, 0);
 
 		/* Start loop ssm */
-		ssm_loop = fpi_ssm_new(fpi_imgdev_get_dev(dev), m_loop_state, M_LOOP_NUM_STATES);
+		ssm_loop = fpi_ssm_new(FP_DEV(dev), m_loop_state, M_LOOP_NUM_STATES);
 		fpi_ssm_set_user_data(ssm_loop, dev);
 		fpi_ssm_start(ssm_loop, m_loop_complete);
 	}
@@ -206,7 +206,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	fpi_ssm *ssm;
 
 	/* Start init ssm */
-	ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), m_init_state, 1);
+	ssm = fpi_ssm_new(FP_DEV(dev), m_init_state, 1);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, m_init_complete);
 

@@ -486,7 +486,7 @@ static void elan_stop_capture(struct fp_img_dev *dev)
 	elan_dev_reset(elandev);
 
 	fpi_ssm *ssm =
-	    fpi_ssm_new(fpi_imgdev_get_dev(dev), stop_capture_run_state,
+	    fpi_ssm_new(FP_DEV(dev), stop_capture_run_state,
 			STOP_CAPTURE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, stop_capture_complete);
@@ -579,7 +579,7 @@ static void elan_capture(struct fp_img_dev *dev)
 
 	elan_dev_reset(elandev);
 	fpi_ssm *ssm =
-	    fpi_ssm_new(fpi_imgdev_get_dev(dev), capture_run_state, CAPTURE_NUM_STATES);
+	    fpi_ssm_new(FP_DEV(dev), capture_run_state, CAPTURE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_complete);
 }
@@ -711,7 +711,7 @@ static void elan_calibrate(struct fp_img_dev *dev)
 	elan_dev_reset(elandev);
 	elandev->calib_atts_left = ELAN_CALIBRATION_ATTEMPTS;
 
-	fpi_ssm *ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), calibrate_run_state,
+	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(dev), calibrate_run_state,
 					  CALIBRATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, calibrate_complete);
@@ -791,7 +791,7 @@ static void elan_activate(struct fp_img_dev *dev)
 	elan_dev_reset(elandev);
 
 	fpi_ssm *ssm =
-	    fpi_ssm_new(fpi_imgdev_get_dev(dev), activate_run_state, ACTIVATE_NUM_STATES);
+	    fpi_ssm_new(FP_DEV(dev), activate_run_state, ACTIVATE_NUM_STATES);
 	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, activate_complete);
 }

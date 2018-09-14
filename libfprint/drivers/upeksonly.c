@@ -1142,11 +1142,11 @@ static void loopsm_run_state(fpi_ssm *ssm)
 				fpi_ssm *awfsm = NULL;
 				switch (sdev->dev_model) {
 				case UPEKSONLY_2016:
-					awfsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), awfsm_2016_run_state,
+					awfsm = fpi_ssm_new(FP_DEV(dev), awfsm_2016_run_state,
 						AWFSM_2016_NUM_STATES);
 					break;
 				case UPEKSONLY_1000:
-					awfsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), awfsm_1000_run_state,
+					awfsm = fpi_ssm_new(FP_DEV(dev), awfsm_1000_run_state,
 						AWFSM_1000_NUM_STATES);
 					break;
 				}
@@ -1170,15 +1170,15 @@ static void loopsm_run_state(fpi_ssm *ssm)
 		fpi_ssm *capsm = NULL;
 		switch (sdev->dev_model) {
 		case UPEKSONLY_2016:
-			capsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), capsm_2016_run_state,
+			capsm = fpi_ssm_new(FP_DEV(dev), capsm_2016_run_state,
 				CAPSM_2016_NUM_STATES);
 			break;
 		case UPEKSONLY_1000:
-			capsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), capsm_1000_run_state,
+			capsm = fpi_ssm_new(FP_DEV(dev), capsm_1000_run_state,
 				CAPSM_1000_NUM_STATES);
 			break;
 		case UPEKSONLY_1001:
-			capsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), capsm_1001_run_state,
+			capsm = fpi_ssm_new(FP_DEV(dev), capsm_1001_run_state,
 				CAPSM_1001_NUM_STATES);
 			break;
 		}
@@ -1191,15 +1191,15 @@ static void loopsm_run_state(fpi_ssm *ssm)
 		fpi_ssm *deinitsm = NULL;
 		switch (sdev->dev_model) {
 		case UPEKSONLY_2016:
-			deinitsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), deinitsm_2016_run_state,
+			deinitsm = fpi_ssm_new(FP_DEV(dev), deinitsm_2016_run_state,
 				DEINITSM_2016_NUM_STATES);
 			break;
 		case UPEKSONLY_1000:
-			deinitsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), deinitsm_1000_run_state,
+			deinitsm = fpi_ssm_new(FP_DEV(dev), deinitsm_1000_run_state,
 				DEINITSM_1000_NUM_STATES);
 			break;
 		case UPEKSONLY_1001:
-			deinitsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), deinitsm_1001_run_state,
+			deinitsm = fpi_ssm_new(FP_DEV(dev), deinitsm_1001_run_state,
 				DEINITSM_1001_NUM_STATES);
 			break;
 		}
@@ -1278,7 +1278,7 @@ static void initsm_complete(fpi_ssm *ssm)
 	if (r != 0)
 		return;
 
-	sdev->loopsm = fpi_ssm_new(fpi_imgdev_get_dev(dev), loopsm_run_state, LOOPSM_NUM_STATES);
+	sdev->loopsm = fpi_ssm_new(FP_DEV(dev), loopsm_run_state, LOOPSM_NUM_STATES);
 	fpi_ssm_set_user_data(sdev->loopsm, dev);
 	fpi_ssm_start(sdev->loopsm, loopsm_complete);
 }
@@ -1314,13 +1314,13 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 	switch (sdev->dev_model) {
 	case UPEKSONLY_2016:
-		ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), initsm_2016_run_state, INITSM_2016_NUM_STATES);
+		ssm = fpi_ssm_new(FP_DEV(dev), initsm_2016_run_state, INITSM_2016_NUM_STATES);
 		break;
 	case UPEKSONLY_1000:
-		ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), initsm_1000_run_state, INITSM_1000_NUM_STATES);
+		ssm = fpi_ssm_new(FP_DEV(dev), initsm_1000_run_state, INITSM_1000_NUM_STATES);
 		break;
 	case UPEKSONLY_1001:
-		ssm = fpi_ssm_new(fpi_imgdev_get_dev(dev), initsm_1001_run_state, INITSM_1001_NUM_STATES);
+		ssm = fpi_ssm_new(FP_DEV(dev), initsm_1001_run_state, INITSM_1001_NUM_STATES);
 		break;
 	}
 	fpi_ssm_set_user_data(ssm, dev);

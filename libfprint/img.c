@@ -539,12 +539,6 @@ fpi_imgdev_get_usb_dev(struct fp_img_dev *dev)
 	return FP_DEV(dev)->udev;
 }
 
-struct fp_dev *
-fpi_imgdev_get_dev(struct fp_img_dev *imgdev)
-{
-	return FP_DEV(imgdev);
-}
-
 enum fp_imgdev_enroll_state
 fpi_imgdev_get_action_state(struct fp_img_dev *imgdev)
 {
