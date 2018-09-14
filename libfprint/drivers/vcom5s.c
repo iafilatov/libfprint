@@ -101,7 +101,7 @@ static void sm_write_reg(fpi_ssm *ssm, unsigned char reg,
 	fp_dbg("set %02x=%02x", reg, value);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE);
 	libusb_fill_control_setup(data, CTRL_OUT, reg, value, 0, 0);
-	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev), data, sm_write_reg_cb,
+	libusb_fill_control_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), data, sm_write_reg_cb,
 		ssm, CTRL_TIMEOUT);
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
@@ -140,7 +140,7 @@ static void sm_exec_cmd(fpi_ssm *ssm, unsigned char cmd,
 	fp_dbg("cmd %02x param %02x", cmd, param);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE);
 	libusb_fill_control_setup(data, CTRL_IN, cmd, param, 0, 0);
-	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev), data, sm_exec_cmd_cb,
+	libusb_fill_control_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), data, sm_exec_cmd_cb,
 		ssm, CTRL_TIMEOUT);
 	r = libusb_submit_transfer(transfer);
 	if (r < 0) {
@@ -231,7 +231,7 @@ static void capture_iterate(fpi_ssm *ssm)
 		return;
 	}
 
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN,
 		vdev->capture_img->data + (RQ_SIZE * iteration), RQ_SIZE,
 		capture_cb, ssm, CTRL_TIMEOUT);
 	transfer->flags = LIBUSB_TRANSFER_SHORT_NOT_OK;
@@ -341,7 +341,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	v5s_dev = g_malloc0(sizeof(struct v5s_dev));
 	fp_dev_set_instance_data(FP_DEV(dev), v5s_dev);
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0)
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 
@@ -356,7 +356,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 	struct v5s_dev *v5s_dev;
 	v5s_dev = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(v5s_dev);
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

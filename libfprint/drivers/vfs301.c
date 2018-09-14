@@ -110,7 +110,7 @@ static void m_loop_state(fpi_ssm *ssm)
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case M_REQUEST_PRINT:
-		vfs301_proto_request_fingerprint(fpi_imgdev_get_usb_dev(dev), vdev);
+		vfs301_proto_request_fingerprint(fpi_dev_get_usb_dev(FP_DEV(dev)), vdev);
 		fpi_ssm_next_state(ssm);
 		break;
 
@@ -120,7 +120,7 @@ static void m_loop_state(fpi_ssm *ssm)
 		break;
 
 	case M_CHECK_PRINT:
-		if (!vfs301_proto_peek_event(fpi_imgdev_get_usb_dev(dev), vdev))
+		if (!vfs301_proto_peek_event(fpi_dev_get_usb_dev(FP_DEV(dev)), vdev))
 			fpi_ssm_jump_to_state(ssm, M_WAIT_PRINT);
 		else
 			fpi_ssm_next_state(ssm);
@@ -128,7 +128,7 @@ static void m_loop_state(fpi_ssm *ssm)
 
 	case M_READ_PRINT_START:
 		fpi_imgdev_report_finger_status(dev, TRUE);
-		vfs301_proto_process_event_start(fpi_imgdev_get_usb_dev(dev), vdev);
+		vfs301_proto_process_event_start(fpi_dev_get_usb_dev(FP_DEV(dev)), vdev);
 		fpi_ssm_next_state(ssm);
 		break;
 
@@ -139,7 +139,7 @@ static void m_loop_state(fpi_ssm *ssm)
 
 	case M_READ_PRINT_POLL:
 		{
-		int rv = vfs301_proto_process_event_poll(fpi_imgdev_get_usb_dev(dev), vdev);
+		int rv = vfs301_proto_process_event_poll(fpi_dev_get_usb_dev(FP_DEV(dev)), vdev);
 		g_assert(rv != VFS301_FAILURE);
 		if (rv == VFS301_ONGOING)
 			fpi_ssm_jump_to_state(ssm, M_READ_PRINT_WAIT);
@@ -175,7 +175,7 @@ static void m_init_state(fpi_ssm *ssm)
 
 	g_assert(fpi_ssm_get_cur_state(ssm) == 0);
 
-	vfs301_proto_init(fpi_imgdev_get_usb_dev(dev), vdev);
+	vfs301_proto_init(fpi_dev_get_usb_dev(FP_DEV(dev)), vdev);
 
 	fpi_ssm_mark_completed(ssm);
 }
@@ -219,7 +219,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 	vfs301_dev_t *vdev;
 
 	vdev = FP_INSTANCE_DATA(FP_DEV(dev));
-	vfs301_proto_deinit(fpi_imgdev_get_usb_dev(dev), vdev);
+	vfs301_proto_deinit(fpi_dev_get_usb_dev(FP_DEV(dev)), vdev);
 	fpi_imgdev_deactivate_complete(dev);
 }
 
@@ -229,7 +229,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	/* Claim usb interface */
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0) {
 		/* Interface not claimed, return error */
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
@@ -259,7 +259,7 @@ static void dev_close(struct fp_img_dev *dev)
 	g_free(vdev);
 
 	/* Release usb interface */
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 
 	/* Notify close complete */
 	fpi_imgdev_close_complete(dev);

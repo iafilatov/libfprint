@@ -196,7 +196,7 @@ static void usbexchange_loop(fpi_ssm *ssm)
 			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(data->device),
+		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(data->device)),
 					  action->endpoint, action->data,
 					  action->size, async_send_cb, ssm,
 					  data->timeout);
@@ -212,7 +212,7 @@ static void usbexchange_loop(fpi_ssm *ssm)
 			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(data->device),
+		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(data->device)),
 					  action->endpoint, data->receive_buf,
 					  action->size, async_recv_cb, ssm,
 					  data->timeout);
@@ -707,7 +707,7 @@ static void activate_loop(fpi_ssm *ssm)
 		break;
 
 	case DEV_ACTIVATE_READ_DATA:
-		r = capture_chunk_async(data, fpi_imgdev_get_usb_dev(dev), CAPTURE_LINES,
+		r = capture_chunk_async(data, fpi_dev_get_usb_dev(FP_DEV(dev)), CAPTURE_LINES,
 					READ_TIMEOUT, ssm);
 		if (r != 0) {
 			fp_err("Failed to capture data");
@@ -817,13 +817,13 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 		(unsigned char *)g_malloc0(CAPTURE_LINES * VFS5011_LINE_SIZE);
 	fp_dev_set_instance_data(FP_DEV(dev), data);
 
-	r = libusb_reset_device(fpi_imgdev_get_usb_dev(dev));
+	r = libusb_reset_device(fpi_dev_get_usb_dev(FP_DEV(dev)));
 	if (r != 0) {
 		fp_err("Failed to reset the device");
 		return r;
 	}
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r != 0) {
 		fp_err("Failed to claim interface: %s", libusb_error_name(r));
 		return r;
@@ -839,7 +839,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_close(struct fp_img_dev *dev)
 {
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	struct vfs5011_data *data;
 	data = FP_INSTANCE_DATA(FP_DEV(dev));
 	if (data != NULL) {

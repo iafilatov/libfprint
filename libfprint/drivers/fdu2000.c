@@ -169,25 +169,25 @@ capture(struct fp_img_dev *dev, gboolean unconditional,
 
 	image  = g_malloc0(RAW_IMAGE_SIZE);
 
-	if ((r = bulk_write_safe(fpi_imgdev_get_usb_dev(dev), LED_ON))) {
+	if ((r = bulk_write_safe(fpi_dev_get_usb_dev(FP_DEV(dev)), LED_ON))) {
 		fp_err("Command: LED_ON");
 		goto out;
 	}
 	
-	if ((r = bulk_write_safe(fpi_imgdev_get_usb_dev(dev), CAPTURE_READY))) {
+	if ((r = bulk_write_safe(fpi_dev_get_usb_dev(FP_DEV(dev)), CAPTURE_READY))) {
 		fp_err("Command: CAPTURE_READY");
 		goto out;
 	}
 
 read:	
-	if ((r = bulk_write_safe(fpi_imgdev_get_usb_dev(dev), CAPTURE_READ))) {
+	if ((r = bulk_write_safe(fpi_dev_get_usb_dev(FP_DEV(dev)), CAPTURE_READ))) {
 		fp_err("Command: CAPTURE_READ");
 		goto out;
 	}
 
 	/* Now we are ready to read from dev */
 
-	r = libusb_bulk_transfer(fpi_imgdev_get_usb_dev(dev), &msg, &bytes, BULK_TIMEOUT * 10);
+	r = libusb_bulk_transfer(fpi_dev_get_usb_dev(FP_DEV(dev)), &msg, &bytes, BULK_TIMEOUT * 10);
 	if (r < 0 || bytes < 1)
 		goto read;
 
@@ -228,12 +228,12 @@ read:
 		}
 	}
 
-	if ((r = bulk_write_safe(fpi_imgdev_get_usb_dev(dev), CAPTURE_END))) {
+	if ((r = bulk_write_safe(fpi_dev_get_usb_dev(FP_DEV(dev)), CAPTURE_END))) {
 		fp_err("Command: CAPTURE_END");
 		goto out;
 	}
 
-	if ((r = bulk_write_safe(fpi_imgdev_get_usb_dev(dev), LED_OFF))) {
+	if ((r = bulk_write_safe(fpi_dev_get_usb_dev(FP_DEV(dev)), LED_OFF))) {
 		fp_err("Command: LED_OFF");
 		goto out;
 	}
@@ -254,27 +254,27 @@ static
 gint dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 {
 	gint r;
-	//if ( (r = usb_set_configuration(fpi_imgdev_get_usb_dev(dev), 1)) < 0 )
+	//if ( (r = usb_set_configuration(fpi_dev_get_usb_dev(FP_DEV(dev)), 1)) < 0 )
 	//	goto out;
 
-	if ( (r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0)) < 0 ) {
+	if ( (r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0)) < 0 ) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
 	}
 
-	//if ( (r = usb_set_altinterface(fpi_imgdev_get_usb_dev(dev), 1)) < 0 )
+	//if ( (r = usb_set_altinterface(fpi_dev_get_usb_dev(FP_DEV(dev)), 1)) < 0 )
 	//	goto out;
 
-	//if ( (r = usb_clear_halt(fpi_imgdev_get_usb_dev(dev), EP_CMD)) < 0 )
+	//if ( (r = usb_clear_halt(fpi_dev_get_usb_dev(FP_DEV(dev)), EP_CMD)) < 0 )
 	//	goto out;
 
 	/* Make sure sensor mode is not capture_{ready|read} */
-	if ((r = bulk_write_safe(fpi_imgdev_get_usb_dev(dev), CAPTURE_END))) {
+	if ((r = bulk_write_safe(fpi_dev_get_usb_dev(FP_DEV(dev)), CAPTURE_END))) {
 		fp_err("Command: CAPTURE_END");
 		goto out;
 	}
 
-	if ((r = bulk_write_safe(fpi_imgdev_get_usb_dev(dev), LED_OFF))) {
+	if ((r = bulk_write_safe(fpi_dev_get_usb_dev(FP_DEV(dev)), LED_OFF))) {
 		fp_err("Command: LED_OFF");
 		goto out;
 	}
@@ -289,10 +289,10 @@ out:
 static
 void dev_exit(struct fp_img_dev *dev)
 {
-	if (bulk_write_safe(fpi_imgdev_get_usb_dev(dev), CAPTURE_END))
+	if (bulk_write_safe(fpi_dev_get_usb_dev(FP_DEV(dev)), CAPTURE_END))
 		fp_err("Command: CAPTURE_END");
 
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 }
 
 static const struct usb_id id_table[] = {

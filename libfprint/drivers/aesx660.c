@@ -49,7 +49,7 @@ static void aesX660_send_cmd_timeout(fpi_ssm *ssm, const unsigned char *cmd,
 		return;
 	}
 
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT,
 		(unsigned char *)cmd, cmd_len,
 		callback, ssm, timeout);
 	r = libusb_submit_transfer(transfer);
@@ -80,7 +80,7 @@ static void aesX660_read_response(fpi_ssm *ssm, size_t buf_len,
 	}
 
 	data = g_malloc(buf_len);
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN,
 		data, buf_len,
 		callback, ssm, BULK_TIMEOUT);
 

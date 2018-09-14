@@ -656,7 +656,7 @@ static int async_tx(struct fp_img_dev *idev, unsigned int ep, void *cb,
 	} else {
 		return -EIO;
 	}
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(idev), ep, buffer, length,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(idev)), ep, buffer, length,
 				  cb, cb_arg, BULK_TIMEOUT);
 
 	if (libusb_submit_transfer(transfer)) {
@@ -1456,7 +1456,7 @@ static int dev_open(struct fp_img_dev *idev, unsigned long driver_data)
 	dev->ans = g_malloc(FE_SIZE);
 	dev->fp = g_malloc(FE_SIZE * 4);
 
-	ret = libusb_claim_interface(fpi_imgdev_get_usb_dev(idev), 0);
+	ret = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(idev)), 0);
 	if (ret != LIBUSB_SUCCESS) {
 		fp_err("libusb_claim_interface failed on interface 0: %s", libusb_error_name(ret));
 		return ret;
@@ -1475,7 +1475,7 @@ static void dev_close(struct fp_img_dev *idev)
 	g_free(dev->fp);
 	g_free(dev);
 
-	libusb_release_interface(fpi_imgdev_get_usb_dev(idev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(idev)), 0);
 	fpi_imgdev_close_complete(idev);
 }
 

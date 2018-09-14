@@ -112,7 +112,7 @@ static void activate_run_state(fpi_ssm *ssm)
 			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_out,
+		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_out,
 			(unsigned char*)upekdev->setup_commands[upekdev->init_idx].cmd,
 			UPEKTC_CMD_LEN, write_init_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
@@ -133,7 +133,7 @@ static void activate_run_state(fpi_ssm *ssm)
 		}
 
 		data = g_malloc(upekdev->setup_commands[upekdev->init_idx].response_len);
-		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_in, data,
+		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_in, data,
 			upekdev->setup_commands[upekdev->init_idx].response_len,
 			read_init_data_cb, ssm, BULK_TIMEOUT);
 
@@ -233,7 +233,7 @@ static void finger_det_cmd_cb(struct libusb_transfer *t)
 	}
 
 	data = g_malloc(IMAGE_SIZE);
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_in, data, IMAGE_SIZE,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_in, data, IMAGE_SIZE,
 		finger_det_data_cb, dev, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -263,7 +263,7 @@ static void start_finger_detection(struct fp_img_dev *dev)
 		fpi_imgdev_session_error(dev, -ENOMEM);
 		return;
 	}
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_out,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_out,
 		(unsigned char *)scan_cmd, UPEKTC_CMD_LEN,
 		finger_det_cmd_cb, dev, BULK_TIMEOUT);
 	r = libusb_submit_transfer(transfer);
@@ -335,7 +335,7 @@ static void capture_run_state(fpi_ssm *ssm)
 			fpi_ssm_mark_failed(ssm, -ENOMEM);
 			return;
 		}
-		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_out,
+		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_out,
 			(unsigned char *)scan_cmd, UPEKTC_CMD_LEN,
 			capture_cmd_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
@@ -356,7 +356,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		}
 
 		data = g_malloc(IMAGE_SIZE);
-		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), upekdev->ep_in, data, IMAGE_SIZE,
+		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_in, data, IMAGE_SIZE,
 			capture_read_data_cb, ssm, BULK_TIMEOUT);
 
 		r = libusb_submit_transfer(transfer);
@@ -434,7 +434,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 	struct upektc_dev *upekdev;
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
@@ -473,7 +473,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 	void *user_data;
 	user_data = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(user_data);
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

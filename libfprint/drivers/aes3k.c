@@ -123,7 +123,7 @@ static void do_capture(struct fp_img_dev *dev)
 	}
 
 	data = g_malloc(aesdev->data_buflen);
-	libusb_fill_bulk_transfer(aesdev->img_trf, fpi_imgdev_get_usb_dev(dev), EP_IN, data,
+	libusb_fill_bulk_transfer(aesdev->img_trf, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data,
 		aesdev->data_buflen, img_cb, dev, 0);
 
 	r = libusb_submit_transfer(aesdev->img_trf);

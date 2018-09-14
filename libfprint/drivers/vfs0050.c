@@ -54,7 +54,7 @@ static void async_write_callback(struct libusb_transfer *transfer)
 static void async_write(fpi_ssm *ssm, void *data, int len)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
+	struct libusb_device_handle *usb_dev = fpi_dev_get_usb_dev(FP_DEV(idev));
 	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	vdev->transfer = libusb_alloc_transfer(0);
@@ -96,7 +96,7 @@ static void async_read_callback(struct libusb_transfer *transfer)
 static void async_read(fpi_ssm *ssm, int ep, void *data, int len)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
+	struct libusb_device_handle *usb_dev = fpi_dev_get_usb_dev(FP_DEV(idev));
 	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	ep |= LIBUSB_ENDPOINT_IN;
@@ -150,7 +150,7 @@ static void async_abort_callback(struct libusb_transfer *transfer)
 static void async_abort(fpi_ssm *ssm, int ep)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
+	struct libusb_device_handle *usb_dev = fpi_dev_get_usb_dev(FP_DEV(idev));
 	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	int len = VFS_USB_BUFFER_SIZE;
@@ -521,7 +521,7 @@ static void scan_completed(void *data)
 static void activate_ssm(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct libusb_device_handle *usb_dev = fpi_imgdev_get_usb_dev(idev);
+	struct libusb_device_handle *usb_dev = fpi_dev_get_usb_dev(FP_DEV(idev));
 	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -726,7 +726,7 @@ static int dev_open(struct fp_img_dev *idev, unsigned long driver_data)
 	struct vfs_dev_t *vdev;
 
 	/* Claim usb interface */
-	int error = libusb_claim_interface(fpi_imgdev_get_usb_dev(idev), 0);
+	int error = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(idev)), 0);
 	if (error < 0) {
 		/* Interface not claimed, return error */
 		fp_err("could not claim interface 0");
@@ -754,7 +754,7 @@ static void dev_close(struct fp_img_dev *idev)
 	g_free(vdev);
 
 	/* Release usb interface */
-	libusb_release_interface(fpi_imgdev_get_usb_dev(idev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(idev)), 0);
 
 	/* Notify close complete */
 	fpi_imgdev_close_complete(idev);

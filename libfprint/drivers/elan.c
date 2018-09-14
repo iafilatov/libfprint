@@ -391,7 +391,7 @@ static void elan_cmd_read(fpi_ssm *ssm)
 	g_free(elandev->last_read);
 	elandev->last_read = g_malloc(response_len);
 
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev),
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)),
 				  elandev->cmd->response_in,
 				  elandev->last_read, response_len, elan_cmd_cb,
 				  ssm, elandev->cmd_timeout);
@@ -426,7 +426,7 @@ static void elan_run_cmd(fpi_ssm *ssm, const struct elan_cmd *cmd,
 	}
 	elandev->cur_transfer = transfer;
 
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), ELAN_EP_CMD_OUT,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), ELAN_EP_CMD_OUT,
 				  (char *) cmd->cmd, ELAN_CMD_LEN, elan_cmd_cb, ssm,
 				  elandev->cmd_timeout);
 	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
@@ -803,7 +803,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	G_DEBUG_HERE();
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
@@ -843,7 +843,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 	elan_dev_reset(elandev);
 	g_free(elandev->background);
 	g_free(elandev);
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

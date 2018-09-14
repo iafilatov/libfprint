@@ -265,7 +265,7 @@ static void async_send(fpi_ssm *ssm)
 	vdev->buffer[1] = byte(1, vdev->seqnum);
 
 	/* Prepare bulk transfer */
-	libusb_fill_bulk_transfer(vdev->transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT(1), vdev->buffer, vdev->length, async_send_cb, ssm, BULK_TIMEOUT);
+	libusb_fill_bulk_transfer(vdev->transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT(1), vdev->buffer, vdev->length, async_send_cb, ssm, BULK_TIMEOUT);
 
 	/* Submit transfer */
 	r = libusb_submit_transfer(vdev->transfer);
@@ -347,7 +347,7 @@ static void async_recv(fpi_ssm *ssm)
 	}
 
 	/* Prepare bulk transfer */
-	libusb_fill_bulk_transfer(vdev->transfer, fpi_imgdev_get_usb_dev(dev), EP_IN(1), vdev->buffer, 0x0f, async_recv_cb, ssm, BULK_TIMEOUT);
+	libusb_fill_bulk_transfer(vdev->transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN(1), vdev->buffer, 0x0f, async_recv_cb, ssm, BULK_TIMEOUT);
 
 	/* Submit transfer */
 	r = libusb_submit_transfer(vdev->transfer);
@@ -452,7 +452,7 @@ static void async_load(fpi_ssm *ssm)
 	buffer = vdev->buffer + vdev->length;
 
 	/* Prepare bulk transfer */
-	libusb_fill_bulk_transfer(vdev->transfer, fpi_imgdev_get_usb_dev(dev), EP_IN(2), buffer, VFS_BLOCK_SIZE, async_load_cb, ssm, BULK_TIMEOUT);
+	libusb_fill_bulk_transfer(vdev->transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN(2), buffer, VFS_BLOCK_SIZE, async_load_cb, ssm, BULK_TIMEOUT);
 
 	/* Submit transfer */
 	r = libusb_submit_transfer(vdev->transfer);
@@ -1494,7 +1494,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	/* Claim usb interface */
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0)
 	{
 		/* Interface not claimed, return error */
@@ -1523,7 +1523,7 @@ static void dev_close(struct fp_img_dev *dev)
 	g_free(vdev);
 
 	/* Release usb interface */
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 
 	/* Notify close complete */
 	fpi_imgdev_close_complete(dev);

@@ -629,7 +629,7 @@ static void sm_write_reg(fpi_ssm *ssm, uint8_t reg, uint8_t value)
 	fp_dbg("set %02x=%02x", reg, value);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 	libusb_fill_control_setup(data, 0x40, 0x0c, 0, reg, 1);
-	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev),
+	libusb_fill_control_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)),
 		data, sm_write_reg_cb,
 		ssm, CTRL_TIMEOUT);
 
@@ -677,7 +677,7 @@ static void sm_read_reg(fpi_ssm *ssm, uint8_t reg)
 	fp_dbg("read reg %02x", reg);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 8);
 	libusb_fill_control_setup(data, 0xc0, 0x0c, 0, reg, 8);
-	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev),
+	libusb_fill_control_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)),
 		data, sm_read_reg_cb,
 		ssm, CTRL_TIMEOUT);
 	transfer->flags = LIBUSB_TRANSFER_SHORT_NOT_OK |
@@ -727,7 +727,7 @@ static void sm_await_intr(fpi_ssm *ssm)
 
 	G_DEBUG_HERE();
 	data = g_malloc(4);
-	libusb_fill_interrupt_transfer(transfer, fpi_imgdev_get_usb_dev(dev),
+	libusb_fill_interrupt_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)),
 		0x83, data, 4,
 		sm_await_intr_cb, ssm, 0);
 	transfer->flags = LIBUSB_TRANSFER_SHORT_NOT_OK |
@@ -1307,7 +1307,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 		sdev->img_transfer_data[i].idx = i;
 		sdev->img_transfer_data[i].dev = dev;
 		data = g_malloc(4096);
-		libusb_fill_bulk_transfer(sdev->img_transfer[i], fpi_imgdev_get_usb_dev(dev),
+		libusb_fill_bulk_transfer(sdev->img_transfer[i], fpi_dev_get_usb_dev(FP_DEV(dev)),
 			0x81, data,
 			4096, img_data_cb, &sdev->img_transfer_data[i], 0);
 	}
@@ -1335,7 +1335,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 	void *user_data;
 	user_data = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(user_data);
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	fpi_imgdev_close_complete(dev);
 }
 
@@ -1387,13 +1387,13 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 	struct sonly_dev *sdev;
 
-	r = libusb_set_configuration(fpi_imgdev_get_usb_dev(dev), 1);
+	r = libusb_set_configuration(fpi_dev_get_usb_dev(FP_DEV(dev)), 1);
 	if (r < 0) {
 		fp_err("could not set configuration 1");
 		return r;
 	}
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;

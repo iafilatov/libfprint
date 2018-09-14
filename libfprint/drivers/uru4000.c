@@ -201,7 +201,7 @@ static int write_regs(struct fp_img_dev *dev, uint16_t first_reg,
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + num_regs);
 	memcpy(data + LIBUSB_CONTROL_SETUP_SIZE, values, num_regs);
 	libusb_fill_control_setup(data, CTRL_OUT, USB_RQ, first_reg, 0, num_regs);
-	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev), data, write_regs_cb,
+	libusb_fill_control_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), data, write_regs_cb,
 		wrdata, CTRL_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -267,7 +267,7 @@ static int read_regs(struct fp_img_dev *dev, uint16_t first_reg,
 
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + num_regs);
 	libusb_fill_control_setup(data, CTRL_IN, USB_RQ, first_reg, 0, num_regs);
-	libusb_fill_control_transfer(transfer, fpi_imgdev_get_usb_dev(dev), data, read_regs_cb,
+	libusb_fill_control_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), data, read_regs_cb,
 		rrdata, CTRL_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -435,7 +435,7 @@ static int start_irq_handler(struct fp_img_dev *dev)
 		return -ENOMEM;
 	
 	data = g_malloc(IRQ_LENGTH);
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_INTR, data, IRQ_LENGTH,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_INTR, data, IRQ_LENGTH,
 		irq_handler, dev, 0);
 
 	urudev->irq_transfer = transfer;
@@ -702,7 +702,7 @@ static void imaging_run_state(fpi_ssm *ssm)
 	case IMAGING_CAPTURE:
 		urudev->img_lines_done = 0;
 		urudev->img_block = 0;
-		libusb_fill_bulk_transfer(urudev->img_transfer, fpi_imgdev_get_usb_dev(dev), EP_DATA,
+		libusb_fill_bulk_transfer(urudev->img_transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_DATA,
 			urudev->img_data, sizeof(struct uru4k_image), image_transfer_cb, ssm, 0);
 		r = libusb_submit_transfer(urudev->img_transfer);
 		if (r < 0)
@@ -1257,7 +1257,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 
 	/* Find fingerprint interface */
-	r = libusb_get_config_descriptor(libusb_get_device(fpi_imgdev_get_usb_dev(dev)), 0, &config);
+	r = libusb_get_config_descriptor(libusb_get_device(fpi_dev_get_usb_dev(FP_DEV(dev))), 0, &config);
 	if (r < 0) {
 		fp_err("Failed to get config descriptor");
 		return r;
@@ -1311,7 +1311,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 	/* Device looks like a supported reader */
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), iface_desc->bInterfaceNumber);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), iface_desc->bInterfaceNumber);
 	if (r < 0) {
 		fp_err("interface claim failed: %s", libusb_error_name(r));
 		goto out;
@@ -1368,7 +1368,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 		SECITEM_FreeItem(urudev->param, PR_TRUE);
 	if (urudev->slot)
 		PK11_FreeSlot(urudev->slot);
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), urudev->interface);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), urudev->interface);
 	g_free(urudev);
 	fpi_imgdev_close_complete(dev);
 }

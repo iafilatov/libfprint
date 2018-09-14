@@ -122,7 +122,7 @@ static void read_regs_rq_cb(struct fp_img_dev *dev, int result, void *user_data)
 	}
 
 	data = g_malloc(126);
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, data, 126,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 126,
 		read_regs_data_cb, rdata, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -333,7 +333,7 @@ static void finger_det_reqs_cb(struct fp_img_dev *dev, int result,
 	}
 
 	data = g_malloc(20);
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, data, 20,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 20,
 		finger_det_data_cb, dev, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -558,7 +558,7 @@ static void capture_run_state(fpi_ssm *ssm)
 		}
 
 		data = g_malloc(1705);
-		libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, data, 1705,
+		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 1705,
 			capture_read_strip_cb, ssm, BULK_TIMEOUT);
 
 		r = libusb_submit_transfer(transfer);
@@ -842,7 +842,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 	struct aes2501_dev *aesdev;
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
@@ -858,7 +858,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 {
 	struct aes2501_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(aesdev);
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

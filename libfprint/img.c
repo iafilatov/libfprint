@@ -533,12 +533,6 @@ API_EXPORTED struct fp_minutia **fp_img_get_minutiae(struct fp_img *img,
 	return img->minutiae->list;
 }
 
-libusb_device_handle *
-fpi_imgdev_get_usb_dev(struct fp_img_dev *dev)
-{
-	return FP_DEV(dev)->udev;
-}
-
 enum fp_imgdev_enroll_state
 fpi_imgdev_get_action_state(struct fp_img_dev *imgdev)
 {

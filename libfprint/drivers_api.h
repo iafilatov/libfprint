@@ -67,7 +67,6 @@ enum fp_imgdev_enroll_state {
 	IMG_ACQUIRE_STATE_DEACTIVATING,
 };
 
-libusb_device_handle *fpi_imgdev_get_usb_dev(struct fp_img_dev *dev);
 enum fp_imgdev_enroll_state fpi_imgdev_get_action_state(struct fp_img_dev *imgdev);
 enum fp_imgdev_action fpi_imgdev_get_action(struct fp_img_dev *imgdev);
 int fpi_imgdev_get_action_result(struct fp_img_dev *imgdev);

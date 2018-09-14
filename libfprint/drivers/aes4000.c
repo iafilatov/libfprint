@@ -119,7 +119,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 	struct aes3k_dev *aesdev;
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
@@ -147,7 +147,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 {
 	struct aes3k_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(aesdev);
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	fpi_imgdev_close_complete(dev);
 }
 

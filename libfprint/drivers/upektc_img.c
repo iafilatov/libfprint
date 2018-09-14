@@ -93,7 +93,7 @@ static void upektc_img_submit_req(fpi_ssm *ssm,
 	upektc_img_cmd_fix_seq(upekdev->cmd, seq);
 	upektc_img_cmd_update_crc(upekdev->cmd, buf_size);
 
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_OUT, upekdev->cmd, buf_size,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT, upekdev->cmd, buf_size,
 		cb, ssm, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -119,7 +119,7 @@ static void upektc_img_read_data(fpi_ssm *ssm, size_t buf_size, size_t buf_offse
 
 	transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
 
-	libusb_fill_bulk_transfer(transfer, fpi_imgdev_get_usb_dev(dev), EP_IN, upekdev->response + buf_offset, buf_size,
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, upekdev->response + buf_offset, buf_size,
 		cb, ssm, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -601,7 +601,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	int r;
 	struct upektc_img_dev *upekdev;
 
-	r = libusb_claim_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	r = libusb_claim_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	if (r < 0) {
 		fp_err("could not claim interface 0: %s", libusb_error_name(r));
 		return r;
@@ -617,7 +617,7 @@ static void dev_deinit(struct fp_img_dev *dev)
 {
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(upekdev);
-	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
+	libusb_release_interface(fpi_dev_get_usb_dev(FP_DEV(dev)), 0);
 	fpi_imgdev_close_complete(dev);
 }
 
