@@ -534,12 +534,6 @@ fpi_dev_get_usb_dev(struct fp_dev *dev)
 	return dev->udev;
 }
 
-int
-fpi_dev_get_nr_enroll_stages(struct fp_dev *dev)
-{
-	return dev->nr_enroll_stages;
-}
-
 void
 fpi_dev_set_nr_enroll_stages(struct fp_dev *dev,
 	int nr_enroll_stages)
