@@ -93,8 +93,6 @@ struct fp_driver {
 	enum fp_driver_type type;
 	enum fp_scan_type scan_type;
 
-	void *priv;
-
 	/* Device operations */
 	int (*discover)(struct libusb_device_descriptor *dsc, uint32_t *devtype);
 	int (*open)(struct fp_dev *dev, unsigned long driver_data);
