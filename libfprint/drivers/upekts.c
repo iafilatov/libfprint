@@ -137,7 +137,7 @@ static struct libusb_transfer *alloc_send_cmd28_transfer(struct fp_dev *dev,
 	uint16_t _innerlen = innerlen;
 	size_t len = innerlen + 6;
 	unsigned char *buf = g_malloc0(len);
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 	uint8_t seq = upekdev->seq + CMD_SEQ_INCREMENT;
 	struct libusb_transfer *ret;
 
@@ -489,7 +489,7 @@ static void initsm_read_msg_response_cb(fpi_ssm *ssm,
 	unsigned char expect_subcmd, unsigned char subcmd)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	if (status != READ_MSG_RESPONSE) {
 		fp_err("expected response, got %d seq=%x in state %d", status, seq,
@@ -553,7 +553,7 @@ static void initsm_read_msg_cmd_cb(fpi_ssm *ssm,
 	enum read_msg_status status, uint8_t expect_seq, uint8_t seq)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	if (status == READ_MSG_ERROR) {
 		fpi_ssm_mark_failed(ssm, -1);
@@ -652,7 +652,7 @@ static void initsm_send_msg28_handler(fpi_ssm *ssm,
 static void initsm_run_state(fpi_ssm *ssm)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 	struct libusb_transfer *transfer;
 	int r;
 
@@ -764,7 +764,7 @@ static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
 	void *user_data)
 {
 	fpi_ssm *ssm = user_data;
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	if (status == READ_MSG_ERROR) {
 		fpi_ssm_mark_failed(ssm, -1);
@@ -834,7 +834,7 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 
 	upekdev = g_malloc(sizeof(*upekdev));
 	upekdev->seq = 0xf0; /* incremented to 0x00 before first cmd */
-	fpi_dev_set_user_data(dev, upekdev);
+	fp_dev_set_instance_data(dev, upekdev);
 	fpi_dev_set_nr_enroll_stages(dev, 3);
 
 	fpi_drvcb_open_complete(dev, 0);
@@ -843,10 +843,10 @@ static int dev_init(struct fp_dev *dev, unsigned long driver_data)
 
 static void dev_exit(struct fp_dev *dev)
 {
-	void *user_data;
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
+
 	libusb_release_interface(fpi_dev_get_usb_dev(dev), 0);
-	user_data = fpi_dev_get_user_data(dev);
-	g_free(user_data);
+	g_free(upekdev);
 	fpi_drvcb_close_complete(dev);
 }
 
@@ -897,7 +897,7 @@ static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
 	enum read_msg_status status, uint8_t seq, unsigned char subcmd,
 	unsigned char *data, size_t data_len, void *user_data)
 {
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 	fpi_ssm *ssm = user_data;
 
 	if (status != READ_MSG_RESPONSE) {
@@ -960,7 +960,7 @@ static void enroll_iterate(struct fp_dev *dev);
 static void e_handle_resp00(struct fp_dev *dev, unsigned char *data,
 	size_t data_len)
 {
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 	unsigned char status;
 	int result = 0;
 
@@ -1125,7 +1125,7 @@ static void enroll_started(fpi_ssm *ssm)
 
 static int enroll_start(struct fp_dev *dev)
 {
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	/* do_init state machine first */
 	fpi_ssm *ssm = fpi_ssm_new(dev, enroll_start_sm_run_state,
@@ -1319,7 +1319,7 @@ static void verify_rd2800_cb(struct fp_dev *dev, enum read_msg_status msgstat,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	if (msgstat != READ_MSG_RESPONSE) {
 		fp_err("expected response, got %d seq=%x", msgstat, seq);
@@ -1358,7 +1358,7 @@ static void verify_wr2800_cb(struct libusb_transfer *transfer)
 
 static void verify_iterate(struct fp_dev *dev)
 {
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	if (upekdev->stop_verify) {
 		do_verify_stop(dev);
@@ -1394,7 +1394,7 @@ static void verify_iterate(struct fp_dev *dev)
 static void verify_started(fpi_ssm *ssm)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	fpi_drvcb_verify_started(dev, fpi_ssm_get_error(ssm));
 	if (!fpi_ssm_get_error(ssm)) {
@@ -1407,7 +1407,7 @@ static void verify_started(fpi_ssm *ssm)
 
 static int verify_start(struct fp_dev *dev)
 {
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 	fpi_ssm *ssm = fpi_ssm_new(dev, verify_start_sm_run_state,
 		VERIFY_NUM_STATES);
 	upekdev->stop_verify = FALSE;
@@ -1417,7 +1417,7 @@ static int verify_start(struct fp_dev *dev)
 
 static int verify_stop(struct fp_dev *dev, gboolean iterating)
 {
-	struct upekts_dev *upekdev = fpi_dev_get_user_data(dev);
+	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	if (!iterating)
 		do_verify_stop(dev);

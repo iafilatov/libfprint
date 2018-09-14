@@ -29,3 +29,7 @@ struct fp_img_dev;
 
 struct fp_dev           *FP_DEV           (struct fp_img_dev *dev);
 struct fp_img_dev       *FP_IMG_DEV       (struct fp_dev *dev);
+
+void                     fp_dev_set_instance_data (struct fp_dev *dev,
+						   void          *instance_data);
+void                    *FP_INSTANCE_DATA         (struct fp_dev *dev);

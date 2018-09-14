@@ -190,4 +190,6 @@ fp_img_dev
 
 FP_DEV
 FP_IMG_DEV
+fp_dev_set_instance_data
+FP_INSTANCE_DATA
 </SECTION>

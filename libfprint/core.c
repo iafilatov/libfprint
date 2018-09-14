@@ -534,19 +534,6 @@ fpi_dev_get_usb_dev(struct fp_dev *dev)
 	return dev->udev;
 }
 
-void *
-fpi_dev_get_user_data (struct fp_dev *dev)
-{
-	return dev->priv;
-}
-
-void
-fpi_dev_set_user_data (struct fp_dev *dev,
-	void *user_data)
-{
-	dev->priv = user_data;
-}
-
 int
 fpi_dev_get_nr_enroll_stages(struct fp_dev *dev)
 {

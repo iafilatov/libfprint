@@ -68,14 +68,13 @@ struct fp_dev {
 
 	/* only valid if drv->type == DRIVER_IMAGING */
 	struct fp_img_dev *img_dev;
+	/* Link to the instance specific struct */
+	void *instance_data;
 
 	int nr_enroll_stages;
 
 	/* FIXME: This will eventually have a bus type */
 	libusb_device_handle *udev;
-
-	/* FIXME: Remove, should be the driver private data */
-	void *priv;
 
 	/* read-only to drivers */
 	struct fp_print_data *verify_data;

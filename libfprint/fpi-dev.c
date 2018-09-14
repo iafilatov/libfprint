@@ -59,3 +59,40 @@ FP_IMG_DEV(struct fp_dev *dev)
 	g_return_val_if_fail (dev->drv->type != DRIVER_IMAGING, NULL);
 	return dev->img_dev;
 }
+
+/**
+ * fp_dev_set_instance_data:
+ * @dev: a struct #fp_dev
+ * @instance_data: a pointer to the instance data
+ *
+ * Set the instance data for a struct #fp_dev. This is usually a structure
+ * private to the driver used to keep state and pass it as user_data to
+ * asynchronous functions.
+ *
+ * The core does not do any memory management for this data, so the driver
+ * itself will have to create and free its own structure when appropriate.
+ */
+void
+fp_dev_set_instance_data (struct fp_dev *dev,
+			  void          *instance_data)
+{
+	g_return_if_fail (dev);
+	g_return_if_fail (instance_data != NULL);
+	g_return_if_fail (dev->instance_data == NULL);
+
+	dev->instance_data = instance_data;
+}
+
+/**
+ * FP_INSTANCE_DATA:
+ * @dev: a struct #fp_dev
+ *
+ * Returns the instance data set using fp_dev_set_instance_data().
+ */
+void *
+FP_INSTANCE_DATA (struct fp_dev *dev)
+{
+	g_return_val_if_fail (dev, NULL);
+
+	return dev->instance_data;
+}
