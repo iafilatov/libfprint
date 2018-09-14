@@ -639,7 +639,7 @@ enum {
 static int async_tx(struct fp_img_dev *idev, unsigned int ep, void *cb,
 	void *cb_arg)
 {
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *buffer;
 	int length;
@@ -671,7 +671,7 @@ static void async_tx_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fp_warn("transfer is not completed (status=%d)",
@@ -702,7 +702,7 @@ static void async_tx_cb(struct libusb_transfer *transfer)
 static void m_exit_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case EXIT_SET_REGS_REQ:
@@ -752,7 +752,7 @@ static void m_exit_start(struct fp_img_dev *idev)
 static void m_capture_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	if (dev->is_active == FALSE) {
 		fpi_ssm_mark_completed(ssm);
@@ -833,7 +833,7 @@ err:
 static void m_capture_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	if (fpi_ssm_get_error(ssm)) {
 		if (fpi_imgdev_get_action_state(idev) != IMG_ACQUIRE_STATE_DEACTIVATING) {
@@ -855,7 +855,7 @@ static void m_capture_complete(fpi_ssm *ssm)
 static void m_finger_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	if (dev->is_active == FALSE) {
 		fpi_ssm_mark_completed(ssm);
@@ -951,7 +951,7 @@ err:
 static void m_finger_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	if (!fpi_ssm_get_error(ssm)) {
 		fpi_ssm *ssm_cap;
@@ -985,7 +985,7 @@ static void m_start_fingerdetect(struct fp_img_dev *idev)
 static void m_tunevrb_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 	float hist[5];
 
 	if (dev->is_active == FALSE) {
@@ -1143,7 +1143,7 @@ static void m_tunevrb_complete(fpi_ssm *ssm)
 		fp_dbg("Tuning is done. Starting finger detection.");
 		m_start_fingerdetect(idev);
 	} else {
-		struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+		struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 		fp_err("Error while tuning VRT");
 		dev->is_active = FALSE;
 		reset_param(dev);
@@ -1159,7 +1159,7 @@ static void m_tunevrb_complete(fpi_ssm *ssm)
 static void m_tunedc_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	if (dev->is_active == FALSE) {
 		fpi_ssm_mark_completed(ssm);
@@ -1269,7 +1269,7 @@ static void m_tunedc_complete(fpi_ssm *ssm)
 		fpi_ssm_set_user_data(ssm_tune, idev);
 		fpi_ssm_start(ssm_tune, m_tunevrb_complete);
 	} else {
-		struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+		struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 		fp_err("Error while tuning DCOFFSET");
 		dev->is_active = FALSE;
 		reset_param(dev);
@@ -1281,7 +1281,7 @@ static void m_tunedc_complete(fpi_ssm *ssm)
 static void m_init_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	if (dev->is_active == FALSE) {
 		fpi_ssm_mark_completed(ssm);
@@ -1389,7 +1389,7 @@ static void m_init_complete(fpi_ssm *ssm)
 		fpi_ssm_set_user_data(ssm_tune, idev);
 		fpi_ssm_start(ssm_tune, m_tunedc_complete);
 	} else {
-		struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+		struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 		fp_err("Error initializing the device");
 		dev->is_active = FALSE;
 		reset_param(dev);
@@ -1400,7 +1400,7 @@ static void m_init_complete(fpi_ssm *ssm)
 
 static int dev_activate(struct fp_img_dev *idev, enum fp_imgdev_state state)
 {
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 	fpi_ssm *ssm;
 
 	g_assert(dev);
@@ -1433,7 +1433,7 @@ static int dev_activate(struct fp_img_dev *idev, enum fp_imgdev_state state)
 
 static void dev_deactivate(struct fp_img_dev *idev)
 {
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	fp_dbg("deactivating");
 
@@ -1450,7 +1450,7 @@ static int dev_open(struct fp_img_dev *idev, unsigned long driver_data)
 	struct etes603_dev *dev;
 
 	dev = g_malloc0(sizeof(struct etes603_dev));
-	fpi_imgdev_set_user_data(idev, dev);
+	fp_dev_set_instance_data(FP_DEV(idev), dev);
 
 	dev->req = g_malloc(sizeof(struct egis_msg));
 	dev->ans = g_malloc(FE_SIZE);
@@ -1468,7 +1468,7 @@ static int dev_open(struct fp_img_dev *idev, unsigned long driver_data)
 
 static void dev_close(struct fp_img_dev *idev)
 {
-	struct etes603_dev *dev = fpi_imgdev_get_user_data(idev);
+	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
 
 	g_free(dev->req);
 	g_free(dev->ans);

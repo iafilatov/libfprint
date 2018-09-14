@@ -201,7 +201,7 @@ static void async_send_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Cleanup transfer */
 	vdev->transfer = NULL;
@@ -245,7 +245,7 @@ out:
 static void async_send(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
 	/* Allocation of transfer */
@@ -285,7 +285,7 @@ static void async_recv_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Cleanup transfer */
 	vdev->transfer = NULL;
@@ -332,7 +332,7 @@ out:
 static void async_recv(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
 	/* Allocation of transfer */
@@ -369,7 +369,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Cleanup transfer */
 	vdev->transfer = NULL;
@@ -433,7 +433,7 @@ out:
 static void async_load(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	unsigned char *buffer;
 	int r;
 
@@ -472,7 +472,7 @@ static void async_sleep_cb(void *data)
 {
 	fpi_ssm *ssm = data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Cleanup timeout */
 	vdev->timeout = NULL;
@@ -484,7 +484,7 @@ static void async_sleep_cb(void *data)
 static void async_sleep(unsigned int msec, fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Add timeout */
 	vdev->timeout = fpi_timeout_add(msec, async_sleep_cb, ssm);
@@ -527,7 +527,7 @@ static void m_swap_state(fpi_ssm *ssm)
 static void m_swap(fpi_ssm *ssm, unsigned char *data, size_t length)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_ssm *subsm;
 
 	/* Prepare data for sending */
@@ -626,7 +626,7 @@ static void vfs_get_finger_state(fpi_ssm *ssm)
 static void vfs_img_load(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	G_DEBUG_HERE();
 
@@ -644,7 +644,7 @@ static void vfs_img_load(fpi_ssm *ssm)
 /* Check if action is completed */
 static int action_completed(struct fp_img_dev *dev)
 {
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	if ((fpi_imgdev_get_action(dev) == IMG_ACTION_ENROLL) &&
 		(vdev->enroll_stage < fpi_dev_get_nr_enroll_stages(fpi_imgdev_get_dev(dev))))
@@ -757,7 +757,7 @@ static void img_copy(struct vfs101_dev *vdev, struct fp_img *img)
 static void img_extract(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	struct fp_img *img;
 
 	/* Screen image to remove noise and find top and bottom line */
@@ -915,7 +915,7 @@ enum
 static void m_loop_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Check action state */
 	if (!vdev->active)
@@ -1179,7 +1179,7 @@ enum
 static void m_init_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Check action state */
 	if (!vdev->active)
@@ -1420,7 +1420,7 @@ static void m_init_state(fpi_ssm *ssm)
 static void m_init_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_ssm *ssm_loop;
 
 	if (!fpi_ssm_get_error(ssm) && vdev->active)
@@ -1441,7 +1441,7 @@ static void m_init_complete(fpi_ssm *ssm)
 /* Activate device */
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_ssm *ssm;
 
 	/* Check if already active */
@@ -1474,7 +1474,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 /* Deactivate device */
 static void dev_deactivate(struct fp_img_dev *dev)
 {
-	struct vfs101_dev *vdev = fpi_imgdev_get_user_data(dev);
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Reset active state */
 	vdev->active = FALSE;
@@ -1505,7 +1505,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 	/* Initialize private structure */
 	vdev = g_malloc0(sizeof(struct vfs101_dev));
 	vdev->seqnum = -1;
-	fpi_imgdev_set_user_data(dev, vdev);
+	fp_dev_set_instance_data(FP_DEV(dev), vdev);
 
 	/* Notify open complete */
 	fpi_imgdev_open_complete(dev, 0);
@@ -1519,7 +1519,7 @@ static void dev_close(struct fp_img_dev *dev)
 	struct vfs101_dev *vdev;
 
 	/* Release private structure */
-	vdev = fpi_imgdev_get_user_data(dev);
+	vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(vdev);
 
 	/* Release usb interface */

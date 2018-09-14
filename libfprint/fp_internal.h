@@ -155,9 +155,6 @@ struct fp_img_dev {
 
 	/* FIXME: better place to put this? */
 	size_t identify_match_offset;
-
-	/* FIXME: Remove */
-	void *priv;
 };
 
 int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev);

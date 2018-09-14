@@ -47,7 +47,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	aesdev = g_malloc0(sizeof(struct aesX660_dev));
-	fpi_imgdev_set_user_data(dev, aesdev);
+	fp_dev_set_instance_data(FP_DEV(dev), aesdev);
 	aesdev->buffer = g_malloc0(AES1660_FRAME_SIZE + AESX660_HEADER_SIZE);
 	aesdev->init_seqs[0] = aes1660_init_1;
 	aesdev->init_seqs_len[0] = G_N_ELEMENTS(aes1660_init_1);
@@ -64,7 +64,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void dev_deinit(struct fp_img_dev *dev)
 {
-	struct aesX660_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(aesdev->buffer);
 	g_free(aesdev);
 	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);

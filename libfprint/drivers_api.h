@@ -68,9 +68,6 @@ enum fp_imgdev_enroll_state {
 };
 
 libusb_device_handle *fpi_imgdev_get_usb_dev(struct fp_img_dev *dev);
-void fpi_imgdev_set_user_data(struct fp_img_dev *imgdev,
-	void *user_data);
-void *fpi_imgdev_get_user_data(struct fp_img_dev *imgdev);
 struct fp_dev *fpi_imgdev_get_dev(struct fp_img_dev *imgdev);
 enum fp_imgdev_enroll_state fpi_imgdev_get_action_state(struct fp_img_dev *imgdev);
 enum fp_imgdev_action fpi_imgdev_get_action(struct fp_img_dev *imgdev);

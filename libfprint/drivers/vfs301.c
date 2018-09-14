@@ -54,7 +54,7 @@ static void async_sleep(unsigned int msec, fpi_ssm *ssm)
 static int submit_image(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
+	vfs301_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int height;
 	struct fp_img *img;
 
@@ -106,7 +106,7 @@ enum
 static void m_loop_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
+	vfs301_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case M_REQUEST_PRINT:
@@ -171,7 +171,7 @@ static void m_loop_complete(fpi_ssm *ssm)
 static void m_init_state(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	vfs301_dev_t *vdev = fpi_imgdev_get_user_data(dev);
+	vfs301_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	g_assert(fpi_ssm_get_cur_state(ssm) == 0);
 
@@ -218,7 +218,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 {
 	vfs301_dev_t *vdev;
 
-	vdev = fpi_imgdev_get_user_data(dev);
+	vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	vfs301_proto_deinit(fpi_imgdev_get_usb_dev(dev), vdev);
 	fpi_imgdev_deactivate_complete(dev);
 }
@@ -238,7 +238,7 @@ static int dev_open(struct fp_img_dev *dev, unsigned long driver_data)
 
 	/* Initialize private structure */
 	vdev = g_malloc0(sizeof(vfs301_dev_t));
-	fpi_imgdev_set_user_data(dev, vdev);
+	fp_dev_set_instance_data(FP_DEV(dev), vdev);
 
 	vdev->scanline_buf = malloc(0);
 	vdev->scanline_count = 0;
@@ -254,7 +254,7 @@ static void dev_close(struct fp_img_dev *dev)
 	vfs301_dev_t *vdev;
 
 	/* Release private structure */
-	vdev = fpi_imgdev_get_user_data(dev);
+	vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	free(vdev->scanline_buf);
 	g_free(vdev);
 

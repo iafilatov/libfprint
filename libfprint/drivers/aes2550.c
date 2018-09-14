@@ -149,7 +149,7 @@ exit_free_transfer:
 static void start_finger_detection(struct fp_img_dev *dev)
 {
 	int r;
-	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	struct libusb_transfer *transfer;
 	G_DEBUG_HERE();
 
@@ -204,7 +204,7 @@ static int process_strip_data(fpi_ssm *ssm, unsigned char *data)
 {
 	unsigned char *stripdata;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	struct fpi_frame *stripe;
 	int len;
 
@@ -246,7 +246,7 @@ static void capture_set_idle_reqs_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	if ((transfer->status == LIBUSB_TRANSFER_COMPLETED) &&
 		(transfer->length == transfer->actual_length) &&
@@ -274,7 +274,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	unsigned char *data = transfer->buffer;
 	int r;
 
@@ -389,7 +389,7 @@ static void capture_run_state(fpi_ssm *ssm)
 static void capture_sm_complete(fpi_ssm *ssm)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	fp_dbg("Capture completed");
 	if (aesdev->deactivating)
@@ -403,7 +403,7 @@ static void capture_sm_complete(fpi_ssm *ssm)
 
 static void start_capture(struct fp_img_dev *dev)
 {
-	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_ssm *ssm;
 
 	if (aesdev->deactivating) {
@@ -590,14 +590,14 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 static void dev_deactivate(struct fp_img_dev *dev)
 {
-	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	aesdev->deactivating = TRUE;
 }
 
 static void complete_deactivation(struct fp_img_dev *dev)
 {
-	struct aes2550_dev *aesdev = fpi_imgdev_get_user_data(dev);
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	G_DEBUG_HERE();
 
 	aesdev->deactivating = FALSE;
@@ -620,7 +620,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	aes2550_dev = g_malloc0(sizeof(struct aes2550_dev));
-	fpi_imgdev_set_user_data(dev, aes2550_dev);
+	fp_dev_set_instance_data(FP_DEV(dev), aes2550_dev);
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
 }
@@ -628,7 +628,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 static void dev_deinit(struct fp_img_dev *dev)
 {
 	struct aes2550_dev *aesdev;
-	aesdev = fpi_imgdev_get_user_data(dev);
+	aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	g_free(aesdev);
 	libusb_release_interface(fpi_imgdev_get_usb_dev(dev), 0);
 	fpi_imgdev_close_complete(dev);

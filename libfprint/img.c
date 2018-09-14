@@ -539,19 +539,6 @@ fpi_imgdev_get_usb_dev(struct fp_img_dev *dev)
 	return FP_DEV(dev)->udev;
 }
 
-void
-fpi_imgdev_set_user_data(struct fp_img_dev *imgdev,
-	void *user_data)
-{
-	imgdev->priv = user_data;
-}
-
-void *
-fpi_imgdev_get_user_data(struct fp_img_dev *imgdev)
-{
-	return imgdev->priv;
-}
-
 struct fp_dev *
 fpi_imgdev_get_dev(struct fp_img_dev *imgdev)
 {
