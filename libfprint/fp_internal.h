@@ -29,6 +29,7 @@
 
 #include "fprint.h"
 #include "fpi-log.h"
+#include "fpi-dev.h"
 #include "drivers/driver_ids.h"
 
 #define container_of(ptr, type, member) ({                      \

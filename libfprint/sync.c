@@ -20,6 +20,7 @@
 #define FP_COMPONENT "sync"
 
 #include "fp_internal.h"
+#include "fpi-dev.h"
 
 #include <config.h>
 #include <errno.h>

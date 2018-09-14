@@ -4,6 +4,8 @@ libfprint_sources = [
     'async.c',
     'core.c',
     'data.c',
+    'fpi-dev.c',
+    'fpi-dev.h',
     'fpi-log.h',
     'fpi-ssm.c',
     'fpi-ssm.h',

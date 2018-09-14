@@ -33,10 +33,10 @@
 #include "fpi-log.h"
 #include "fpi-ssm.h"
 #include "fpi-poll.h"
+#include "fpi-dev.h"
 #include "assembling.h"
 #include "drivers/driver_ids.h"
 
-struct fp_dev;
 libusb_device_handle *fpi_dev_get_usb_dev(struct fp_dev *dev);
 void *fpi_dev_get_user_data (struct fp_dev *dev);
 void fpi_dev_set_user_data (struct fp_dev *dev, void *user_data);
@@ -69,7 +69,6 @@ enum fp_imgdev_enroll_state {
 	IMG_ACQUIRE_STATE_DEACTIVATING,
 };
 
-struct fp_img_dev;
 libusb_device_handle *fpi_imgdev_get_usb_dev(struct fp_img_dev *dev);
 void fpi_imgdev_set_user_data(struct fp_img_dev *imgdev,
 	void *user_data);
