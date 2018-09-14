@@ -605,13 +605,6 @@ API_EXPORTED enum fp_scan_type fp_driver_get_scan_type(struct fp_driver *drv)
 	return drv->scan_type;
 }
 
-static struct fp_img_dev *dev_to_img_dev(struct fp_dev *dev)
-{
-	if (dev->drv->type != DRIVER_IMAGING)
-		return NULL;
-	return dev->img_dev;
-}
-
 /**
  * fp_dev_supports_imaging:
  * @dev: the fingerprint device
@@ -659,13 +652,12 @@ API_EXPORTED int fp_dev_supports_identification(struct fp_dev *dev)
  */
 API_EXPORTED int fp_dev_get_img_width(struct fp_dev *dev)
 {
-	struct fp_img_dev *imgdev = dev_to_img_dev(dev);
-	if (!imgdev) {
+	if (!dev->img_dev) {
 		fp_dbg("get image width for non-imaging device");
 		return -1;
 	}
 
-	return fpi_imgdev_get_img_width(imgdev);
+	return fpi_imgdev_get_img_width(dev->img_dev);
 }
 
 /**
@@ -682,13 +674,12 @@ API_EXPORTED int fp_dev_get_img_width(struct fp_dev *dev)
  */
 API_EXPORTED int fp_dev_get_img_height(struct fp_dev *dev)
 {
-	struct fp_img_dev *imgdev = dev_to_img_dev(dev);
-	if (!imgdev) {
+	if (!dev->img_dev) {
 		fp_dbg("get image height for non-imaging device");
 		return -1;
 	}
 
-	return fpi_imgdev_get_img_height(imgdev);
+	return fpi_imgdev_get_img_height(dev->img_dev);
 }
 
 /**
