@@ -64,14 +64,18 @@ struct fp_driver **fprint_get_drivers (void);
 
 struct fp_dev {
 	struct fp_driver *drv;
-	libusb_device_handle *udev;
 	uint32_t devtype;
-	void *priv;
 
 	/* only valid if drv->type == DRIVER_IMAGING */
 	struct fp_img_dev *img_dev;
 
 	int nr_enroll_stages;
+
+	/* FIXME: This will eventually have a bus type */
+	libusb_device_handle *udev;
+
+	/* FIXME: Remove, should be the driver private data */
+	void *priv;
 
 	/* read-only to drivers */
 	struct fp_print_data *verify_data;
@@ -153,6 +157,7 @@ struct fp_img_dev {
 	/* FIXME: better place to put this? */
 	size_t identify_match_offset;
 
+	/* FIXME: Remove */
 	void *priv;
 };
 
