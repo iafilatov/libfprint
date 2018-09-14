@@ -182,3 +182,12 @@ fpi_timeout_fn
 fpi_timeout_add
 fpi_timeout_cancel
 </SECTION>
+
+<SECTION>
+<INCLUDE>fpi-dev.h</INCLUDE>
+<FILE>fpi-dev</FILE>
+fp_img_dev
+
+FP_DEV
+FP_IMG_DEV
+</SECTION>

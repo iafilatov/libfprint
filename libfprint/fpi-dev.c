@@ -21,6 +21,15 @@
 #include <glib.h>
 
 /**
+ * SECTION:fpi-dev
+ * @title: Device structures
+ *
+ * Those macros and functions will help get access to and from struct #fp_dev,
+ * and struct #fp_img_dev types, as well as get and set the instance struct
+ * data, eg. the structure containing the data specific to each driver.
+ */
+
+/**
  * FP_DEV:
  * @dev: a struct #fp_img_dev
  *
