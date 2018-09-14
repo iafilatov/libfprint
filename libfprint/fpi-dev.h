@@ -26,3 +26,6 @@ struct fp_dev;
  * appropriate functions.
  */
 struct fp_img_dev;
+
+struct fp_dev           *FP_DEV           (struct fp_img_dev *dev);
+struct fp_img_dev       *FP_IMG_DEV       (struct fp_dev *dev);

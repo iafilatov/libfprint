@@ -68,6 +68,9 @@ struct fp_dev {
 	uint32_t devtype;
 	void *priv;
 
+	/* only valid if drv->type == DRIVER_IMAGING */
+	struct fp_img_dev *img_dev;
+
 	int nr_enroll_stages;
 
 	/* read-only to drivers */
@@ -136,8 +139,9 @@ enum fp_imgdev_verify_state {
 };
 
 struct fp_img_dev {
-	struct fp_dev *dev;
 	libusb_device_handle *udev;
+	struct fp_dev *parent;
+
 	enum fp_imgdev_action action;
 	int action_state;
 

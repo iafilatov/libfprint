@@ -58,7 +58,7 @@ struct fp_img *fpi_img_new(size_t length)
 
 struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *imgdev)
 {
-	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(imgdev->dev->drv);
+	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(FP_DEV(imgdev)->drv);
 	int width = imgdrv->img_width;
 	int height = imgdrv->img_height;
 	struct fp_img *img = fpi_img_new(width * height);
@@ -349,7 +349,7 @@ int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 
 	/* FIXME: space is wasted if we dont hit the max minutiae count. would
 	 * be good to make this dynamic. */
-	print = fpi_print_data_new(imgdev->dev);
+	print = fpi_print_data_new(FP_DEV(imgdev));
 	item = fpi_print_data_item_new(sizeof(struct xyt_struct));
 	print->type = PRINT_DATA_NBIS_MINUTIAE;
 	minutiae_to_xyt(img->minutiae, img->width, img->height, item->data);
@@ -555,7 +555,7 @@ fpi_imgdev_get_user_data(struct fp_img_dev *imgdev)
 struct fp_dev *
 fpi_imgdev_get_dev(struct fp_img_dev *imgdev)
 {
-	return imgdev->dev;
+	return FP_DEV(imgdev);
 }
 
 enum fp_imgdev_enroll_state

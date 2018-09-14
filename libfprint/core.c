@@ -622,7 +622,7 @@ static struct fp_img_dev *dev_to_img_dev(struct fp_dev *dev)
 {
 	if (dev->drv->type != DRIVER_IMAGING)
 		return NULL;
-	return dev->priv;
+	return dev->img_dev;
 }
 
 /**

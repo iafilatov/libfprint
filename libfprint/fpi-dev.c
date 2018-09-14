@@ -19,3 +19,34 @@
 
 #include "fp_internal.h"
 #include <glib.h>
+
+/**
+ * FP_DEV:
+ * @dev: a struct #fp_img_dev
+ *
+ * Returns the struct #fp_dev associated with @dev, or %NULL on failure.
+ */
+struct fp_dev *
+FP_DEV(struct fp_img_dev *dev)
+{
+	struct fp_img_dev *imgdev;
+
+	g_return_val_if_fail (dev, NULL);
+	imgdev = (struct fp_img_dev *) dev;
+	return imgdev->parent;
+}
+
+/**
+ * FP_IMG_DEV:
+ * @dev: a struct #fp_dev representing an imaging device.
+ *
+ * Returns: a struct #fp_img_dev or %NULL on failure.
+ */
+struct fp_img_dev *
+FP_IMG_DEV(struct fp_dev *dev)
+{
+	g_return_val_if_fail (dev, NULL);
+	g_return_val_if_fail (dev->drv, NULL);
+	g_return_val_if_fail (dev->drv->type != DRIVER_IMAGING, NULL);
+	return dev->img_dev;
+}
