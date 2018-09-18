@@ -173,7 +173,7 @@ out:
 
 static void usbexchange_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct usbexchange_data *data = fpi_ssm_get_user_data(ssm);
+	struct usbexchange_data *data = user_data;
 	if (fpi_ssm_get_cur_state(ssm) >= data->stepcount) {
 		fp_err("Bug detected: state %d out of range, only %d steps",
 				fpi_ssm_get_cur_state(ssm), data->stepcount);
@@ -395,9 +395,11 @@ static int process_chunk(struct vfs5011_data *data, int transferred)
 	return 0;
 }
 
-void submit_image(fpi_ssm *ssm, struct vfs5011_data *data)
+static void
+submit_image(fpi_ssm             *ssm,
+	     struct vfs5011_data *data,
+	     struct fp_img_dev   *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct fp_img *img;
 
 	if (data->lines_recorded == 0) {
@@ -669,7 +671,7 @@ static void activate_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	enum {READ_TIMEOUT = 0};
 
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct vfs5011_data *data;
 	int r;
 	fpi_timeout *timeout;
@@ -744,7 +746,7 @@ static void activate_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 static void activate_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct vfs5011_data *data;
 	int r = fpi_ssm_get_error(ssm);
 
@@ -755,7 +757,7 @@ static void activate_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user
 		g_free(data->init_sequence.receive_buf);
 	data->init_sequence.receive_buf = NULL;
 	if (!data->deactivating && !r) {
-		submit_image(ssm, data);
+		submit_image(ssm, data, dev);
 		fpi_imgdev_report_finger_status(dev, FALSE);
 	}
 	fpi_ssm_free(ssm);
@@ -774,7 +776,7 @@ static void activate_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user
 
 static void open_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct vfs5011_data *data;
 
 	data = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -795,7 +797,7 @@ static void open_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 static void open_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct vfs5011_data *data;
 
 	data = FP_INSTANCE_DATA(FP_DEV(dev));

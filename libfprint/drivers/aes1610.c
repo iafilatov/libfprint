@@ -643,7 +643,7 @@ out:
 
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct aes1610_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
@@ -690,7 +690,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 
 static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct aes1610_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	G_DEBUG_HERE();
@@ -737,7 +737,7 @@ enum activate_states {
 
 static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 
 	/* activation on aes1610 seems much more straightforward compared to aes2501 */
 	/* verify theres anything missing here */
@@ -752,7 +752,7 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 /* jump to finger detection */
 static void activate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	fp_dbg("status %d", fpi_ssm_get_error(ssm));
 	fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
 

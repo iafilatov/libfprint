@@ -37,10 +37,15 @@ static void complete_deactivation(struct fp_img_dev *dev);
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
-static void aesX660_send_cmd_timeout(fpi_ssm *ssm, const unsigned char *cmd,
-	size_t cmd_len, libusb_transfer_cb_fn callback, int timeout)
+static void
+aesX660_send_cmd_timeout(fpi_ssm               *ssm,
+			 struct fp_dev         *_dev,
+			 const unsigned char   *cmd,
+			 size_t                 cmd_len,
+			 libusb_transfer_cb_fn  callback,
+			 int                    timeout)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
 
@@ -60,16 +65,23 @@ static void aesX660_send_cmd_timeout(fpi_ssm *ssm, const unsigned char *cmd,
 	}
 }
 
-static void aesX660_send_cmd(fpi_ssm *ssm, const unsigned char *cmd,
-	size_t cmd_len, libusb_transfer_cb_fn callback)
+static void
+aesX660_send_cmd(fpi_ssm               *ssm,
+		 struct fp_dev         *dev,
+		 const unsigned char   *cmd,
+		 size_t                 cmd_len,
+		 libusb_transfer_cb_fn  callback)
 {
-	return aesX660_send_cmd_timeout(ssm, cmd, cmd_len, callback, BULK_TIMEOUT);
+	return aesX660_send_cmd_timeout(ssm, dev, cmd, cmd_len, callback, BULK_TIMEOUT);
 }
 
-static void aesX660_read_response(fpi_ssm *ssm, size_t buf_len,
-	libusb_transfer_cb_fn callback)
+static void
+aesX660_read_response(fpi_ssm               *ssm,
+		      struct fp_dev         *_dev,
+		      size_t                 buf_len,
+		      libusb_transfer_cb_fn  callback)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
 	int r;
@@ -197,7 +209,7 @@ static void finger_det_set_idle_cmd_cb(struct libusb_transfer *transfer)
 
 static void finger_det_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int err = fpi_ssm_get_error(ssm);
 
@@ -215,23 +227,23 @@ static void finger_det_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user
 	}
 }
 
-static void finger_det_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void finger_det_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case FINGER_DET_SEND_LED_CMD:
-		aesX660_send_cmd(ssm, led_blink_cmd, sizeof(led_blink_cmd),
+		aesX660_send_cmd(ssm, dev, led_blink_cmd, sizeof(led_blink_cmd),
 			aesX660_send_cmd_cb);
 	break;
 	case FINGER_DET_SEND_FD_CMD:
-		aesX660_send_cmd_timeout(ssm, wait_for_finger_cmd, sizeof(wait_for_finger_cmd),
+		aesX660_send_cmd_timeout(ssm, dev, wait_for_finger_cmd, sizeof(wait_for_finger_cmd),
 			aesX660_send_cmd_cb, 0);
 	break;
 	case FINGER_DET_READ_FD_DATA:
 		/* Should return 4 byte of response */
-		aesX660_read_response(ssm, 4, finger_det_read_fd_data_cb);
+		aesX660_read_response(ssm, dev, 4, finger_det_read_fd_data_cb);
 	break;
 	case FINGER_DET_SET_IDLE:
-		aesX660_send_cmd(ssm, set_idle_cmd, sizeof(set_idle_cmd),
+		aesX660_send_cmd(ssm, dev, set_idle_cmd, sizeof(set_idle_cmd),
 			finger_det_set_idle_cmd_cb);
 	break;
 	}
@@ -262,11 +274,10 @@ enum capture_states {
 };
 
 /* Returns number of processed bytes */
-static int process_stripe_data(fpi_ssm *ssm, unsigned char *data)
+static int process_stripe_data(fpi_ssm *ssm, struct fp_img_dev *dev, unsigned char *data)
 {
 	struct fpi_frame *stripe;
 	unsigned char *stripdata;
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	stripe = g_malloc(aesdev->assembling_ctx->frame_width * FRAME_HEIGHT / 2 + sizeof(struct fpi_frame)); /* 4 bpp */
@@ -351,7 +362,7 @@ static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 					aesdev->buffer_max);
 				continue;
 			} else {
-				finger_missing |= process_stripe_data(ssm, aesdev->buffer);
+				finger_missing |= process_stripe_data(ssm, dev, aesdev->buffer);
 				aesdev->buffer_max = AESX660_HEADER_SIZE;
 				aesdev->buffer_size = 0;
 			}
@@ -372,28 +383,28 @@ out:
 
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_SEND_LED_CMD:
-		aesX660_send_cmd(ssm, led_solid_cmd, sizeof(led_solid_cmd),
+		aesX660_send_cmd(ssm, _dev, led_solid_cmd, sizeof(led_solid_cmd),
 			aesX660_send_cmd_cb);
 	break;
 	case CAPTURE_SEND_CAPTURE_CMD:
 		aesdev->buffer_size = 0;
 		aesdev->buffer_max = AESX660_HEADER_SIZE;
-		aesX660_send_cmd(ssm, aesdev->start_imaging_cmd,
+		aesX660_send_cmd(ssm, _dev, aesdev->start_imaging_cmd,
 			aesdev->start_imaging_cmd_len,
 			aesX660_send_cmd_cb);
 	break;
 	case CAPTURE_READ_STRIPE_DATA:
-		aesX660_read_response(ssm, AESX660_BULK_TRANSFER_SIZE,
+		aesX660_read_response(ssm, _dev, AESX660_BULK_TRANSFER_SIZE,
 			capture_read_stripe_data_cb);
 	break;
 	case CAPTURE_SET_IDLE:
 		fp_dbg("Got %lu frames\n", aesdev->strips_len);
-		aesX660_send_cmd(ssm, set_idle_cmd, sizeof(set_idle_cmd),
+		aesX660_send_cmd(ssm, _dev, set_idle_cmd, sizeof(set_idle_cmd),
 			capture_set_idle_cmd_cb);
 	break;
 	}
@@ -401,7 +412,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 
 static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int err = fpi_ssm_get_error(ssm);
 
@@ -534,30 +545,30 @@ out:
 
 static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case ACTIVATE_SET_IDLE:
 		aesdev->init_seq_idx = 0;
 		fp_dbg("Activate: set idle\n");
-		aesX660_send_cmd(ssm, set_idle_cmd, sizeof(set_idle_cmd),
+		aesX660_send_cmd(ssm, _dev, set_idle_cmd, sizeof(set_idle_cmd),
 			aesX660_send_cmd_cb);
 	break;
 	case ACTIVATE_SEND_READ_ID_CMD:
 		fp_dbg("Activate: read ID\n");
-		aesX660_send_cmd(ssm, read_id_cmd, sizeof(read_id_cmd),
+		aesX660_send_cmd(ssm, _dev, read_id_cmd, sizeof(read_id_cmd),
 			aesX660_send_cmd_cb);
 	break;
 	case ACTIVATE_READ_ID:
 		/* Should return 8-byte response */
-		aesX660_read_response(ssm, 8, activate_read_id_cb);
+		aesX660_read_response(ssm, _dev, 8, activate_read_id_cb);
 	break;
 	case ACTIVATE_SEND_INIT_CMD:
 		fp_dbg("Activate: send init seq #%d cmd #%d\n",
 			aesdev->init_seq_idx,
 			aesdev->init_cmd_idx);
-		aesX660_send_cmd(ssm,
+		aesX660_send_cmd(ssm, _dev,
 			aesdev->init_seq[aesdev->init_cmd_idx].cmd,
 			aesdev->init_seq[aesdev->init_cmd_idx].len,
 			aesX660_send_cmd_cb);
@@ -565,22 +576,22 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	case ACTIVATE_READ_INIT_RESPONSE:
 		fp_dbg("Activate: read init response\n");
 		/* Should return 4-byte response */
-		aesX660_read_response(ssm, 4, activate_read_init_cb);
+		aesX660_read_response(ssm, _dev, 4, activate_read_init_cb);
 	break;
 	case ACTIVATE_SEND_CALIBRATE_CMD:
-		aesX660_send_cmd(ssm, calibrate_cmd, sizeof(calibrate_cmd),
+		aesX660_send_cmd(ssm, _dev, calibrate_cmd, sizeof(calibrate_cmd),
 			aesX660_send_cmd_cb);
 	break;
 	case ACTIVATE_READ_CALIBRATE_DATA:
 		/* Should return 4-byte response */
-		aesX660_read_response(ssm, 4, aesX660_read_calibrate_data_cb);
+		aesX660_read_response(ssm, _dev, 4, aesX660_read_calibrate_data_cb);
 	break;
 	}
 }
 
 static void activate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	int err = fpi_ssm_get_error(ssm);
 	fp_dbg("status %d", err);
 	fpi_imgdev_activate_complete(dev, err);

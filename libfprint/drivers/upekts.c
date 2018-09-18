@@ -880,7 +880,7 @@ enum enroll_start_sm_states {
 /* Called when the device initialization state machine completes */
 static void enroll_start_sm_cb_initsm(fpi_ssm *initsm, struct fp_dev *_dev, void *user_data)
 {
-	fpi_ssm *enroll_start_ssm = fpi_ssm_get_user_data(initsm);
+	fpi_ssm *enroll_start_ssm = user_data;
 	int error = fpi_ssm_get_error(initsm);
 
 	fpi_ssm_free(initsm);
@@ -1185,7 +1185,7 @@ enum {
 /* Called when the device initialization state machine completes */
 static void verify_start_sm_cb_initsm(fpi_ssm *initsm, struct fp_dev *_dev, void *user_data)
 {
-	fpi_ssm *verify_start_ssm = fpi_ssm_get_user_data(initsm);
+	fpi_ssm *verify_start_ssm = user_data;
 	int err;
 
 	err = fpi_ssm_get_error(initsm);

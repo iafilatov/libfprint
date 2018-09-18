@@ -200,10 +200,9 @@ enum capture_states {
 };
 
 /* Returns number of processed bytes */
-static int process_strip_data(fpi_ssm *ssm, unsigned char *data)
+static int process_strip_data(fpi_ssm *ssm, struct fp_img_dev *dev, unsigned char *data)
 {
 	unsigned char *stripdata;
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	struct fpi_frame *stripe;
 	int len;
@@ -290,7 +289,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 
 	switch (transfer->actual_length) {
 		case AES2550_STRIP_SIZE:
-			r = process_strip_data(ssm, data);
+			r = process_strip_data(ssm, dev, data);
 			if (r < 0) {
 				fp_dbg("Processing strip data failed: %d", r);
 				fpi_ssm_mark_failed(ssm, -EPROTO);
@@ -325,7 +324,7 @@ out:
 
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -388,7 +387,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 
 static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	fp_dbg("Capture completed");
@@ -484,7 +483,7 @@ static void calibrate_read_data_cb(struct libusb_transfer *transfer)
 
 static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -569,7 +568,7 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 
 static void activate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	fp_dbg("status %d", fpi_ssm_get_error(ssm));
 	fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
 

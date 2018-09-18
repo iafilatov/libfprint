@@ -354,9 +354,10 @@ static void challenge_cb(struct fp_img_dev *dev, int status,
  * authentication scheme, where the device challenges the authenticity of the
  * driver.
  */
-static void sm_do_challenge_response(fpi_ssm *ssm)
+static void
+sm_do_challenge_response(fpi_ssm           *ssm,
+			 struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r;
 
 	G_DEBUG_HERE();
@@ -516,19 +517,25 @@ static void sm_write_reg_cb(struct fp_img_dev *dev, int result, void *user_data)
 		fpi_ssm_next_state(ssm);
 }
 
-static void sm_write_regs(fpi_ssm *ssm, uint16_t first_reg, uint16_t num_regs,
-	void *data)
+static void
+sm_write_regs(fpi_ssm           *ssm,
+	      struct fp_img_dev *dev,
+	      uint16_t           first_reg,
+	      uint16_t           num_regs,
+	      void              *data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r = write_regs(dev, first_reg, num_regs, data, sm_write_reg_cb, ssm);
 	if (r < 0)
 		fpi_ssm_mark_failed(ssm, r);
 }
 
-static void sm_write_reg(fpi_ssm *ssm, uint16_t reg,
-	unsigned char value)
+static void
+sm_write_reg(fpi_ssm           *ssm,
+	     struct fp_img_dev *dev,
+	     uint16_t           reg,
+	     unsigned char      value)
 {
-	sm_write_regs(ssm, reg, 1, &value);
+	sm_write_regs(ssm, dev, reg, 1, &value);
 }
 
 static void sm_read_reg_cb(struct fp_img_dev *dev, int result,
@@ -546,9 +553,12 @@ static void sm_read_reg_cb(struct fp_img_dev *dev, int result,
 	}
 }
 
-static void sm_read_regs(fpi_ssm *ssm, uint16_t reg, uint16_t num_regs)
+static void
+sm_read_regs(fpi_ssm           *ssm,
+	     struct fp_img_dev *dev,
+	     uint16_t           reg,
+	     uint16_t           num_regs)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
@@ -563,15 +573,21 @@ static void sm_read_regs(fpi_ssm *ssm, uint16_t reg, uint16_t num_regs)
 		fpi_ssm_mark_failed(ssm, r);
 }
 
-static void sm_read_reg(fpi_ssm *ssm, uint16_t reg)
+static void
+sm_read_reg(fpi_ssm           *ssm,
+	    struct fp_img_dev *dev,
+	    uint16_t           reg)
 {
-	sm_read_regs(ssm, reg, 1);
+	sm_read_regs(ssm, dev, reg, 1);
 }
 
-static void sm_set_hwstat(fpi_ssm *ssm, unsigned char value)
+static void
+sm_set_hwstat(fpi_ssm           *ssm,
+	      struct fp_img_dev *dev,
+	      unsigned char      value)
 {
 	fp_dbg("set %02x", value);
-	sm_write_reg(ssm, REG_HWSTAT, value);
+	sm_write_reg(ssm, dev, REG_HWSTAT, value);
 }
 
 /***** IMAGING LOOP *****/
@@ -689,7 +705,7 @@ static int calc_dev2(struct uru4k_image *img)
 
 static void imaging_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
 	struct uru4k_image *img = urudev->img_data;
 	struct fp_img *fpimg;
@@ -734,10 +750,10 @@ static void imaging_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 		buf[2] = urudev->img_enc_seed >> 8;
 		buf[3] = urudev->img_enc_seed >> 16;
 		buf[4] = urudev->img_enc_seed >> 24;
-		sm_write_regs(ssm, REG_SCRAMBLE_DATA_INDEX, 5, buf);
+		sm_write_regs(ssm, dev, REG_SCRAMBLE_DATA_INDEX, 5, buf);
 		break;
 	case IMAGING_READ_KEY:
-		sm_read_regs(ssm, REG_SCRAMBLE_DATA_KEY, 4);
+		sm_read_regs(ssm, dev, REG_SCRAMBLE_DATA_KEY, 4);
 		break;
 	case IMAGING_DECODE:
 		key  = urudev->last_reg_rd[0];
@@ -812,7 +828,7 @@ static void imaging_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 
 static void imaging_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r = fpi_ssm_get_error(ssm);
 	fpi_ssm_free(ssm);
@@ -876,16 +892,16 @@ static void rebootpwr_pause_cb(void *data)
 
 static void rebootpwr_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case REBOOTPWR_SET_HWSTAT:
 		urudev->rebootpwr_ctr = 100;
-		sm_set_hwstat(ssm, urudev->last_hwstat & 0xf);
+		sm_set_hwstat(ssm, dev, urudev->last_hwstat & 0xf);
 		break;
 	case REBOOTPWR_GET_HWSTAT:
-		sm_read_reg(ssm, REG_HWSTAT);
+		sm_read_reg(ssm, dev, REG_HWSTAT);
 		break;
 	case REBOOTPWR_CHECK_HWSTAT:
 		urudev->last_hwstat = urudev->last_reg_rd[0];
@@ -955,7 +971,7 @@ static void powerup_pause_cb(void *data)
 
 static void powerup_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -965,10 +981,10 @@ static void powerup_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 		fpi_ssm_next_state(ssm);
 		break;
 	case POWERUP_SET_HWSTAT:
-		sm_set_hwstat(ssm, urudev->powerup_hwstat);
+		sm_set_hwstat(ssm, dev, urudev->powerup_hwstat);
 		break;
 	case POWERUP_GET_HWSTAT:
-		sm_read_reg(ssm, REG_HWSTAT);
+		sm_read_reg(ssm, dev, REG_HWSTAT);
 		break;
 	case POWERUP_CHECK_HWSTAT:
 		urudev->last_hwstat = urudev->last_reg_rd[0];
@@ -982,7 +998,7 @@ static void powerup_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 			fpi_ssm_mark_failed(ssm, -ETIME);
 		break;
 	case POWERUP_CHALLENGE_RESPONSE:
-		sm_do_challenge_response(ssm);
+		sm_do_challenge_response(ssm, dev);
 		break;
 	case POWERUP_CHALLENGE_RESPONSE_SUCCESS:
 		fpi_ssm_jump_to_state(ssm, POWERUP_SET_HWSTAT);
@@ -1060,12 +1076,12 @@ static void init_scanpwr_timeout(void *user_data)
 
 static void init_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case INIT_GET_HWSTAT:
-		sm_read_reg(ssm, REG_HWSTAT);
+		sm_read_reg(ssm, dev, REG_HWSTAT);
 		break;
 	case INIT_CHECK_HWSTAT_REBOOT:
 		urudev->last_hwstat = urudev->last_reg_rd[0];
@@ -1081,7 +1097,7 @@ static void init_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		break;
 	case INIT_CHECK_HWSTAT_POWERDOWN:
 		if ((urudev->last_hwstat & 0x80) == 0)
-			sm_set_hwstat(ssm, urudev->last_hwstat | 0x80);
+			sm_set_hwstat(ssm, dev, urudev->last_hwstat | 0x80);
 		else
 			fpi_ssm_next_state(ssm);
 		break;
@@ -1123,7 +1139,7 @@ static void init_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		fpi_ssm_next_state(ssm);
 		break;
 	case INIT_GET_VERSION:
-		sm_read_regs(ssm, REG_DEVICE_INFO, 16);
+		sm_read_regs(ssm, dev, REG_DEVICE_INFO, 16);
 		break;
 	case INIT_REPORT_VERSION:
 		/* Likely hardware revision, and firmware version.
@@ -1138,7 +1154,7 @@ static void init_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 static void activate_initsm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	int r = fpi_ssm_get_error(ssm);
 	fpi_ssm_free(ssm);
 

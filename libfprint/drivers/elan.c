@@ -343,7 +343,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 		} else {
 			/* just finished sending */
 			G_DEBUG_HERE();
-			elan_cmd_read(ssm);
+			elan_cmd_read(ssm, dev);
 		}
 		break;
 	case LIBUSB_TRANSFER_CANCELLED:
@@ -362,9 +362,8 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 	}
 }
 
-static void elan_cmd_read(fpi_ssm *ssm)
+static void elan_cmd_read(fpi_ssm *ssm, struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int response_len = elandev->cmd->response_len;
 
@@ -401,10 +400,12 @@ static void elan_cmd_read(fpi_ssm *ssm)
 		fpi_ssm_mark_failed(ssm, r);
 }
 
-static void elan_run_cmd(fpi_ssm *ssm, const struct elan_cmd *cmd,
-			 int cmd_timeout)
+static void
+elan_run_cmd(fpi_ssm               *ssm,
+	     struct fp_img_dev     *dev,
+	     const struct elan_cmd *cmd,
+	     int                    cmd_timeout)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	dbg_buf(cmd->cmd, 2);
@@ -440,20 +441,20 @@ enum stop_capture_states {
 	STOP_CAPTURE_NUM_STATES,
 };
 
-static void stop_capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void stop_capture_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
 	G_DEBUG_HERE();
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case STOP_CAPTURE:
-		elan_run_cmd(ssm, &stop_cmd, ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, FP_IMG_DEV(dev), &stop_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	}
 }
 
 static void stop_capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int error = fpi_ssm_get_error(ssm);
 
@@ -501,16 +502,16 @@ enum capture_states {
 
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_LED_ON:
-		elan_run_cmd(ssm, &led_on_cmd, ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, dev, &led_on_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case CAPTURE_WAIT_FINGER:
-		elan_run_cmd(ssm, &pre_scan_cmd, -1);
+		elan_run_cmd(ssm, dev, &pre_scan_cmd, -1);
 		break;
 	case CAPTURE_READ_DATA:
 		/* 0x55 - finger present
@@ -518,7 +519,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 		if (elandev->last_read && elandev->last_read[0] == 0x55) {
 			if (elandev->dev_state == IMGDEV_STATE_AWAIT_FINGER_ON)
 				fpi_imgdev_report_finger_status(dev, TRUE);
-			elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
+			elan_run_cmd(ssm, dev, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		} else
 			fpi_ssm_mark_failed(ssm, -EBADMSG);
 		break;
@@ -539,7 +540,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 
 static void capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	G_DEBUG_HERE();
@@ -624,14 +625,14 @@ enum calibrate_states {
 
 static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	G_DEBUG_HERE();
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CALIBRATE_GET_BACKGROUND:
-		elan_run_cmd(ssm, &get_image_cmd, ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, dev, &get_image_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case CALIBRATE_SAVE_BACKGROUND:
 		elan_save_background(elandev);
@@ -642,7 +643,7 @@ static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_da
 			fpi_ssm_next_state(ssm);
 		break;
 	case CALIBRATE_GET_MEAN:
-		elan_run_cmd(ssm, &get_calib_mean_cmd, ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, dev, &get_calib_mean_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case CALIBRATE_CHECK_NEEDED:
 		if (elan_need_calibration(elandev)) {
@@ -654,7 +655,7 @@ static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_da
 	case CALIBRATE_GET_STATUS:
 		elandev->calib_atts_left -= 1;
 		if (elandev->calib_atts_left)
-			elan_run_cmd(ssm, &get_calib_status_cmd,
+			elan_run_cmd(ssm, dev, &get_calib_status_cmd,
 				     ELAN_CMD_TIMEOUT);
 		else {
 			fp_dbg("calibration failed");
@@ -689,7 +690,7 @@ static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_da
 
 static void calibrate_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 
 	G_DEBUG_HERE();
 
@@ -725,14 +726,14 @@ enum activate_states {
 
 static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	G_DEBUG_HERE();
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case ACTIVATE_GET_FW_VER:
-		elan_run_cmd(ssm, &get_fw_ver_cmd, ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, dev, &get_fw_ver_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case ACTIVATE_SET_FW_VER:
 		elandev->fw_ver =
@@ -741,7 +742,7 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 		fpi_ssm_next_state(ssm);
 		break;
 	case ACTIVATE_GET_SENSOR_DIM:
-		elan_run_cmd(ssm, &get_sensor_dim_cmd, ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, dev, &get_sensor_dim_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case ACTIVATE_SET_SENSOR_DIM:
 		/* see elan_save_frame for details */
@@ -762,14 +763,14 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 		break;
 	case ACTIVATE_CMD_1:
 		/* TODO: find out what this does, if we need it */
-		elan_run_cmd(ssm, &activate_cmd_1, ELAN_CMD_TIMEOUT);
+		elan_run_cmd(ssm, dev, &activate_cmd_1, ELAN_CMD_TIMEOUT);
 		break;
 	}
 }
 
 static void activate_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 
 	G_DEBUG_HERE();
 

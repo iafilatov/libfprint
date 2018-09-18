@@ -56,9 +56,10 @@ enum activate_states {
 	ACTIVATE_NUM_STATES,
 };
 
-static void upektc_next_init_cmd(fpi_ssm *ssm)
+static void
+upektc_next_init_cmd(fpi_ssm           *ssm,
+		     struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	upekdev->init_idx += 1;
@@ -79,7 +80,7 @@ static void write_init_cb(struct libusb_transfer *transfer)
 		if (upekdev->setup_commands[upekdev->init_idx].response_len)
 			fpi_ssm_next_state(ssm);
 		else
-			upektc_next_init_cmd(ssm);
+			upektc_next_init_cmd(ssm, dev);
 	} else {
 		fpi_ssm_mark_failed(ssm, -EIO);
 	}
@@ -89,9 +90,10 @@ static void write_init_cb(struct libusb_transfer *transfer)
 static void read_init_data_cb(struct libusb_transfer *transfer)
 {
 	fpi_ssm *ssm = transfer->user_data;
+	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED)
-		upektc_next_init_cmd(ssm);
+		upektc_next_init_cmd(ssm, dev);
 	else
 		fpi_ssm_mark_failed(ssm, -EIO);
 	g_free(transfer->buffer);
@@ -100,7 +102,7 @@ static void read_init_data_cb(struct libusb_transfer *transfer)
 
 static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct upektc_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
@@ -150,7 +152,7 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 
 static void activate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	fp_dbg("status %d", fpi_ssm_get_error(ssm));
 	fpi_imgdev_activate_complete(dev, fpi_ssm_get_error(ssm));
 
@@ -323,7 +325,7 @@ out:
 
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct upektc_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
@@ -372,7 +374,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 
 static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct upektc_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	fp_dbg("Capture completed");

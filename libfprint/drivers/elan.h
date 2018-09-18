@@ -211,7 +211,7 @@ static const struct usb_id elan_id_table[] = {
 };
 
 static void elan_cmd_done(fpi_ssm *ssm);
-static void elan_cmd_read(fpi_ssm *ssm);
+static void elan_cmd_read(fpi_ssm *ssm, struct fp_img_dev *dev);
 
 static void elan_calibrate(struct fp_img_dev *dev);
 static void elan_capture(struct fp_img_dev *dev);

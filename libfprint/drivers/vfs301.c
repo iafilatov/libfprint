@@ -35,9 +35,11 @@ static void async_sleep_cb(void *data)
 }
 
 /* Submit asynchronous sleep */
-static void async_sleep(unsigned int msec, fpi_ssm *ssm)
+static void
+async_sleep(unsigned int       msec,
+	    fpi_ssm           *ssm,
+	    struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	fpi_timeout *timeout;
 
 	/* Add timeout */
@@ -51,9 +53,10 @@ static void async_sleep(unsigned int msec, fpi_ssm *ssm)
 	}
 }
 
-static int submit_image(fpi_ssm *ssm)
+static int
+submit_image(fpi_ssm           *ssm,
+	     struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	vfs301_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int height;
 	struct fp_img *img;
@@ -105,7 +108,7 @@ enum
 /* Exec loop sequential state machine */
 static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	vfs301_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -116,7 +119,7 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_WAIT_PRINT:
 		/* Wait fingerprint scanning */
-		async_sleep(200, ssm);
+		async_sleep(200, ssm, dev);
 		break;
 
 	case M_CHECK_PRINT:
@@ -134,7 +137,7 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_READ_PRINT_WAIT:
 		/* Wait fingerprint scanning */
-		async_sleep(200, ssm);
+		async_sleep(200, ssm, dev);
 		break;
 
 	case M_READ_PRINT_POLL:
@@ -149,7 +152,7 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		break;
 
 	case M_SUBMIT_PRINT:
-		if (submit_image(ssm)) {
+		if (submit_image(ssm, dev)) {
 			fpi_ssm_mark_completed(ssm);
 			/* NOTE: finger off is expected only after submitting image... */
 			fpi_imgdev_report_finger_status(dev, FALSE);
@@ -170,7 +173,7 @@ static void m_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 /* Exec init sequential state machine */
 static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	vfs301_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	g_assert(fpi_ssm_get_cur_state(ssm) == 0);
@@ -183,7 +186,7 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 /* Complete init sequential state machine */
 static void m_init_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	fpi_ssm *ssm_loop;
 
 	if (!fpi_ssm_get_error(ssm)) {

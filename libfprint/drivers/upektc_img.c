@@ -71,11 +71,14 @@ static void upektc_img_cmd_update_crc(unsigned char *cmd_buf, size_t size)
 	cmd_buf[size - 1] = (crc & 0xff00) >> 8;
 }
 
-static void upektc_img_submit_req(fpi_ssm *ssm,
-	const unsigned char *buf, size_t buf_size, unsigned char seq,
-	libusb_transfer_cb_fn cb)
+static void
+upektc_img_submit_req(fpi_ssm               *ssm,
+		      struct fp_img_dev     *dev,
+		      const unsigned char   *buf,
+		      size_t                 buf_size,
+		      unsigned char          seq,
+		      libusb_transfer_cb_fn  cb)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	int r;
@@ -103,10 +106,14 @@ static void upektc_img_submit_req(fpi_ssm *ssm,
 	}
 }
 
-static void upektc_img_read_data(fpi_ssm *ssm, size_t buf_size, size_t buf_offset, libusb_transfer_cb_fn cb)
+static void
+upektc_img_read_data(fpi_ssm               *ssm,
+		     struct fp_img_dev     *dev,
+		     size_t                 buf_size,
+		     size_t                 buf_offset,
+		     libusb_transfer_cb_fn  cb)
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
@@ -306,35 +313,35 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_INIT_CAPTURE:
-		upektc_img_submit_req(ssm, upek2020_init_capture, sizeof(upek2020_init_capture),
+		upektc_img_submit_req(ssm, dev, upek2020_init_capture, sizeof(upek2020_init_capture),
 			upekdev->seq, capture_reqs_cb);
 			upekdev->seq++;
 		break;
 	case CAPTURE_READ_DATA:
 	case CAPTURE_READ_DATA_TERM:
 		if (!upekdev->response_rest)
-			upektc_img_read_data(ssm, SHORT_RESPONSE_SIZE, 0, capture_read_data_cb);
+			upektc_img_read_data(ssm, dev, SHORT_RESPONSE_SIZE, 0, capture_read_data_cb);
 		else
-			upektc_img_read_data(ssm, MAX_RESPONSE_SIZE - SHORT_RESPONSE_SIZE,
+			upektc_img_read_data(ssm, dev, MAX_RESPONSE_SIZE - SHORT_RESPONSE_SIZE,
 			SHORT_RESPONSE_SIZE, capture_read_data_cb);
 		break;
 	case CAPTURE_ACK_00_28:
 	case CAPTURE_ACK_00_28_TERM:
-		upektc_img_submit_req(ssm, upek2020_ack_00_28, sizeof(upek2020_ack_00_28),
+		upektc_img_submit_req(ssm, dev, upek2020_ack_00_28, sizeof(upek2020_ack_00_28),
 			upekdev->seq, capture_reqs_cb);
 			upekdev->seq++;
 		break;
 	case CAPTURE_ACK_08:
-		upektc_img_submit_req(ssm, upek2020_ack_08, sizeof(upek2020_ack_08),
+		upektc_img_submit_req(ssm, dev, upek2020_ack_08, sizeof(upek2020_ack_08),
 			0, capture_reqs_cb);
 		break;
 	case CAPTURE_ACK_FRAME:
-		upektc_img_submit_req(ssm, upek2020_ack_frame, sizeof(upek2020_ack_frame),
+		upektc_img_submit_req(ssm, dev, upek2020_ack_frame, sizeof(upek2020_ack_frame),
 			upekdev->seq, capture_reqs_cb);
 			upekdev->seq++;
 		break;
@@ -343,7 +350,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 
 static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int err = fpi_ssm_get_error(ssm);
 
@@ -403,24 +410,24 @@ static void deactivate_read_data_cb(struct libusb_transfer *transfer)
 
 static void deactivate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEACTIVATE_DEINIT:
-		upektc_img_submit_req(ssm, upek2020_deinit, sizeof(upek2020_deinit),
+		upektc_img_submit_req(ssm, dev, upek2020_deinit, sizeof(upek2020_deinit),
 			upekdev->seq, deactivate_reqs_cb);
 		upekdev->seq++;
 		break;
 	case DEACTIVATE_READ_DEINIT_DATA:
-		upektc_img_read_data(ssm, SHORT_RESPONSE_SIZE, 0, deactivate_read_data_cb);
+		upektc_img_read_data(ssm, dev, SHORT_RESPONSE_SIZE, 0, deactivate_read_data_cb);
 		break;
 	};
 }
 
 static void deactivate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int err = fpi_ssm_get_error(ssm);
 
@@ -501,7 +508,7 @@ static void init_read_data_cb(struct libusb_transfer *transfer)
 static void activate_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
 	struct libusb_transfer *transfer;
-	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *idev = user_data;
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(idev));
 	int r;
 
@@ -533,19 +540,19 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data
 	}
 	break;
 	case ACTIVATE_INIT_1:
-		upektc_img_submit_req(ssm, upek2020_init_1, sizeof(upek2020_init_1),
+		upektc_img_submit_req(ssm, idev, upek2020_init_1, sizeof(upek2020_init_1),
 			0, init_reqs_cb);
 	break;
 	case ACTIVATE_INIT_2:
-		upektc_img_submit_req(ssm, upek2020_init_2, sizeof(upek2020_init_2),
+		upektc_img_submit_req(ssm, idev, upek2020_init_2, sizeof(upek2020_init_2),
 			0, init_reqs_cb);
 	break;
 	case ACTIVATE_INIT_3:
-		upektc_img_submit_req(ssm, upek2020_init_3, sizeof(upek2020_init_3),
+		upektc_img_submit_req(ssm, idev, upek2020_init_3, sizeof(upek2020_init_3),
 			0, init_reqs_cb);
 	break;
 	case ACTIVATE_INIT_4:
-		upektc_img_submit_req(ssm, upek2020_init_4, sizeof(upek2020_init_4),
+		upektc_img_submit_req(ssm, idev, upek2020_init_4, sizeof(upek2020_init_4),
 			upekdev->seq, init_reqs_cb);
 		/* Seq should be updated after 4th init */
 		upekdev->seq++;
@@ -556,14 +563,14 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data
 	case ACTIVATE_READ_INIT_2_RESP:
 	case ACTIVATE_READ_INIT_3_RESP:
 	case ACTIVATE_READ_INIT_4_RESP:
-		upektc_img_read_data(ssm, SHORT_RESPONSE_SIZE, 0, init_read_data_cb);
+		upektc_img_read_data(ssm, idev, SHORT_RESPONSE_SIZE, 0, init_read_data_cb);
 	break;
 	}
 }
 
 static void activate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	int err = fpi_ssm_get_error(ssm);
 
 	fpi_ssm_free(ssm);

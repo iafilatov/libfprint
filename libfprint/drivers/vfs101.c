@@ -242,9 +242,10 @@ out:
 }
 
 /* Submit asynchronous send */
-static void async_send(fpi_ssm *ssm)
+static void
+async_send(fpi_ssm           *ssm,
+	   struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
@@ -329,9 +330,10 @@ out:
 }
 
 /* Submit asynchronous recv */
-static void async_recv(fpi_ssm *ssm)
+static void
+async_recv(fpi_ssm           *ssm,
+	   struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
@@ -362,7 +364,7 @@ static void async_recv(fpi_ssm *ssm)
 	}
 }
 
-static void async_load(fpi_ssm *ssm);
+static void async_load(fpi_ssm *ssm, struct fp_img_dev *dev);
 
 /* Callback of asynchronous load */
 static void async_load_cb(struct libusb_transfer *transfer)
@@ -411,7 +413,7 @@ static void async_load_cb(struct libusb_transfer *transfer)
 		}
 		else
 			/* Image load not completed, submit another asynchronous load */
-			async_load(ssm);
+			async_load(ssm, dev);
 	}
 	else
 	{
@@ -430,9 +432,10 @@ out:
 }
 
 /* Submit asynchronous load */
-static void async_load(fpi_ssm *ssm)
+static void
+async_load(fpi_ssm           *ssm,
+	   struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	unsigned char *buffer;
 	int r;
@@ -481,9 +484,11 @@ static void async_sleep_cb(void *data)
 }
 
 /* Submit asynchronous sleep */
-static void async_sleep(unsigned int msec, fpi_ssm *ssm)
+static void
+async_sleep(unsigned int       msec,
+	    fpi_ssm           *ssm,
+	    struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Add timeout */
@@ -513,20 +518,23 @@ static void m_swap_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 	{
 	case M_SWAP_SEND:
 		/* Send data */
-		async_send(ssm);
+		async_send(ssm, user_data);
 		break;
 
 	case M_SWAP_RECV:
 		/* Recv response */
-		async_recv(ssm);
+		async_recv(ssm, user_data);
 		break;
 	}
 }
 
 /* Start swap sequential state machine */
-static void m_swap(fpi_ssm *ssm, unsigned char *data, size_t length)
+static void
+m_swap(fpi_ssm           *ssm,
+       struct fp_img_dev *dev,
+       unsigned char     *data,
+       size_t             length)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_ssm *subsm;
 
@@ -541,7 +549,11 @@ static void m_swap(fpi_ssm *ssm, unsigned char *data, size_t length)
 }
 
 /* Retrieve fingerprint image */
-static void vfs_get_print(fpi_ssm *ssm, unsigned int param, int type)
+static void
+vfs_get_print(fpi_ssm           *ssm,
+	      struct fp_img_dev *dev,
+	      unsigned int       param,
+	      int                type)
 {
 	unsigned char data[2][0x0e] = {
 		{	0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
@@ -557,11 +569,15 @@ static void vfs_get_print(fpi_ssm *ssm, unsigned int param, int type)
 	data[type][7] = byte(1, param);
 
 	/* Run swap sequential state machine */
-	m_swap(ssm, data[type], 0x0e);
+	m_swap(ssm, dev, data[type], 0x0e);
 }
 
 /* Set a parameter value on the device */
-static void vfs_set_param(fpi_ssm *ssm, unsigned int param, unsigned int value)
+static void
+vfs_set_param(fpi_ssm           *ssm,
+	      struct fp_img_dev *dev,
+	      unsigned int       param,
+	      unsigned int       value)
 {
 	unsigned char data[0x0a] = { 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
@@ -574,22 +590,29 @@ static void vfs_set_param(fpi_ssm *ssm, unsigned int param, unsigned int value)
 	data[9] = byte(1, value);
 
 	/* Run swap sequential state machine */
-	m_swap(ssm, data, 0x0a);
+	m_swap(ssm, dev, data, 0x0a);
 }
 
 /* Abort previous print */
-static void vfs_abort_print(fpi_ssm *ssm)
+static void
+vfs_abort_print(fpi_ssm           *ssm,
+		struct fp_img_dev *dev)
 {
 	unsigned char data[0x06] = { 0x00, 0x00, 0x00, 0x00, 0x0E, 0x00 };
 
 	G_DEBUG_HERE();
 
 	/* Run swap sequential state machine */
-	m_swap (ssm, data, 0x06);
+	m_swap (ssm, dev, data, 0x06);
 }
 
 /* Poke a value on a region */
-static void vfs_poke(fpi_ssm *ssm, unsigned int addr, unsigned int value, unsigned int size)
+static void
+vfs_poke(fpi_ssm           *ssm,
+	 struct fp_img_dev *dev,
+	 unsigned int       addr,
+	 unsigned int       value,
+	 unsigned int       size)
 {
 	unsigned char data[0x0f] = { 0x00, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
@@ -607,24 +630,27 @@ static void vfs_poke(fpi_ssm *ssm, unsigned int addr, unsigned int value, unsign
 	data[14] = byte(0, size);
 
 	/* Run swap sequential state machine */
-	m_swap(ssm, data, 0x0f);
+	m_swap(ssm, dev, data, 0x0f);
 }
 
 /* Get current finger state */
-static void vfs_get_finger_state(fpi_ssm *ssm)
+static void
+vfs_get_finger_state(fpi_ssm           *ssm,
+		     struct fp_img_dev *dev)
 {
 	unsigned char data[0x06] = { 0x00, 0x00, 0x00, 0x00, 0x16, 0x00 };
 
 	G_DEBUG_HERE();
 
 	/* Run swap sequential state machine */
-	m_swap (ssm, data, 0x06);
+	m_swap (ssm, dev, data, 0x06);
 }
 
 /* Load raw image from reader */
-static void vfs_img_load(fpi_ssm *ssm)
+static void
+vfs_img_load(fpi_ssm           *ssm,
+	     struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	G_DEBUG_HERE();
@@ -637,7 +663,7 @@ static void vfs_img_load(fpi_ssm *ssm)
 	vdev->height = -1;
 
 	/* Asynchronous load */
-	async_load(ssm);
+	async_load(ssm, dev);
 }
 
 /* Check if action is completed */
@@ -753,9 +779,10 @@ static void img_copy(struct vfs101_dev *vdev, struct fp_img *img)
 }
 
 /* Extract fingerpint image from raw data */
-static void img_extract(fpi_ssm *ssm)
+static void
+img_extract(fpi_ssm           *ssm,
+	    struct fp_img_dev *dev)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	struct fp_img *img;
 
@@ -913,7 +940,7 @@ enum
 /* Exec loop sequential state machine */
 static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Check action state */
@@ -928,17 +955,17 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 	{
 	case M_LOOP_0_GET_PRINT:
 		/* Send get print command to the reader */
-		vfs_get_print(ssm, VFS_BUFFER_HEIGHT, 1);
+		vfs_get_print(ssm, dev, VFS_BUFFER_HEIGHT, 1);
 		break;
 
 	case M_LOOP_0_SLEEP:
 		/* Wait fingerprint scanning */
-		async_sleep(50, ssm);
+		async_sleep(50, ssm, dev);
 		break;
 
 	case M_LOOP_0_GET_STATE:
 		/* Get finger state */
-		vfs_get_finger_state(ssm);
+		vfs_get_finger_state(ssm, dev);
 		break;
 
 	case M_LOOP_0_LOAD_IMAGE:
@@ -953,7 +980,7 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		case VFS_FINGER_PRESENT:
 			/* Load image from reader */
 			vdev->ignore_error = TRUE;
-			vfs_img_load(ssm);
+			vfs_img_load(ssm, dev);
 			break;
 
 		default:
@@ -969,10 +996,10 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		/* Check if image is loaded */
 		if (vdev->height > 0)
 			/* Fingerprint is loaded, extract image from raw data */
-			img_extract(ssm);
+			img_extract(ssm, dev);
 
 		/* Wait handling image */
-		async_sleep(10, ssm);
+		async_sleep(10, ssm, dev);
 		break;
 
 	case M_LOOP_0_CHECK_ACTION:
@@ -992,7 +1019,7 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_LOOP_1_GET_STATE:
 		/* Get finger state */
-		vfs_get_finger_state(ssm);
+		vfs_get_finger_state(ssm, dev);
 		break;
 
 	case M_LOOP_1_CHECK_STATE:
@@ -1010,7 +1037,7 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 				/* Wait removing finger */
 				vdev->counter++;
-				async_sleep(250, ssm);
+				async_sleep(250, ssm, dev);
 			}
 			else
 			{
@@ -1048,13 +1075,13 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_LOOP_1_GET_PRINT:
 		/* Send get print command to the reader */
-		vfs_get_print(ssm, VFS_BUFFER_HEIGHT, 1);
+		vfs_get_print(ssm, dev, VFS_BUFFER_HEIGHT, 1);
 		break;
 
 	case M_LOOP_1_LOAD_IMAGE:
 		/* Load image */
 		vdev->ignore_error = TRUE;
-		vfs_img_load(ssm);
+		vfs_img_load(ssm, dev);
 		break;
 
 	case M_LOOP_1_LOOP:
@@ -1064,29 +1091,29 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_LOOP_1_SLEEP:
 		/* Wait fingerprint scanning */
-		async_sleep(10, ssm);
+		async_sleep(10, ssm, dev);
 		break;
 
 	case M_LOOP_2_ABORT_PRINT:
 		/* Abort print command */
-		vfs_abort_print(ssm);
+		vfs_abort_print(ssm, dev);
 		break;
 
 	case M_LOOP_2_LOAD_IMAGE:
 		/* Load abort image */
 		vdev->ignore_error = TRUE;
-		vfs_img_load(ssm);
+		vfs_img_load(ssm, dev);
 		break;
 
 	case M_LOOP_3_GET_PRINT:
 		/* Get empty image */
-		vfs_get_print(ssm, 0x000a, 0);
+		vfs_get_print(ssm, dev, 0x000a, 0);
 		break;
 
 	case M_LOOP_3_LOAD_IMAGE:
 		/* Load abort image */
 		vdev->ignore_error = TRUE;
-		vfs_img_load(ssm);
+		vfs_img_load(ssm, dev);
 		break;
 
 	case M_LOOP_3_CHECK_IMAGE:
@@ -1100,7 +1127,7 @@ static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		{
 			/* Wait aborting */
 			vdev->counter++;
-			async_sleep(100, ssm);
+			async_sleep(100, ssm, dev);
 		}
 		else
 		{
@@ -1177,7 +1204,7 @@ enum
 /* Exec init sequential state machine */
 static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Check action state */
@@ -1193,29 +1220,29 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 	case M_INIT_0_RECV_DIRTY:
 		/* Recv eventualy dirty data */
 		vdev->ignore_error = TRUE;
-		async_recv(ssm);
+		async_recv(ssm, dev);
 		break;
 
 	case M_INIT_0_ABORT_PRINT:
 		/* Abort print command */
-		vfs_abort_print(ssm);
+		vfs_abort_print(ssm, dev);
 		break;
 
 	case M_INIT_0_LOAD_IMAGE:
 		/* Load abort image */
 		vdev->ignore_error = TRUE;
-		vfs_img_load(ssm);
+		vfs_img_load(ssm, dev);
 		break;
 
 	case M_INIT_1_GET_PRINT:
 		/* Get empty image */
-		vfs_get_print(ssm, 0x000a, 0);
+		vfs_get_print(ssm, dev, 0x000a, 0);
 		break;
 
 	case M_INIT_1_LOAD_IMAGE:
 		/* Load abort image */
 		vdev->ignore_error = TRUE;
-		vfs_img_load(ssm);
+		vfs_img_load(ssm, dev);
 		break;
 
 	case M_INIT_1_CHECK_IMAGE:
@@ -1229,7 +1256,7 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		{
 			/* Wait aborting */
 			vdev->counter++;
-			async_sleep(100, ssm);
+			async_sleep(100, ssm, dev);
 		}
 		else
 		{
@@ -1247,7 +1274,7 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_INIT_2_GET_STATE:
 		/* Get finger state */
-		vfs_get_finger_state(ssm);
+		vfs_get_finger_state(ssm, dev);
 		break;
 
 	case M_INIT_2_CHECK_STATE:
@@ -1265,7 +1292,7 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 				/* Wait removing finger */
 				vdev->counter++;
-				async_sleep(250, ssm);
+				async_sleep(250, ssm, dev);
 			}
 			else
 			{
@@ -1292,13 +1319,13 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_INIT_2_GET_PRINT:
 		/* Send get print command to the reader */
-		vfs_get_print(ssm, VFS_BUFFER_HEIGHT, 1);
+		vfs_get_print(ssm, dev, VFS_BUFFER_HEIGHT, 1);
 		break;
 
 	case M_INIT_2_LOAD_IMAGE:
 		/* Load unexpected image */
 		vdev->ignore_error = TRUE;
-		vfs_img_load(ssm);
+		vfs_img_load(ssm, dev);
 		break;
 
 	case M_INIT_2_LOOP:
@@ -1308,68 +1335,68 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_INIT_3_SET_000E:
 		/* Set param 0x000e, required for take image */
-		vfs_set_param(ssm, VFS_PAR_000E, VFS_VAL_000E);
+		vfs_set_param(ssm, dev, VFS_PAR_000E, VFS_VAL_000E);
 		break;
 
 	case M_INIT_3_SET_0011:
 		/* Set param 0x0011, required for take image */
-		vfs_set_param(ssm, VFS_PAR_0011, VFS_VAL_0011);
+		vfs_set_param(ssm, dev, VFS_PAR_0011, VFS_VAL_0011);
 		break;
 
 	case M_INIT_3_SET_0076:
 		/* Set param 0x0076, required for use info line */
-		vfs_set_param(ssm, VFS_PAR_0076, VFS_VAL_0076);
+		vfs_set_param(ssm, dev, VFS_PAR_0076, VFS_VAL_0076);
 		break;
 
 	case M_INIT_3_SET_0078:
 		/* Set param 0x0078, required for use info line */
-		vfs_set_param(ssm, VFS_PAR_0078, VFS_VAL_0078);
+		vfs_set_param(ssm, dev, VFS_PAR_0078, VFS_VAL_0078);
 		break;
 
 	case M_INIT_3_SET_THRESHOLD:
 		/* Set threshold */
-		vfs_set_param(ssm, VFS_PAR_THRESHOLD, VFS_VAL_THRESHOLD);
+		vfs_set_param(ssm, dev, VFS_PAR_THRESHOLD, VFS_VAL_THRESHOLD);
 		break;
 
 	case M_INIT_3_SET_STATE3_COUNT:
 		/* Set state 3 count */
-		vfs_set_param(ssm, VFS_PAR_STATE_3, VFS_VAL_STATE_3);
+		vfs_set_param(ssm, dev, VFS_PAR_STATE_3, VFS_VAL_STATE_3);
 		break;
 
 	case M_INIT_3_SET_STATE5_COUNT:
 		/* Set state 5 count */
-		vfs_set_param(ssm, VFS_PAR_STATE_5, VFS_VAL_STATE_5);
+		vfs_set_param(ssm, dev, VFS_PAR_STATE_5, VFS_VAL_STATE_5);
 		break;
 
 	case M_INIT_3_SET_INFO_CONTRAST:
 		/* Set info line contrast */
-		vfs_set_param(ssm, VFS_PAR_INFO_CONTRAST, 10);
+		vfs_set_param(ssm, dev, VFS_PAR_INFO_CONTRAST, 10);
 		break;
 
 	case M_INIT_3_SET_INFO_RATE:
 		/* Set info line rate */
-		vfs_set_param(ssm, VFS_PAR_INFO_RATE, 32);
+		vfs_set_param(ssm, dev, VFS_PAR_INFO_RATE, 32);
 		break;
 
 	case M_INIT_4_SET_EXPOSURE:
 		/* Set exposure level of reader */
-		vfs_poke(ssm, VFS_REG_IMG_EXPOSURE, 0x4000, 0x02);
+		vfs_poke(ssm, dev, VFS_REG_IMG_EXPOSURE, 0x4000, 0x02);
 		vdev->counter = 1;
 		break;
 
 	case M_INIT_4_SET_CONTRAST:
 		/* Set contrast level of reader */
-		vfs_poke(ssm, VFS_REG_IMG_CONTRAST, vdev->contrast, 0x01);
+		vfs_poke(ssm, dev, VFS_REG_IMG_CONTRAST, vdev->contrast, 0x01);
 		break;
 
 	case M_INIT_4_GET_PRINT:
 		/* Get empty image */
-		vfs_get_print(ssm, 0x000a, 0);
+		vfs_get_print(ssm, dev, 0x000a, 0);
 		break;
 
 	case M_INIT_4_LOAD_IMAGE:
 		/* Load empty image */
-		vfs_img_load(ssm);
+		vfs_img_load(ssm, dev);
 		break;
 
 	case M_INIT_4_CHECK_CONTRAST:
@@ -1395,22 +1422,22 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case M_INIT_5_SET_EXPOSURE:
 		/* Set exposure level of reader */
-		vfs_poke(ssm, VFS_REG_IMG_EXPOSURE, VFS_VAL_IMG_EXPOSURE, 0x02);
+		vfs_poke(ssm, dev, VFS_REG_IMG_EXPOSURE, VFS_VAL_IMG_EXPOSURE, 0x02);
 		break;
 
 	case M_INIT_5_SET_CONTRAST:
 		/* Set contrast level of reader */
-		vfs_poke(ssm, VFS_REG_IMG_CONTRAST, vdev->contrast, 0x01);
+		vfs_poke(ssm, dev, VFS_REG_IMG_CONTRAST, vdev->contrast, 0x01);
 		break;
 
 	case M_INIT_5_SET_INFO_CONTRAST:
 		/* Set info line contrast */
-		vfs_set_param(ssm, VFS_PAR_INFO_CONTRAST, vdev->contrast);
+		vfs_set_param(ssm, dev, VFS_PAR_INFO_CONTRAST, vdev->contrast);
 		break;
 
 	case M_INIT_5_SET_INFO_RATE:
 		/* Set info line rate */
-		vfs_set_param(ssm, VFS_PAR_INFO_RATE, VFS_VAL_INFO_RATE);
+		vfs_set_param(ssm, dev, VFS_PAR_INFO_RATE, VFS_VAL_INFO_RATE);
 		break;
 	}
 }
@@ -1418,7 +1445,7 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 /* Complete init sequential state machine */
 static void m_init_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
+	struct fp_img_dev *dev = user_data;
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_ssm *ssm_loop;
 
