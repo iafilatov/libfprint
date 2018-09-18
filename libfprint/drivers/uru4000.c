@@ -706,7 +706,7 @@ static int calc_dev2(struct uru4k_image *img)
 static void imaging_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(_dev);
 	struct uru4k_image *img = urudev->img_data;
 	struct fp_img *fpimg;
 	uint32_t key;
@@ -829,7 +829,7 @@ static void imaging_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 static void imaging_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(_dev);
 	int r = fpi_ssm_get_error(ssm);
 	fpi_ssm_free(ssm);
 
@@ -893,7 +893,7 @@ static void rebootpwr_pause_cb(void *data)
 static void rebootpwr_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case REBOOTPWR_SET_HWSTAT:
@@ -972,7 +972,7 @@ static void powerup_pause_cb(void *data)
 static void powerup_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case POWERUP_INIT:
@@ -1077,7 +1077,7 @@ static void init_scanpwr_timeout(void *user_data)
 static void init_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case INIT_GET_HWSTAT:

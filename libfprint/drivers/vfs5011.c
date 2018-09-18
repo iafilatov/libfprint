@@ -676,7 +676,7 @@ static void activate_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 	int r;
 	fpi_timeout *timeout;
 
-	data = FP_INSTANCE_DATA(FP_DEV(dev));
+	data = FP_INSTANCE_DATA(_dev);
 
 	fp_dbg("main_loop: state %d", fpi_ssm_get_cur_state(ssm));
 
@@ -750,7 +750,7 @@ static void activate_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user
 	struct vfs5011_data *data;
 	int r = fpi_ssm_get_error(ssm);
 
-	data = FP_INSTANCE_DATA(FP_DEV(dev));
+	data = FP_INSTANCE_DATA(_dev);
 
 	fp_dbg("finishing");
 	if (data->init_sequence.receive_buf != NULL)
@@ -779,7 +779,7 @@ static void open_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 	struct fp_img_dev *dev = user_data;
 	struct vfs5011_data *data;
 
-	data = FP_INSTANCE_DATA(FP_DEV(dev));
+	data = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEV_OPEN_START:
@@ -800,7 +800,7 @@ static void open_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	struct fp_img_dev *dev = user_data;
 	struct vfs5011_data *data;
 
-	data = FP_INSTANCE_DATA(FP_DEV(dev));
+	data = FP_INSTANCE_DATA(_dev);
 	g_free(data->init_sequence.receive_buf);
 	data->init_sequence.receive_buf = NULL;
 

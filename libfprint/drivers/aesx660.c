@@ -210,7 +210,7 @@ static void finger_det_set_idle_cmd_cb(struct libusb_transfer *transfer)
 static void finger_det_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(_dev);
 	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Finger detection completed");
@@ -383,8 +383,7 @@ out:
 
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = user_data;
-	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_SEND_LED_CMD:
@@ -413,7 +412,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(_dev);
 	int err = fpi_ssm_get_error(ssm);
 
 	fp_dbg("Capture completed");

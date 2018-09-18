@@ -773,7 +773,7 @@ enum awfsm_1000_states {
 static void awfsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case AWFSM_2016_WRITEV_1:
@@ -863,7 +863,7 @@ capsm_fire_bulk(fpi_ssm       *ssm,
 		struct fp_dev *_dev)
 {
 	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 	int i;
 	for (i = 0; i < NUM_BULK_TRANSFERS; i++) {
 		int r = libusb_submit_transfer(sdev->img_transfer[i]);
@@ -893,7 +893,7 @@ capsm_fire_bulk(fpi_ssm       *ssm,
 static void capsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPSM_2016_INIT:
@@ -924,8 +924,7 @@ static void capsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 
 static void capsm_1000_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = user_data;
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPSM_1000_INIT:
@@ -950,8 +949,7 @@ static void capsm_1000_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 
 static void capsm_1001_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *dev = user_data;
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPSM_1001_INIT:
@@ -1060,7 +1058,7 @@ enum initsm_1001_states {
 static void initsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case INITSM_2016_WRITEV_1:
@@ -1132,7 +1130,7 @@ enum loopsm_states {
 static void loopsm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case LOOPSM_RUN_AWFSM: ;
@@ -1257,7 +1255,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 static void loopsm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 	int r = fpi_ssm_get_error(ssm);
 
 	fpi_ssm_free(ssm);
@@ -1276,7 +1274,7 @@ static void loopsm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 static void initsm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct sonly_dev *sdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct sonly_dev *sdev = FP_INSTANCE_DATA(_dev);
 	int r = fpi_ssm_get_error(ssm);
 
 	fpi_ssm_free(ssm);

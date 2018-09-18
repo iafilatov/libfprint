@@ -328,7 +328,7 @@ clear_ep2(fpi_ssm           *ssm,
 static void send_control_packet_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(_dev);
 
 	short result;
 	unsigned char *commit_result = NULL;
@@ -529,7 +529,7 @@ static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
 	struct libusb_device_handle *usb_dev = fpi_dev_get_usb_dev(FP_DEV(idev));
-	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case SSM_INITIAL_ABORT_1:
@@ -680,8 +680,7 @@ static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 /* Callback for dev_activate ssm */
 static void dev_activate_callback(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
-	struct fp_img_dev *idev = user_data;
-	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(_dev);
 
 	vdev->ssm_active = 0;
 

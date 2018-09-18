@@ -702,7 +702,7 @@ static void async_tx_cb(struct libusb_transfer *transfer)
 static void m_exit_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case EXIT_SET_REGS_REQ:
@@ -751,7 +751,7 @@ static void m_exit_start(struct fp_img_dev *idev)
 static void m_capture_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 
 	if (dev->is_active == FALSE) {
 		fpi_ssm_mark_completed(ssm);
@@ -832,7 +832,7 @@ err:
 static void m_capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 
 	if (fpi_ssm_get_error(ssm)) {
 		if (fpi_imgdev_get_action_state(idev) != IMG_ACQUIRE_STATE_DEACTIVATING) {
@@ -854,7 +854,7 @@ static void m_capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 static void m_finger_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 
 	if (dev->is_active == FALSE) {
 		fpi_ssm_mark_completed(ssm);
@@ -950,7 +950,7 @@ err:
 static void m_finger_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 
 	if (!fpi_ssm_get_error(ssm)) {
 		fpi_ssm *ssm_cap;
@@ -982,7 +982,7 @@ static void m_start_fingerdetect(struct fp_img_dev *idev)
 static void m_tunevrb_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 	float hist[5];
 
 	if (dev->is_active == FALSE) {
@@ -1140,7 +1140,7 @@ static void m_tunevrb_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 		fp_dbg("Tuning is done. Starting finger detection.");
 		m_start_fingerdetect(idev);
 	} else {
-		struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+		struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 		fp_err("Error while tuning VRT");
 		dev->is_active = FALSE;
 		reset_param(dev);
@@ -1156,7 +1156,7 @@ static void m_tunevrb_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 static void m_tunedc_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 
 	if (dev->is_active == FALSE) {
 		fpi_ssm_mark_completed(ssm);
@@ -1265,7 +1265,7 @@ static void m_tunedc_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 					TUNEVRB_NUM_STATES, idev);
 		fpi_ssm_start(ssm_tune, m_tunevrb_complete);
 	} else {
-		struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+		struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 		fp_err("Error while tuning DCOFFSET");
 		dev->is_active = FALSE;
 		reset_param(dev);
@@ -1277,7 +1277,7 @@ static void m_tunedc_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = user_data;
-	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 
 	if (dev->is_active == FALSE) {
 		fpi_ssm_mark_completed(ssm);
@@ -1384,7 +1384,7 @@ static void m_init_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 					TUNEDC_NUM_STATES, idev);
 		fpi_ssm_start(ssm_tune, m_tunedc_complete);
 	} else {
-		struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
+		struct etes603_dev *dev = FP_INSTANCE_DATA(_dev);
 		fp_err("Error initializing the device");
 		dev->is_active = FALSE;
 		reset_param(dev);

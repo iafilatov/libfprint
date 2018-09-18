@@ -109,7 +109,7 @@ enum
 static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	vfs301_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	vfs301_dev_t *vdev = FP_INSTANCE_DATA(_dev);
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case M_REQUEST_PRINT:
@@ -174,7 +174,7 @@ static void m_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	vfs301_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	vfs301_dev_t *vdev = FP_INSTANCE_DATA(_dev);
 
 	g_assert(fpi_ssm_get_cur_state(ssm) == 0);
 

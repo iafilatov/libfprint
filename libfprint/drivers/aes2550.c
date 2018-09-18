@@ -388,7 +388,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct aes2550_dev *aesdev = FP_INSTANCE_DATA(_dev);
 
 	fp_dbg("Capture completed");
 	if (aesdev->deactivating)

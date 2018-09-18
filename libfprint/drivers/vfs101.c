@@ -941,7 +941,7 @@ enum
 static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(_dev);
 
 	/* Check action state */
 	if (!vdev->active)
@@ -1205,7 +1205,7 @@ enum
 static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(_dev);
 
 	/* Check action state */
 	if (!vdev->active)
@@ -1446,7 +1446,7 @@ static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 static void m_init_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(_dev);
 	fpi_ssm *ssm_loop;
 
 	if (!fpi_ssm_get_error(ssm) && vdev->active)

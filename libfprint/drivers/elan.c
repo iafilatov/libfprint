@@ -455,7 +455,7 @@ static void stop_capture_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_
 static void stop_capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct elan_dev *elandev = FP_INSTANCE_DATA(_dev);
 	int error = fpi_ssm_get_error(ssm);
 
 	G_DEBUG_HERE();
@@ -503,7 +503,7 @@ enum capture_states {
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct elan_dev *elandev = FP_INSTANCE_DATA(_dev);
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -541,7 +541,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 static void capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct elan_dev *elandev = FP_INSTANCE_DATA(_dev);
 
 	G_DEBUG_HERE();
 
@@ -626,7 +626,7 @@ enum calibrate_states {
 static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct elan_dev *elandev = FP_INSTANCE_DATA(_dev);
 
 	G_DEBUG_HERE();
 
@@ -727,7 +727,7 @@ enum activate_states {
 static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct elan_dev *elandev = FP_INSTANCE_DATA(_dev);
 
 	G_DEBUG_HERE();
 

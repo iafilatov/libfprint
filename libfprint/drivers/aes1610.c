@@ -644,7 +644,7 @@ out:
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct aes1610_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct aes1610_dev *aesdev = FP_INSTANCE_DATA(_dev);
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -691,7 +691,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = user_data;
-	struct aes1610_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct aes1610_dev *aesdev = FP_INSTANCE_DATA(_dev);
 
 	G_DEBUG_HERE();
 	if (aesdev->deactivating)
