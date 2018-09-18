@@ -484,11 +484,14 @@ enum initsm_states {
 	INITSM_NUM_STATES,
 };
 
-static void initsm_read_msg_response_cb(fpi_ssm *ssm,
-	enum read_msg_status status, uint8_t seq,
-	unsigned char expect_subcmd, unsigned char subcmd)
+static void
+initsm_read_msg_response_cb(fpi_ssm              *ssm,
+			    struct fp_dev        *dev,
+			    enum read_msg_status  status,
+			    uint8_t               seq,
+			    unsigned char         expect_subcmd,
+			    unsigned char         subcmd)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	if (status != READ_MSG_RESPONSE) {
@@ -513,7 +516,7 @@ static void read28_0b_cb(struct fp_dev *dev, enum read_msg_status status,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	initsm_read_msg_response_cb((fpi_ssm *) user_data, status, seq,
+	initsm_read_msg_response_cb((fpi_ssm *) user_data, dev, status, seq,
 		0x0b, subcmd);
 }
 
@@ -521,7 +524,7 @@ static void read28_0c_cb(struct fp_dev *dev, enum read_msg_status status,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	initsm_read_msg_response_cb((fpi_ssm *) user_data, status, seq,
+	initsm_read_msg_response_cb((fpi_ssm *) user_data, dev, status, seq,
 		0x0c, subcmd);
 }
 
@@ -529,7 +532,7 @@ static void read28_08_cb(struct fp_dev *dev, enum read_msg_status status,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	initsm_read_msg_response_cb((fpi_ssm *) user_data, status, seq,
+	initsm_read_msg_response_cb((fpi_ssm *) user_data, dev, status, seq,
 		0x08, subcmd);
 }
 
@@ -537,7 +540,7 @@ static void read28_07_cb(struct fp_dev *dev, enum read_msg_status status,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	initsm_read_msg_response_cb((fpi_ssm *) user_data, status, seq,
+	initsm_read_msg_response_cb((fpi_ssm *) user_data, dev, status, seq,
 		0x07, subcmd);
 }
 
@@ -545,14 +548,17 @@ static void read28_06_cb(struct fp_dev *dev, enum read_msg_status status,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	initsm_read_msg_response_cb((fpi_ssm *) user_data, status, seq,
+	initsm_read_msg_response_cb((fpi_ssm *) user_data, dev, status, seq,
 		0x06, subcmd);
 }
 
-static void initsm_read_msg_cmd_cb(fpi_ssm *ssm,
-	enum read_msg_status status, uint8_t expect_seq, uint8_t seq)
+static void
+initsm_read_msg_cmd_cb(fpi_ssm              *ssm,
+		       struct fp_dev        *dev,
+		       enum read_msg_status  status,
+		       uint8_t               expect_seq,
+		       uint8_t               seq)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	if (status == READ_MSG_ERROR) {
@@ -579,14 +585,14 @@ static void read_msg05_cb(struct fp_dev *dev, enum read_msg_status status,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	initsm_read_msg_cmd_cb((fpi_ssm *) user_data, status, 5, seq); 
+	initsm_read_msg_cmd_cb((fpi_ssm *) user_data, dev, status, 5, seq);
 }
 
 static void read_msg03_cb(struct fp_dev *dev, enum read_msg_status status,
 	uint8_t seq, unsigned char subcmd, unsigned char *data, size_t data_len,
 	void *user_data)
 {
-	initsm_read_msg_cmd_cb((fpi_ssm *) user_data, status, 3, seq); 
+	initsm_read_msg_cmd_cb((fpi_ssm *) user_data, dev, status, 3, seq);
 }
 
 static void ctrl400_cb(struct libusb_transfer *transfer)
@@ -601,10 +607,12 @@ static void ctrl400_cb(struct libusb_transfer *transfer)
 	libusb_free_transfer(transfer);
 }
 
-static void initsm_read_msg_handler(fpi_ssm *ssm,
-	read_msg_cb_fn callback)
+static void
+initsm_read_msg_handler(fpi_ssm        *ssm,
+			struct fp_dev  *dev,
+			read_msg_cb_fn  callback)
 {
-	int r = read_msg_async(fpi_ssm_get_dev(ssm), callback, ssm);
+	int r = read_msg_async(dev, callback, ssm);
 	if (r < 0) {
 		fp_err("async read msg failed in state %d", fpi_ssm_get_cur_state(ssm));
 		fpi_ssm_mark_failed(ssm, r);
@@ -626,10 +634,13 @@ static void initsm_send_msg_cb(struct libusb_transfer *transfer)
 	libusb_free_transfer(transfer);
 }
 
-static void initsm_send_msg28_handler(fpi_ssm *ssm,
-	unsigned char subcmd, const unsigned char *data, uint16_t innerlen)
+static void
+initsm_send_msg28_handler(fpi_ssm             *ssm,
+			  struct fp_dev       *dev,
+			  unsigned char        subcmd,
+			  const unsigned char *data,
+			  uint16_t             innerlen)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct libusb_transfer *transfer;
 	int r;
 
@@ -649,9 +660,8 @@ static void initsm_send_msg28_handler(fpi_ssm *ssm,
 	}
 }
 
-static void initsm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void initsm_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 	struct libusb_transfer *transfer;
 	int r;
@@ -680,7 +690,7 @@ static void initsm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		}
 		break;
 	case READ_MSG03:
-		initsm_read_msg_handler(ssm, read_msg03_cb);
+		initsm_read_msg_handler(ssm, dev, read_msg03_cb);
 		break;
 	case SEND_RESP03: ;
 		transfer = alloc_send_cmdresponse_transfer(dev, ++upekdev->seq,
@@ -698,40 +708,40 @@ static void initsm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		}
 		break;
 	case READ_MSG05:
-		initsm_read_msg_handler(ssm, read_msg05_cb);
+		initsm_read_msg_handler(ssm, dev, read_msg05_cb);
 		break;
 	case SEND28_06: ;
 		unsigned char dummy28_06 = 0x04;
 		upekdev->seq = 0xf0;
-		initsm_send_msg28_handler(ssm, 0x06, &dummy28_06, 1);
+		initsm_send_msg28_handler(ssm, dev, 0x06, &dummy28_06, 1);
 		break;
 	case READ28_06:
-		initsm_read_msg_handler(ssm, read28_06_cb);
+		initsm_read_msg_handler(ssm, dev, read28_06_cb);
 		break;
 	case SEND28_07: ;
 		unsigned char dummy28_07 = 0x04;
-		initsm_send_msg28_handler(ssm, 0x07, &dummy28_07, 1);
+		initsm_send_msg28_handler(ssm, dev, 0x07, &dummy28_07, 1);
 		break;
 	case READ28_07:
-		initsm_read_msg_handler(ssm, read28_07_cb);
+		initsm_read_msg_handler(ssm, dev, read28_07_cb);
 		break;
 	case SEND28_08:
-		initsm_send_msg28_handler(ssm, 0x08, init28_08, sizeof(init28_08));
+		initsm_send_msg28_handler(ssm, dev, 0x08, init28_08, sizeof(init28_08));
 		break;
 	case READ28_08:
-		initsm_read_msg_handler(ssm, read28_08_cb);
+		initsm_read_msg_handler(ssm, dev, read28_08_cb);
 		break;
 	case SEND28_0C:
-		initsm_send_msg28_handler(ssm, 0x0c, init28_0c, sizeof(init28_0c));
+		initsm_send_msg28_handler(ssm, dev, 0x0c, init28_0c, sizeof(init28_0c));
 		break;
 	case READ28_0C:
-		initsm_read_msg_handler(ssm, read28_0c_cb);
+		initsm_read_msg_handler(ssm, dev, read28_0c_cb);
 		break;
 	case SEND28_0B:
-		initsm_send_msg28_handler(ssm, 0x0b, init28_0b, sizeof(init28_0b));
+		initsm_send_msg28_handler(ssm, dev, 0x0b, init28_0b, sizeof(init28_0b));
 		break;
 	case READ28_0B:
-		initsm_read_msg_handler(ssm, read28_0b_cb);
+		initsm_read_msg_handler(ssm, dev, read28_0b_cb);
 		break;
 	}
 }
@@ -785,9 +795,8 @@ static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
 	fpi_ssm_next_state(ssm);
 }
 
-static void deinitsm_state_handler(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void deinitsm_state_handler(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -917,9 +926,8 @@ static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
 	}
 }
 
-static void enroll_start_sm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void enroll_start_sm_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -1112,9 +1120,8 @@ static void enroll_iterate(struct fp_dev *dev)
 	}
 }
 
-static void enroll_started(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void enroll_started(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	fpi_drvcb_enroll_started(dev, fpi_ssm_get_error(ssm));
 
 	if (!fpi_ssm_get_error(ssm))
@@ -1136,10 +1143,10 @@ static int enroll_start(struct fp_dev *dev)
 	return 0;
 }
 
-static void enroll_stop_deinit_cb(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void enroll_stop_deinit_cb(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
 	/* don't really care about errors */
-	fpi_drvcb_enroll_stopped(fpi_ssm_get_dev(ssm));
+	fpi_drvcb_enroll_stopped(dev);
 	fpi_ssm_free(ssm);
 }
 
@@ -1150,10 +1157,10 @@ static int enroll_stop(struct fp_dev *dev)
 	return 0;
 }
 
-static void verify_stop_deinit_cb(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void verify_stop_deinit_cb(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
 	/* don't really care about errors */
-	fpi_drvcb_verify_stopped(fpi_ssm_get_dev(ssm));
+	fpi_drvcb_verify_stopped(dev);
 	fpi_ssm_free(ssm);
 }
 
@@ -1201,9 +1208,8 @@ static void verify_init_2803_cb(struct libusb_transfer *transfer)
 	libusb_free_transfer(transfer);
 }
 
-static void verify_start_sm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void verify_start_sm_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
@@ -1390,9 +1396,8 @@ static void verify_iterate(struct fp_dev *dev)
 	}
 }
 
-static void verify_started(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void verify_started(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 
 	fpi_drvcb_verify_started(dev, fpi_ssm_get_error(ssm));

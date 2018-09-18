@@ -574,12 +574,14 @@ static void write_regs_cb(struct libusb_transfer *transfer)
 	write_regs_iterate(wrdata);
 }
 
-static void sm_write_regs(fpi_ssm *ssm,
-	const struct sonly_regwrite *regs, size_t num_regs)
+static void
+sm_write_regs(fpi_ssm                     *ssm,
+	      struct fp_dev               *dev,
+	      const struct sonly_regwrite *regs,
+	      size_t                       num_regs)
 {
 	struct write_regs_data *wrdata = g_malloc(sizeof(*wrdata));
 	unsigned char *data;
-	struct fp_dev *dev;
 
 	wrdata->transfer = libusb_alloc_transfer(0);
 	if (!wrdata->transfer) {
@@ -590,7 +592,6 @@ static void sm_write_regs(fpi_ssm *ssm,
 
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 	libusb_fill_control_setup(data, 0x40, 0x0c, 0, 0, 1);
-	dev = fpi_ssm_get_dev(ssm);
 	libusb_fill_control_transfer(wrdata->transfer,
 		fpi_dev_get_usb_dev(dev), data,
 		write_regs_cb, wrdata, CTRL_TIMEOUT);
@@ -770,7 +771,7 @@ static void awfsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case AWFSM_2016_WRITEV_1:
-		sm_write_regs(ssm, awfsm_2016_writev_1, G_N_ELEMENTS(awfsm_2016_writev_1));
+		sm_write_regs(ssm, _dev, awfsm_2016_writev_1, G_N_ELEMENTS(awfsm_2016_writev_1));
 		break;
 	case AWFSM_2016_READ_01:
 		sm_read_reg(ssm, 0x01);
@@ -782,7 +783,7 @@ static void awfsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 			sm_write_reg(ssm, 0x01, 0xc6);
 		break;
 	case AWFSM_2016_WRITEV_2:
-		sm_write_regs(ssm, awfsm_2016_writev_2, G_N_ELEMENTS(awfsm_2016_writev_2));
+		sm_write_regs(ssm, _dev, awfsm_2016_writev_2, G_N_ELEMENTS(awfsm_2016_writev_2));
 		break;
 	case AWFSM_2016_READ_13:
 		sm_read_reg(ssm, 0x13);
@@ -794,7 +795,7 @@ static void awfsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 			sm_write_reg(ssm, 0x13, 0x45);
 		break;
 	case AWFSM_2016_WRITEV_3:
-		sm_write_regs(ssm, awfsm_2016_writev_3, G_N_ELEMENTS(awfsm_2016_writev_3));
+		sm_write_regs(ssm, _dev, awfsm_2016_writev_3, G_N_ELEMENTS(awfsm_2016_writev_3));
 		break;
 	case AWFSM_2016_READ_07:
 		sm_read_reg(ssm, 0x07);
@@ -805,7 +806,7 @@ static void awfsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 		sm_write_reg(ssm, 0x07, sdev->read_reg_result);
 		break;
 	case AWFSM_2016_WRITEV_4:
-		sm_write_regs(ssm, awfsm_2016_writev_4, G_N_ELEMENTS(awfsm_2016_writev_4));
+		sm_write_regs(ssm, _dev, awfsm_2016_writev_4, G_N_ELEMENTS(awfsm_2016_writev_4));
 		break;
 	}
 }
@@ -814,10 +815,10 @@ static void awfsm_1000_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 {
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case AWFSM_1000_WRITEV_1:
-		sm_write_regs(ssm, awfsm_1000_writev_1, G_N_ELEMENTS(awfsm_1000_writev_1));
+		sm_write_regs(ssm, _dev, awfsm_1000_writev_1, G_N_ELEMENTS(awfsm_1000_writev_1));
 		break;
 	case AWFSM_1000_WRITEV_2:
-		sm_write_regs(ssm, awfsm_1000_writev_2, G_N_ELEMENTS(awfsm_1000_writev_2));
+		sm_write_regs(ssm, _dev, awfsm_1000_writev_2, G_N_ELEMENTS(awfsm_1000_writev_2));
 		break;
 	}
 }
@@ -908,7 +909,7 @@ static void capsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 		capsm_fire_bulk (ssm);
 		break;
 	case CAPSM_2016_WRITEV:
-		sm_write_regs(ssm, capsm_2016_writev, G_N_ELEMENTS(capsm_2016_writev));
+		sm_write_regs(ssm, _dev, capsm_2016_writev, G_N_ELEMENTS(capsm_2016_writev));
 		break;
 	}
 }
@@ -934,7 +935,7 @@ static void capsm_1000_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 		capsm_fire_bulk (ssm);
 		break;
 	case CAPSM_1000_WRITEV:
-		sm_write_regs(ssm, capsm_1000_writev, G_N_ELEMENTS(capsm_1000_writev));
+		sm_write_regs(ssm, _dev, capsm_1000_writev, G_N_ELEMENTS(capsm_1000_writev));
 		break;
 	}
 }
@@ -960,19 +961,19 @@ static void capsm_1001_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_d
 		capsm_fire_bulk (ssm);
 		break;
 	case CAPSM_1001_WRITEV_1:
-		sm_write_regs(ssm, capsm_1001_writev_1, G_N_ELEMENTS(capsm_1001_writev_1));
+		sm_write_regs(ssm, _dev, capsm_1001_writev_1, G_N_ELEMENTS(capsm_1001_writev_1));
 		break;
 	case CAPSM_1001_WRITEV_2:
-		sm_write_regs(ssm, capsm_1001_writev_2, G_N_ELEMENTS(capsm_1001_writev_2));
+		sm_write_regs(ssm, _dev, capsm_1001_writev_2, G_N_ELEMENTS(capsm_1001_writev_2));
 		break;
 	case CAPSM_1001_WRITEV_3:
-		sm_write_regs(ssm, capsm_1001_writev_3, G_N_ELEMENTS(capsm_1001_writev_3));
+		sm_write_regs(ssm, _dev, capsm_1001_writev_3, G_N_ELEMENTS(capsm_1001_writev_3));
 		break;
 	case CAPSM_1001_WRITEV_4:
-		sm_write_regs(ssm, capsm_1001_writev_4, G_N_ELEMENTS(capsm_1001_writev_4));
+		sm_write_regs(ssm, _dev, capsm_1001_writev_4, G_N_ELEMENTS(capsm_1001_writev_4));
 		break;
 	case CAPSM_1001_WRITEV_5:
-		sm_write_regs(ssm, capsm_1001_writev_5, G_N_ELEMENTS(capsm_1001_writev_5));
+		sm_write_regs(ssm, _dev, capsm_1001_writev_5, G_N_ELEMENTS(capsm_1001_writev_5));
 		break;
 	}
 }
@@ -998,7 +999,7 @@ static void deinitsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *use
 {
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEINITSM_2016_WRITEV:
-		sm_write_regs(ssm, deinitsm_2016_writev, G_N_ELEMENTS(deinitsm_2016_writev));
+		sm_write_regs(ssm, _dev, deinitsm_2016_writev, G_N_ELEMENTS(deinitsm_2016_writev));
 		break;
 	}
 }
@@ -1007,7 +1008,7 @@ static void deinitsm_1000_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *use
 {
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEINITSM_1000_WRITEV:
-		sm_write_regs(ssm, deinitsm_1000_writev, G_N_ELEMENTS(deinitsm_1000_writev));
+		sm_write_regs(ssm, _dev, deinitsm_1000_writev, G_N_ELEMENTS(deinitsm_1000_writev));
 		break;
 	}
 }
@@ -1016,7 +1017,7 @@ static void deinitsm_1001_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *use
 {
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case DEINITSM_1001_WRITEV:
-		sm_write_regs(ssm, deinitsm_1001_writev, G_N_ELEMENTS(deinitsm_1001_writev));
+		sm_write_regs(ssm, _dev, deinitsm_1001_writev, G_N_ELEMENTS(deinitsm_1001_writev));
 		break;
 	}
 }
@@ -1055,7 +1056,7 @@ static void initsm_2016_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case INITSM_2016_WRITEV_1:
-		sm_write_regs(ssm, initsm_2016_writev_1, G_N_ELEMENTS(initsm_2016_writev_1));
+		sm_write_regs(ssm, _dev, initsm_2016_writev_1, G_N_ELEMENTS(initsm_2016_writev_1));
 		break;
 	case INITSM_2016_READ_09:
 		sm_read_reg(ssm, 0x09);
@@ -1082,7 +1083,7 @@ static void initsm_1000_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_
 {
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case INITSM_1000_WRITEV_1:
-		sm_write_regs(ssm, initsm_1000_writev_1, G_N_ELEMENTS(initsm_1000_writev_1));
+		sm_write_regs(ssm, _dev, initsm_1000_writev_1, G_N_ELEMENTS(initsm_1000_writev_1));
 		break;
 	}
 }
@@ -1091,19 +1092,19 @@ static void initsm_1001_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_
 {
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case INITSM_1001_WRITEV_1:
-		sm_write_regs(ssm, initsm_1001_writev_1, G_N_ELEMENTS(initsm_1001_writev_1));
+		sm_write_regs(ssm, _dev, initsm_1001_writev_1, G_N_ELEMENTS(initsm_1001_writev_1));
 		break;
 	case INITSM_1001_WRITEV_2:
-		sm_write_regs(ssm, initsm_1001_writev_2, G_N_ELEMENTS(initsm_1001_writev_2));
+		sm_write_regs(ssm, _dev, initsm_1001_writev_2, G_N_ELEMENTS(initsm_1001_writev_2));
 		break;
 	case INITSM_1001_WRITEV_3:
-		sm_write_regs(ssm, initsm_1001_writev_3, G_N_ELEMENTS(initsm_1001_writev_3));
+		sm_write_regs(ssm, _dev, initsm_1001_writev_3, G_N_ELEMENTS(initsm_1001_writev_3));
 		break;
 	case INITSM_1001_WRITEV_4:
-		sm_write_regs(ssm, initsm_1001_writev_4, G_N_ELEMENTS(initsm_1001_writev_4));
+		sm_write_regs(ssm, _dev, initsm_1001_writev_4, G_N_ELEMENTS(initsm_1001_writev_4));
 		break;
 	case INITSM_1001_WRITEV_5:
-		sm_write_regs(ssm, initsm_1001_writev_5, G_N_ELEMENTS(initsm_1001_writev_5));
+		sm_write_regs(ssm, _dev, initsm_1001_writev_5, G_N_ELEMENTS(initsm_1001_writev_5));
 		break;
 	}
 }

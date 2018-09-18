@@ -117,21 +117,6 @@ fpi_ssm *fpi_ssm_new(struct fp_dev  *dev,
 }
 
 /**
- * fpi_ssm_get_dev:
- * @machine: an #fpi_ssm state machine
- *
- * Returns the #fp_dev attached to the #fpi_ssm as passed
- * in fpi_ssm_new().
- *
- * Returns: a struct #fp_dev
- */
-struct fp_dev *
-fpi_ssm_get_dev(fpi_ssm *machine)
-{
-	return machine->dev;
-}
-
-/**
  * fpi_ssm_get_user_data:
  * @machine: an #fpi_ssm state machine
  *

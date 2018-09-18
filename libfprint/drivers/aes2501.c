@@ -205,11 +205,10 @@ static void generic_ignore_data_cb(struct libusb_transfer *transfer)
 
 /* read the specified number of bytes from the IN endpoint but throw them
  * away, then increment the SSM */
-static void generic_read_ignore_data(fpi_ssm *ssm, size_t bytes)
+static void generic_read_ignore_data(fpi_ssm *ssm, struct fp_dev *dev, size_t bytes)
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
 	if (!transfer) {
@@ -532,14 +531,14 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 			generic_write_regv_cb, ssm);
 		break;
 	case CAPTURE_READ_DATA_1:
-		generic_read_ignore_data(ssm, 159);
+		generic_read_ignore_data(ssm, _dev, 159);
 		break;
 	case CAPTURE_WRITE_REQS_2:
 		aes_write_regv(dev, capture_reqs_2, G_N_ELEMENTS(capture_reqs_2),
 			generic_write_regv_cb, ssm);
 		break;
 	case CAPTURE_READ_DATA_2:
-		generic_read_ignore_data(ssm, 159);
+		generic_read_ignore_data(ssm, _dev, 159);
 		break;
 	case CAPTURE_REQUEST_STRIP:
 		if (aesdev->deactivating)
@@ -766,7 +765,7 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 		break;
 	case READ_DATA_1:
 		fp_dbg("read data 1");
-		generic_read_ignore_data(ssm, 20);
+		generic_read_ignore_data(ssm, _dev, 20);
 		break;
 	case WRITE_INIT_2:
 		aes_write_regv(dev, init_2, G_N_ELEMENTS(init_2),

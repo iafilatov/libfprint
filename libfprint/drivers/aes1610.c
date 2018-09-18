@@ -126,11 +126,10 @@ static void generic_write_regv_cb(struct fp_img_dev *dev, int result,
 
 /* read the specified number of bytes from the IN endpoint but throw them
  * away, then increment the SSM */
-static void generic_read_ignore_data(fpi_ssm *ssm, size_t bytes)
+static void generic_read_ignore_data(fpi_ssm *ssm, struct fp_dev *dev, size_t bytes)
 {
 	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
 	unsigned char *data;
-	struct fp_dev *dev;
 	int r;
 
 	if (!transfer) {
@@ -139,7 +138,6 @@ static void generic_read_ignore_data(fpi_ssm *ssm, size_t bytes)
 	}
 
 	data = g_malloc(bytes);
-	dev = fpi_ssm_get_dev(ssm);
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(dev), EP_IN, data, bytes,
 		generic_ignore_data_cb, ssm, BULK_TIMEOUT);
 
@@ -657,7 +655,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 		break;
 	case CAPTURE_READ_DATA:
 		fp_dbg("read data");
-		generic_read_ignore_data(ssm, 665);
+		generic_read_ignore_data(ssm, _dev, 665);
 		break;
 	case CAPTURE_REQUEST_STRIP:
 		fp_dbg("request strip");

@@ -498,12 +498,11 @@ static void init_read_data_cb(struct libusb_transfer *transfer)
 	}
 }
 
-static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
+static void activate_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 {
 	struct libusb_transfer *transfer;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(idev));
-	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
