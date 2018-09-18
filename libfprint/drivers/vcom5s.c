@@ -265,7 +265,7 @@ enum loop_states {
 	LOOP_NUM_STATES,
 };
 
-static void loop_run_state(fpi_ssm *ssm)
+static void loop_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct v5s_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -293,7 +293,7 @@ static void loop_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void loopsm_complete(fpi_ssm *ssm)
+static void loopsm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct v5s_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));

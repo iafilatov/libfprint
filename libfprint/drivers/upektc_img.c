@@ -304,7 +304,7 @@ static void capture_read_data_cb(struct libusb_transfer *transfer)
 	}
 }
 
-static void capture_run_state(fpi_ssm *ssm)
+static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -341,7 +341,7 @@ static void capture_run_state(fpi_ssm *ssm)
 	};
 }
 
-static void capture_sm_complete(fpi_ssm *ssm)
+static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -401,7 +401,7 @@ static void deactivate_read_data_cb(struct libusb_transfer *transfer)
 	}
 }
 
-static void deactivate_run_state(fpi_ssm *ssm)
+static void deactivate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -418,7 +418,7 @@ static void deactivate_run_state(fpi_ssm *ssm)
 	};
 }
 
-static void deactivate_sm_complete(fpi_ssm *ssm)
+static void deactivate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -498,7 +498,7 @@ static void init_read_data_cb(struct libusb_transfer *transfer)
 	}
 }
 
-static void activate_run_state(fpi_ssm *ssm)
+static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct libusb_transfer *transfer;
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
@@ -562,7 +562,7 @@ static void activate_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void activate_sm_complete(fpi_ssm *ssm)
+static void activate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int err = fpi_ssm_get_error(ssm);

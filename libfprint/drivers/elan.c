@@ -440,7 +440,7 @@ enum stop_capture_states {
 	STOP_CAPTURE_NUM_STATES,
 };
 
-static void stop_capture_run_state(fpi_ssm *ssm)
+static void stop_capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	G_DEBUG_HERE();
 
@@ -451,7 +451,7 @@ static void stop_capture_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void stop_capture_complete(fpi_ssm *ssm)
+static void stop_capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -499,7 +499,7 @@ enum capture_states {
 	CAPTURE_NUM_STATES,
 };
 
-static void capture_run_state(fpi_ssm *ssm)
+static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -537,7 +537,7 @@ static void capture_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void capture_complete(fpi_ssm *ssm)
+static void capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -622,7 +622,7 @@ enum calibrate_states {
 	CALIBRATE_NUM_STATES,
 };
 
-static void calibrate_run_state(fpi_ssm *ssm)
+static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -687,7 +687,7 @@ static void calibrate_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void calibrate_complete(fpi_ssm *ssm)
+static void calibrate_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 
@@ -723,7 +723,7 @@ enum activate_states {
 	ACTIVATE_NUM_STATES,
 };
 
-static void activate_run_state(fpi_ssm *ssm)
+static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -767,7 +767,7 @@ static void activate_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void activate_complete(fpi_ssm *ssm)
+static void activate_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 

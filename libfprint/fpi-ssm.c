@@ -164,7 +164,7 @@ void fpi_ssm_free(fpi_ssm *machine)
 static void __ssm_call_handler(fpi_ssm *machine)
 {
 	fp_dbg("%p entering state %d", machine, machine->cur_state);
-	machine->handler(machine);
+	machine->handler(machine, machine->dev, machine->user_data);
 }
 
 /**
@@ -186,7 +186,7 @@ void fpi_ssm_start(fpi_ssm *ssm, ssm_completed_fn callback)
 	__ssm_call_handler(ssm);
 }
 
-static void __subsm_complete(fpi_ssm *ssm)
+static void __subsm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	fpi_ssm *parent = ssm->parentsm;
 	BUG_ON(!parent);
@@ -227,7 +227,7 @@ void fpi_ssm_mark_completed(fpi_ssm *machine)
 	machine->completed = TRUE;
 	fp_dbg("%p completed with status %d", machine, machine->error);
 	if (machine->callback)
-		machine->callback(machine);
+		machine->callback(machine, machine->dev, machine->user_data);
 }
 
 /**

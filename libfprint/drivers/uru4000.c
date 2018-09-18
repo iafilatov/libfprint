@@ -687,7 +687,7 @@ static int calc_dev2(struct uru4k_image *img)
 	return res / IMAGE_WIDTH;
 }
 
-static void imaging_run_state(fpi_ssm *ssm)
+static void imaging_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -810,7 +810,7 @@ static void imaging_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void imaging_complete(fpi_ssm *ssm)
+static void imaging_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -874,7 +874,7 @@ static void rebootpwr_pause_cb(void *data)
 	}
 }
 
-static void rebootpwr_run_state(fpi_ssm *ssm)
+static void rebootpwr_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -953,7 +953,7 @@ static void powerup_pause_cb(void *data)
 	}
 }
 
-static void powerup_run_state(fpi_ssm *ssm)
+static void powerup_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -1058,7 +1058,7 @@ static void init_scanpwr_timeout(void *user_data)
 	}
 }
 
-static void init_run_state(fpi_ssm *ssm)
+static void init_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -1136,7 +1136,7 @@ static void init_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void activate_initsm_complete(fpi_ssm *ssm)
+static void activate_initsm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int r = fpi_ssm_get_error(ssm);

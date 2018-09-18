@@ -279,7 +279,7 @@ static void submit_image(struct fp_img_dev *idev)
 /* Proto functions */
 
 /* SSM loop for clear_ep2 */
-static void clear_ep2_ssm(fpi_ssm *ssm)
+static void clear_ep2_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
@@ -316,7 +316,7 @@ static void clear_ep2(fpi_ssm *ssm)
 	fpi_ssm_start_subsm(ssm, subsm);
 }
 
-static void send_control_packet_ssm(fpi_ssm *ssm)
+static void send_control_packet_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -516,7 +516,7 @@ static void scan_completed(void *data)
 }
 
 /* Main SSM loop */
-static void activate_ssm(fpi_ssm *ssm)
+static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct libusb_device_handle *usb_dev = fpi_dev_get_usb_dev(FP_DEV(idev));
@@ -669,7 +669,7 @@ static void activate_ssm(fpi_ssm *ssm)
 /* Driver functions */
 
 /* Callback for dev_activate ssm */
-static void dev_activate_callback(fpi_ssm *ssm)
+static void dev_activate_callback(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -710,7 +710,7 @@ static void dev_deactivate(struct fp_img_dev *idev)
 }
 
 /* Callback for dev_open ssm */
-static void dev_open_callback(fpi_ssm *ssm)
+static void dev_open_callback(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	/* Notify open complete */
 	fpi_imgdev_open_complete(fpi_ssm_get_user_data(ssm), 0);

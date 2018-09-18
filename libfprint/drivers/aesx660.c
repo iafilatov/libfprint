@@ -195,7 +195,7 @@ static void finger_det_set_idle_cmd_cb(struct libusb_transfer *transfer)
 	libusb_free_transfer(transfer);
 }
 
-static void finger_det_sm_complete(fpi_ssm *ssm)
+static void finger_det_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -215,7 +215,7 @@ static void finger_det_sm_complete(fpi_ssm *ssm)
 	}
 }
 
-static void finger_det_run_state(fpi_ssm *ssm)
+static void finger_det_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case FINGER_DET_SEND_LED_CMD:
@@ -370,7 +370,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void capture_run_state(fpi_ssm *ssm)
+static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -399,7 +399,7 @@ static void capture_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void capture_sm_complete(fpi_ssm *ssm)
+static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -532,7 +532,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void activate_run_state(fpi_ssm *ssm)
+static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aesX660_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -578,7 +578,7 @@ static void activate_run_state(fpi_ssm *ssm)
 	}
 }
 
-static void activate_sm_complete(fpi_ssm *ssm)
+static void activate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	int err = fpi_ssm_get_error(ssm);

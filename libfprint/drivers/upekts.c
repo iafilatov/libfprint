@@ -649,7 +649,7 @@ static void initsm_send_msg28_handler(fpi_ssm *ssm,
 	}
 }
 
-static void initsm_run_state(fpi_ssm *ssm)
+static void initsm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
@@ -785,7 +785,7 @@ static void read_msg01_cb(struct fp_dev *dev, enum read_msg_status status,
 	fpi_ssm_next_state(ssm);
 }
 
-static void deinitsm_state_handler(fpi_ssm *ssm)
+static void deinitsm_state_handler(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
@@ -869,7 +869,7 @@ enum enroll_start_sm_states {
 };
 
 /* Called when the device initialization state machine completes */
-static void enroll_start_sm_cb_initsm(fpi_ssm *initsm)
+static void enroll_start_sm_cb_initsm(fpi_ssm *initsm, struct fp_dev *_dev, void *user_data)
 {
 	fpi_ssm *enroll_start_ssm = fpi_ssm_get_user_data(initsm);
 	int error = fpi_ssm_get_error(initsm);
@@ -917,7 +917,7 @@ static void enroll_start_sm_cb_msg28(struct fp_dev *dev,
 	}
 }
 
-static void enroll_start_sm_run_state(fpi_ssm *ssm)
+static void enroll_start_sm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
@@ -1112,7 +1112,7 @@ static void enroll_iterate(struct fp_dev *dev)
 	}
 }
 
-static void enroll_started(fpi_ssm *ssm)
+static void enroll_started(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	fpi_drvcb_enroll_started(dev, fpi_ssm_get_error(ssm));
@@ -1136,7 +1136,7 @@ static int enroll_start(struct fp_dev *dev)
 	return 0;
 }
 
-static void enroll_stop_deinit_cb(fpi_ssm *ssm)
+static void enroll_stop_deinit_cb(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	/* don't really care about errors */
 	fpi_drvcb_enroll_stopped(fpi_ssm_get_dev(ssm));
@@ -1150,7 +1150,7 @@ static int enroll_stop(struct fp_dev *dev)
 	return 0;
 }
 
-static void verify_stop_deinit_cb(fpi_ssm *ssm)
+static void verify_stop_deinit_cb(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	/* don't really care about errors */
 	fpi_drvcb_verify_stopped(fpi_ssm_get_dev(ssm));
@@ -1176,7 +1176,7 @@ enum {
 };
 
 /* Called when the device initialization state machine completes */
-static void verify_start_sm_cb_initsm(fpi_ssm *initsm)
+static void verify_start_sm_cb_initsm(fpi_ssm *initsm, struct fp_dev *_dev, void *user_data)
 {
 	fpi_ssm *verify_start_ssm = fpi_ssm_get_user_data(initsm);
 	int err;
@@ -1201,7 +1201,7 @@ static void verify_init_2803_cb(struct libusb_transfer *transfer)
 	libusb_free_transfer(transfer);
 }
 
-static void verify_start_sm_run_state(fpi_ssm *ssm)
+static void verify_start_sm_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	int r;
@@ -1390,7 +1390,7 @@ static void verify_iterate(struct fp_dev *dev)
 	}
 }
 
-static void verify_started(fpi_ssm *ssm)
+static void verify_started(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_dev *dev = fpi_ssm_get_dev(ssm);
 	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);

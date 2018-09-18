@@ -699,7 +699,7 @@ static void async_tx_cb(struct libusb_transfer *transfer)
 	}
 }
 
-static void m_exit_state(fpi_ssm *ssm)
+static void m_exit_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -727,7 +727,7 @@ err:
 	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
-static void m_exit_complete(fpi_ssm *ssm)
+static void m_exit_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
@@ -748,7 +748,7 @@ static void m_exit_start(struct fp_img_dev *idev)
 	fpi_ssm_start(ssm, m_exit_complete);
 }
 
-static void m_capture_state(fpi_ssm *ssm)
+static void m_capture_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -829,7 +829,7 @@ err:
 	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
-static void m_capture_complete(fpi_ssm *ssm)
+static void m_capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -851,7 +851,7 @@ static void m_capture_complete(fpi_ssm *ssm)
 	}
 }
 
-static void m_finger_state(fpi_ssm *ssm)
+static void m_finger_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -947,7 +947,7 @@ err:
 	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
-static void m_finger_complete(fpi_ssm *ssm)
+static void m_finger_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -979,7 +979,7 @@ static void m_start_fingerdetect(struct fp_img_dev *idev)
 /*
  * Tune value of VRT and VRB for contrast and brightness.
  */
-static void m_tunevrb_state(fpi_ssm *ssm)
+static void m_tunevrb_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -1131,7 +1131,7 @@ err:
 	fpi_ssm_mark_failed(ssm, -EIO);
 }
 
-static void m_tunevrb_complete(fpi_ssm *ssm)
+static void m_tunevrb_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 
@@ -1153,7 +1153,7 @@ static void m_tunevrb_complete(fpi_ssm *ssm)
  * This function tunes the DCoffset value and adjusts the gain value if
  * required.
  */
-static void m_tunedc_state(fpi_ssm *ssm)
+static void m_tunedc_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -1256,7 +1256,7 @@ err:
 
 }
 
-static void m_tunedc_complete(fpi_ssm *ssm)
+static void m_tunedc_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	if (!fpi_ssm_get_error(ssm)) {
@@ -1274,7 +1274,7 @@ static void m_tunedc_complete(fpi_ssm *ssm)
 	fpi_ssm_free(ssm);
 }
 
-static void m_init_state(fpi_ssm *ssm)
+static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -1375,7 +1375,7 @@ err:
 
 }
 
-static void m_init_complete(fpi_ssm *ssm)
+static void m_init_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
 	if (!fpi_ssm_get_error(ssm)) {

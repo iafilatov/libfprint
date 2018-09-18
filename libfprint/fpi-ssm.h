@@ -42,20 +42,28 @@ typedef struct fpi_ssm fpi_ssm;
 /**
  * ssm_completed_fn:
  * @ssm: a #fpi_ssm state machine
+ * @dev: the #fp_dev fingerprint device
+ * @user_data: the user data passed to fpi_ssm_new()
  *
  * The callback called when a state machine completes successfully,
  * as set when calling fpi_ssm_start().
  */
-typedef void (*ssm_completed_fn)(fpi_ssm *ssm);
+typedef void (*ssm_completed_fn)(fpi_ssm *ssm,
+				 struct fp_dev *dev,
+				 void *user_data);
 
 /**
  * ssm_handler_fn:
  * @ssm: a #fpi_ssm state machine
+ * @dev: the #fp_dev fingerprint device
+ * @user_data: the user data passed to fpi_ssm_new()
  *
  * The callback called when a state machine transitions from one
  * state to the next, as set when calling fpi_ssm_new().
  */
-typedef void (*ssm_handler_fn)(fpi_ssm *ssm);
+typedef void (*ssm_handler_fn)(fpi_ssm *ssm,
+			       struct fp_dev *dev,
+			       void *user_data);
 
 /* for library and drivers */
 fpi_ssm *fpi_ssm_new(struct fp_dev *dev,

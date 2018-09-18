@@ -171,7 +171,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void usbexchange_loop(fpi_ssm *ssm)
+static void usbexchange_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct usbexchange_data *data = fpi_ssm_get_user_data(ssm);
 	if (fpi_ssm_get_cur_state(ssm) >= data->stepcount) {
@@ -665,7 +665,7 @@ struct usb_action vfs5011_initiate_capture[] = {
 
 /* ====================== lifprint interface ======================= */
 
-static void activate_loop(fpi_ssm *ssm)
+static void activate_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	enum {READ_TIMEOUT = 0};
 
@@ -742,7 +742,7 @@ static void activate_loop(fpi_ssm *ssm)
 	}
 }
 
-static void activate_loop_complete(fpi_ssm *ssm)
+static void activate_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data;
@@ -772,7 +772,7 @@ static void activate_loop_complete(fpi_ssm *ssm)
 }
 
 
-static void open_loop(fpi_ssm *ssm)
+static void open_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data;
@@ -793,7 +793,7 @@ static void open_loop(fpi_ssm *ssm)
 	};
 }
 
-static void open_loop_complete(fpi_ssm *ssm)
+static void open_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs5011_data *data;

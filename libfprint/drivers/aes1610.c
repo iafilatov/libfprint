@@ -643,7 +643,7 @@ out:
 	libusb_free_transfer(transfer);
 }
 
-static void capture_run_state(fpi_ssm *ssm)
+static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes1610_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -690,7 +690,7 @@ static void capture_run_state(fpi_ssm *ssm)
 	};
 }
 
-static void capture_sm_complete(fpi_ssm *ssm)
+static void capture_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct aes1610_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -737,7 +737,7 @@ enum activate_states {
 	ACTIVATE_NUM_STATES,
 };
 
-static void activate_run_state(fpi_ssm *ssm)
+static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 
@@ -752,7 +752,7 @@ static void activate_run_state(fpi_ssm *ssm)
 }
 
 /* jump to finger detection */
-static void activate_sm_complete(fpi_ssm *ssm)
+static void activate_sm_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	fp_dbg("status %d", fpi_ssm_get_error(ssm));

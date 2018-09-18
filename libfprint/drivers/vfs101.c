@@ -507,7 +507,7 @@ enum
 };
 
 /* Exec swap sequential state machine */
-static void m_swap_state(fpi_ssm *ssm)
+static void m_swap_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	switch (fpi_ssm_get_cur_state(ssm))
 	{
@@ -911,7 +911,7 @@ enum
 };
 
 /* Exec loop sequential state machine */
-static void m_loop_state(fpi_ssm *ssm)
+static void m_loop_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -1119,7 +1119,7 @@ static void m_loop_state(fpi_ssm *ssm)
 }
 
 /* Complete loop sequential state machine */
-static void m_loop_complete(fpi_ssm *ssm)
+static void m_loop_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	/* Free sequential state machine */
 	fpi_ssm_free(ssm);
@@ -1175,7 +1175,7 @@ enum
 };
 
 /* Exec init sequential state machine */
-static void m_init_state(fpi_ssm *ssm)
+static void m_init_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
@@ -1416,7 +1416,7 @@ static void m_init_state(fpi_ssm *ssm)
 }
 
 /* Complete init sequential state machine */
-static void m_init_complete(fpi_ssm *ssm)
+static void m_init_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
 	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
