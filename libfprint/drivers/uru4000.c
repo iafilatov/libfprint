@@ -876,11 +876,12 @@ enum rebootpwr_states {
 	REBOOTPWR_NUM_STATES,
 };
 
-static void rebootpwr_pause_cb(void *data)
+static void
+rebootpwr_pause_cb(struct fp_dev *dev,
+		   void          *data)
 {
 	fpi_ssm *ssm = data;
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(dev);
 
 	if (!--urudev->rebootpwr_ctr) {
 		fp_err("could not reboot device power");
@@ -911,7 +912,7 @@ static void rebootpwr_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_da
 			fpi_ssm_next_state(ssm);
 		break;
 	case REBOOTPWR_PAUSE:
-		if (fpi_timeout_add(10, rebootpwr_pause_cb, ssm) == NULL)
+		if (fpi_timeout_add(10, rebootpwr_pause_cb, _dev, ssm) == NULL)
 			fpi_ssm_mark_failed(ssm, -ETIME);
 		break;
 	}
@@ -953,11 +954,12 @@ enum powerup_states {
 	POWERUP_NUM_STATES,
 };
 
-static void powerup_pause_cb(void *data)
+static void
+powerup_pause_cb(struct fp_dev *dev,
+		 void          *data)
 {
 	fpi_ssm *ssm = data;
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(dev);
 
 	if (!--urudev->powerup_ctr) {
 		fp_err("could not power device up");
@@ -994,7 +996,7 @@ static void powerup_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 			fpi_ssm_next_state(ssm);
 		break;
 	case POWERUP_PAUSE:
-		if (fpi_timeout_add(10, powerup_pause_cb, ssm) == NULL)
+		if (fpi_timeout_add(10, powerup_pause_cb, _dev, ssm) == NULL)
 			fpi_ssm_mark_failed(ssm, -ETIME);
 		break;
 	case POWERUP_CHALLENGE_RESPONSE:
@@ -1056,11 +1058,12 @@ static void init_scanpwr_irq_cb(struct fp_img_dev *dev, int status,
 	}
 }
 
-static void init_scanpwr_timeout(void *user_data)
+static void
+init_scanpwr_timeout(struct fp_dev *dev,
+		     void          *user_data)
 {
 	fpi_ssm *ssm = user_data;
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(dev);
 
 	fp_warn("powerup timed out");
 	urudev->irq_cb = NULL;
@@ -1123,7 +1126,8 @@ static void init_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		 * so we include this timeout loop to retry the whole process 3 times
 		 * if we don't get an irq any time soon. */
 		urudev->scanpwr_irq_timeout = fpi_timeout_add(300,
-			init_scanpwr_timeout, ssm);
+							      init_scanpwr_timeout,
+							      _dev, ssm);
 		if (!urudev->scanpwr_irq_timeout) {
 			fpi_ssm_mark_failed(ssm, -ETIME);
 			break;

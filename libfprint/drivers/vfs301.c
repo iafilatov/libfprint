@@ -27,7 +27,9 @@
 /************************** GENERIC STUFF *************************************/
 
 /* Callback of asynchronous sleep */
-static void async_sleep_cb(void *data)
+static void
+async_sleep_cb(struct fp_dev *dev,
+	       void          *data)
 {
 	fpi_ssm *ssm = data;
 
@@ -43,7 +45,7 @@ async_sleep(unsigned int       msec,
 	fpi_timeout *timeout;
 
 	/* Add timeout */
-	timeout = fpi_timeout_add(msec, async_sleep_cb, ssm);
+	timeout = fpi_timeout_add(msec, async_sleep_cb, FP_DEV(dev), ssm);
 
 	if (timeout == NULL) {
 		/* Failed to add timeout */

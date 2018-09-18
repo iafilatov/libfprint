@@ -583,7 +583,9 @@ static void elan_capture(struct fp_img_dev *dev)
 	fpi_ssm_start(ssm, capture_complete);
 }
 
-static void fpi_ssm_next_state_async(void *data)
+static void
+fpi_ssm_next_state_async(struct fp_dev *dev,
+			 void          *data)
 {
 	fpi_ssm_next_state((fpi_ssm *)data);
 }
@@ -678,7 +680,7 @@ static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_da
 			if (elandev->calib_status == 0x00
 			    && elandev->last_read[0] == 0x01)
 				elandev->calib_status = 0x01;
-			if (!fpi_timeout_add(50, fpi_ssm_next_state_async, ssm))
+			if (!fpi_timeout_add(50, fpi_ssm_next_state_async, _dev, ssm))
 				fpi_ssm_mark_failed(ssm, -ETIME);
 		}
 		break;
@@ -884,9 +886,11 @@ static void elan_change_state(struct fp_img_dev *dev)
 	elandev->dev_state = next_state;
 }
 
-static void elan_change_state_async(void *data)
+static void
+elan_change_state_async(struct fp_dev *dev,
+			void          *data)
 {
-	elan_change_state((struct fp_img_dev *)data);
+	elan_change_state(FP_IMG_DEV (dev));
 }
 
 static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
@@ -902,7 +906,7 @@ static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 		/* schedule state change instead of calling it directly to allow all actions
 		 * related to the previous state to complete */
 		elandev->dev_state_next = state;
-		if (!fpi_timeout_add(10, elan_change_state_async, dev)) {
+		if (!fpi_timeout_add(10, elan_change_state_async, FP_DEV(dev), NULL)) {
 			fpi_imgdev_session_error(dev, -ETIME);
 			return -ETIME;
 		}

@@ -499,11 +499,12 @@ static void receive_callback(struct libusb_transfer *transfer)
 }
 
 /* Stub to keep SSM alive when waiting an interrupt */
-static void wait_interrupt(void *data)
+static void
+wait_interrupt(struct fp_dev *dev,
+	       void          *data)
 {
 	fpi_ssm *ssm = data;
-	struct fp_img_dev *idev = fpi_ssm_get_user_data(ssm);
-	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(idev));
+	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(dev);
 
 	/* Keep sleeping while this flag is on */
 	if (vdev->wait_interrupt)
@@ -511,14 +512,18 @@ static void wait_interrupt(void *data)
 }
 
 /* SSM stub to prepare device to another scan after orange light was on */
-static void another_scan(void *data)
+static void
+another_scan(struct fp_dev *dev,
+	     void          *data)
 {
 	fpi_ssm *ssm = data;
 	fpi_ssm_jump_to_state(ssm, SSM_TURN_ON);
 }
 
 /* Another SSM stub to continue after waiting for probable vdev->active changes */
-static void scan_completed(void *data)
+static void
+scan_completed(struct fp_dev *dev,
+	       void          *data)
 {
 	fpi_ssm *ssm = data;
 	fpi_ssm_next_state(ssm);
@@ -608,7 +613,7 @@ static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		}
 
 		if (vdev->wait_interrupt)
-			fpi_timeout_add(VFS_SSM_TIMEOUT, wait_interrupt, ssm);
+			fpi_timeout_add(VFS_SSM_TIMEOUT, wait_interrupt, _dev, ssm);
 		break;
 
 	case SSM_RECEIVE_FINGER:
@@ -647,7 +652,7 @@ static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		clear_data(vdev);
 
 		/* Wait for probable vdev->active changing */
-		fpi_timeout_add(VFS_SSM_TIMEOUT, scan_completed, ssm);
+		fpi_timeout_add(VFS_SSM_TIMEOUT, scan_completed, _dev, ssm);
 		break;
 
 	case SSM_NEXT_RECEIVE:
@@ -665,7 +670,7 @@ static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case SSM_WAIT_ANOTHER_SCAN:
 		/* Orange light is on now */
-		fpi_timeout_add(VFS_SSM_ORANGE_TIMEOUT, another_scan, ssm);
+		fpi_timeout_add(VFS_SSM_ORANGE_TIMEOUT, another_scan, _dev, ssm);
 		break;
 
 	default:

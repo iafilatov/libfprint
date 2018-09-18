@@ -18,13 +18,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "fprint.h"
+
 /**
  * fpi_timeout_fn:
+ * @dev: the struct #fp_dev passed to fpi_timeout_add()
  * @data: the data passed to fpi_timeout_add()
  *
  * The prototype of the callback function for fpi_timeout_add().
  */
-typedef void (*fpi_timeout_fn)(void *data);
+typedef void (*fpi_timeout_fn)(struct fp_dev *dev, void *data);
 
 /**
  * fpi_timeout:
@@ -33,6 +36,8 @@ typedef void (*fpi_timeout_fn)(void *data);
  * fpi_timeout_add().
  */
 typedef struct fpi_timeout fpi_timeout;
-fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
-	void *data);
+fpi_timeout *fpi_timeout_add(unsigned int    msec,
+			     fpi_timeout_fn  callback,
+			     struct fp_dev  *dev,
+			     void           *data);
 void fpi_timeout_cancel(fpi_timeout *timeout);

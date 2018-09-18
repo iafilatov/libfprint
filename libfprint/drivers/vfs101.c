@@ -471,11 +471,12 @@ async_load(fpi_ssm           *ssm,
 }
 
 /* Callback of asynchronous sleep */
-static void async_sleep_cb(void *data)
+static void
+async_sleep_cb(struct fp_dev *dev,
+	       void          *data)
 {
 	fpi_ssm *ssm = data;
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct vfs101_dev *vdev = FP_INSTANCE_DATA(dev);
 
 	/* Cleanup timeout */
 	vdev->timeout = NULL;
@@ -492,7 +493,7 @@ async_sleep(unsigned int       msec,
 	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
 	/* Add timeout */
-	vdev->timeout = fpi_timeout_add(msec, async_sleep_cb, ssm);
+	vdev->timeout = fpi_timeout_add(msec, async_sleep_cb, FP_DEV(dev), ssm);
 
 	if (vdev->timeout == NULL)
 	{

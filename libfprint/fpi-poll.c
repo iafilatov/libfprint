@@ -84,6 +84,7 @@ static fp_pollfd_removed_cb fd_removed_cb = NULL;
 struct fpi_timeout {
 	struct timeval expiry;
 	fpi_timeout_fn callback;
+	struct fp_dev *dev;
 	void *data;
 };
 
@@ -106,7 +107,8 @@ static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
  * fpi_timeout_add:
  * @msec: the time before calling the function, in milliseconds (1/1000ths of a second)
  * @callback: function to callback
- * @data: data to pass to @callback
+ * @dev: a struct #fp_dev
+ * @data: data to pass to @callback, or %NULL
  *
  * A timeout is the asynchronous equivalent of sleeping. You create a timeout
  * saying that you'd like to have a function invoked at a certain time in
@@ -118,13 +120,17 @@ static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
  *
  * Returns: an #fpi_timeout structure
  */
-fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
-	void *data)
+fpi_timeout *fpi_timeout_add(unsigned int    msec,
+			     fpi_timeout_fn  callback,
+			     struct fp_dev  *dev,
+			     void           *data)
 {
 	struct timespec ts;
 	struct timeval add_msec;
 	fpi_timeout *timeout;
 	int r;
+
+	g_return_val_if_fail (dev != NULL, NULL);
 
 	fp_dbg("in %dms", msec);
 
@@ -136,6 +142,7 @@ fpi_timeout *fpi_timeout_add(unsigned int msec, fpi_timeout_fn callback,
 
 	timeout = g_malloc(sizeof(*timeout));
 	timeout->callback = callback;
+	timeout->dev = dev;
 	timeout->data = data;
 	TIMESPEC_TO_TIMEVAL(&timeout->expiry, &ts);
 
@@ -207,7 +214,7 @@ static int get_next_timeout_expiry(struct timeval *out,
 static void handle_timeout(struct fpi_timeout *timeout)
 {
 	G_DEBUG_HERE();
-	timeout->callback(timeout->data);
+	timeout->callback(timeout->dev, timeout->data);
 	active_timers = g_slist_remove(active_timers, timeout);
 	g_free(timeout);
 }
