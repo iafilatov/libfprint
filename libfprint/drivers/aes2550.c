@@ -412,9 +412,8 @@ static void start_capture(struct fp_img_dev *dev)
 	}
 
 	aesdev->heartbeat_cnt = 0;
-	ssm = fpi_ssm_new(FP_DEV(dev), capture_run_state, CAPTURE_NUM_STATES);
+	ssm = fpi_ssm_new(FP_DEV(dev), capture_run_state, CAPTURE_NUM_STATES, dev);
 	G_DEBUG_HERE();
-	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
 
@@ -582,8 +581,7 @@ static void activate_sm_complete(fpi_ssm *ssm)
 static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(dev), activate_run_state,
-		ACTIVATE_NUM_STATES);
-	fpi_ssm_set_user_data(ssm, dev);
+		ACTIVATE_NUM_STATES, dev);
 	fpi_ssm_start(ssm, activate_sm_complete);
 	return 0;
 }

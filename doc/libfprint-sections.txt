@@ -168,7 +168,6 @@ fpi_ssm_next_state
 fpi_ssm_jump_to_state
 fpi_ssm_mark_completed
 fpi_ssm_mark_failed
-fpi_ssm_set_user_data
 fpi_ssm_get_user_data
 fpi_ssm_get_error
 fpi_ssm_get_cur_state

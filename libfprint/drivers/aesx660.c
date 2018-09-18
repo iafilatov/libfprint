@@ -247,8 +247,7 @@ static void start_finger_detection(struct fp_img_dev *dev)
 		return;
 	}
 
-	ssm = fpi_ssm_new(FP_DEV(dev), finger_det_run_state, FINGER_DET_NUM_STATES);
-	fpi_ssm_set_user_data(ssm, dev);
+	ssm = fpi_ssm_new(FP_DEV(dev), finger_det_run_state, FINGER_DET_NUM_STATES, dev);
 	fpi_ssm_start(ssm, finger_det_sm_complete);
 }
 
@@ -427,9 +426,8 @@ static void start_capture(struct fp_img_dev *dev)
 		return;
 	}
 
-	ssm = fpi_ssm_new(FP_DEV(dev), capture_run_state, CAPTURE_NUM_STATES);
+	ssm = fpi_ssm_new(FP_DEV(dev), capture_run_state, CAPTURE_NUM_STATES, dev);
 	G_DEBUG_HERE();
-	fpi_ssm_set_user_data(ssm, dev);
 	fpi_ssm_start(ssm, capture_sm_complete);
 }
 
@@ -595,8 +593,7 @@ static void activate_sm_complete(fpi_ssm *ssm)
 int aesX660_dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(dev), activate_run_state,
-		ACTIVATE_NUM_STATES);
-	fpi_ssm_set_user_data(ssm, dev);
+		ACTIVATE_NUM_STATES, dev);
 	fpi_ssm_start(ssm, activate_sm_complete);
 	return 0;
 }

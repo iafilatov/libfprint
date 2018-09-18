@@ -736,9 +736,10 @@ static void initsm_run_state(fpi_ssm *ssm)
 	}
 }
 
-static fpi_ssm *initsm_new(struct fp_dev *dev)
+static fpi_ssm *initsm_new(struct fp_dev *dev,
+			   void          *user_data)
 {
-	return fpi_ssm_new(dev, initsm_run_state, INITSM_NUM_STATES);
+	return fpi_ssm_new(dev, initsm_run_state, INITSM_NUM_STATES, user_data);
 }
 
 enum deinitsm_states {
@@ -818,7 +819,7 @@ static void deinitsm_state_handler(fpi_ssm *ssm)
 
 static fpi_ssm *deinitsm_new(struct fp_dev *dev)
 {
-	return fpi_ssm_new(dev, deinitsm_state_handler, DEINITSM_NUM_STATES);
+	return fpi_ssm_new(dev, deinitsm_state_handler, DEINITSM_NUM_STATES, NULL);
 }
 
 static int dev_init(struct fp_dev *dev, unsigned long driver_data)
@@ -923,8 +924,7 @@ static void enroll_start_sm_run_state(fpi_ssm *ssm)
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case RUN_INITSM: ;
-		fpi_ssm *initsm = initsm_new(dev);
-		fpi_ssm_set_user_data(initsm, ssm);
+		fpi_ssm *initsm = initsm_new(dev, ssm);
 		fpi_ssm_start(initsm, enroll_start_sm_cb_initsm);
 		break;
 	case ENROLL_INIT: ;
@@ -1129,7 +1129,7 @@ static int enroll_start(struct fp_dev *dev)
 
 	/* do_init state machine first */
 	fpi_ssm *ssm = fpi_ssm_new(dev, enroll_start_sm_run_state,
-		ENROLL_START_NUM_STATES);
+		ENROLL_START_NUM_STATES, NULL);
 
 	upekdev->enroll_passed = FALSE;
 	fpi_ssm_start(ssm, enroll_started);
@@ -1208,8 +1208,7 @@ static void verify_start_sm_run_state(fpi_ssm *ssm)
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case VERIFY_RUN_INITSM: ;
-		fpi_ssm *initsm = initsm_new(dev);
-		fpi_ssm_set_user_data(initsm, ssm);
+		fpi_ssm *initsm = initsm_new(dev, ssm);
 		fpi_ssm_start(initsm, verify_start_sm_cb_initsm);
 		break;
 	case VERIFY_INIT: ;
@@ -1409,7 +1408,7 @@ static int verify_start(struct fp_dev *dev)
 {
 	struct upekts_dev *upekdev = FP_INSTANCE_DATA(dev);
 	fpi_ssm *ssm = fpi_ssm_new(dev, verify_start_sm_run_state,
-		VERIFY_NUM_STATES);
+		VERIFY_NUM_STATES, NULL);
 	upekdev->stop_verify = FALSE;
 	fpi_ssm_start(ssm, verify_started);
 	return 0;

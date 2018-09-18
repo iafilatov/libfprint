@@ -315,8 +315,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct v5s_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(dev), loop_run_state,
-		LOOP_NUM_STATES);
-	fpi_ssm_set_user_data(ssm, dev);
+		LOOP_NUM_STATES, dev);
 	vdev->deactivating = FALSE;
 	fpi_ssm_start(ssm, loopsm_complete);
 	vdev->loop_running = TRUE;

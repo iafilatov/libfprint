@@ -58,8 +58,10 @@ typedef void (*ssm_completed_fn)(fpi_ssm *ssm);
 typedef void (*ssm_handler_fn)(fpi_ssm *ssm);
 
 /* for library and drivers */
-fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
-	int nr_states);
+fpi_ssm *fpi_ssm_new(struct fp_dev *dev,
+		     ssm_handler_fn handler,
+		     int nr_states,
+		     void *user_data);
 void fpi_ssm_free(fpi_ssm *machine);
 void fpi_ssm_start(fpi_ssm *ssm, ssm_completed_fn callback);
 void fpi_ssm_start_subsm(fpi_ssm *parent, fpi_ssm *child);
@@ -70,8 +72,6 @@ void fpi_ssm_jump_to_state(fpi_ssm *machine, int state);
 void fpi_ssm_mark_completed(fpi_ssm *machine);
 void fpi_ssm_mark_failed(fpi_ssm *machine, int error);
 struct fp_dev *fpi_ssm_get_dev(fpi_ssm *machine);
-void fpi_ssm_set_user_data(fpi_ssm *machine,
-	void *user_data);
 void *fpi_ssm_get_user_data(fpi_ssm *machine);
 int fpi_ssm_get_error(fpi_ssm *machine);
 int fpi_ssm_get_cur_state(fpi_ssm *machine);

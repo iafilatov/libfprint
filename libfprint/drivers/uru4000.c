@@ -1076,8 +1076,7 @@ static void init_run_state(fpi_ssm *ssm)
 		break;
 	case INIT_REBOOT_POWER: ;
 		fpi_ssm *rebootsm = fpi_ssm_new(FP_DEV(dev), rebootpwr_run_state,
-			REBOOTPWR_NUM_STATES);
-		fpi_ssm_set_user_data(rebootsm, dev);
+			REBOOTPWR_NUM_STATES, dev);
 		fpi_ssm_start_subsm(ssm, rebootsm);
 		break;
 	case INIT_CHECK_HWSTAT_POWERDOWN:
@@ -1095,8 +1094,7 @@ static void init_run_state(fpi_ssm *ssm)
 		urudev->irq_cb = init_scanpwr_irq_cb;
 
 		fpi_ssm *powerupsm = fpi_ssm_new(FP_DEV(dev), powerup_run_state,
-			POWERUP_NUM_STATES);
-		fpi_ssm_set_user_data(powerupsm, dev);
+			POWERUP_NUM_STATES, dev);
 		fpi_ssm_start_subsm(ssm, powerupsm);
 		break;
 	case INIT_AWAIT_SCAN_POWER:
@@ -1169,8 +1167,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 
 	urudev->scanpwr_irq_timeouts = 0;
 	urudev->activate_state = state;
-	ssm = fpi_ssm_new(FP_DEV(dev), init_run_state, INIT_NUM_STATES);
-	fpi_ssm_set_user_data(ssm, dev);
+	ssm = fpi_ssm_new(FP_DEV(dev), init_run_state, INIT_NUM_STATES, dev);
 	fpi_ssm_start(ssm, activate_initsm_complete);
 	return 0;
 }
@@ -1223,8 +1220,7 @@ static int execute_state_change(struct fp_img_dev *dev)
 		urudev->img_data = g_malloc(sizeof(struct uru4k_image));
 		urudev->img_enc_seed = rand();
 
-		ssm = fpi_ssm_new(FP_DEV(dev), imaging_run_state, IMAGING_NUM_STATES);
-		fpi_ssm_set_user_data(ssm, dev);
+		ssm = fpi_ssm_new(FP_DEV(dev), imaging_run_state, IMAGING_NUM_STATES, dev);
 		fpi_ssm_start(ssm, imaging_complete);
 
 		return write_reg(dev, REG_MODE, MODE_CAPTURE,

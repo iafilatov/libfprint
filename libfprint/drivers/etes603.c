@@ -743,9 +743,8 @@ static void m_exit_complete(fpi_ssm *ssm)
 static void m_exit_start(struct fp_img_dev *idev)
 {
 	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(idev), m_exit_state,
-					  EXIT_NUM_STATES);
+					  EXIT_NUM_STATES, idev);
 	fp_dbg("Switching device to idle mode");
-	fpi_ssm_set_user_data(ssm, idev);
 	fpi_ssm_start(ssm, m_exit_complete);
 }
 
@@ -956,8 +955,7 @@ static void m_finger_complete(fpi_ssm *ssm)
 	if (!fpi_ssm_get_error(ssm)) {
 		fpi_ssm *ssm_cap;
 		ssm_cap = fpi_ssm_new(FP_DEV(idev), m_capture_state,
-				CAP_NUM_STATES);
-		fpi_ssm_set_user_data(ssm_cap, idev);
+				CAP_NUM_STATES, idev);
 		fpi_ssm_start(ssm_cap, m_capture_complete);
 	} else {
 		if (fpi_imgdev_get_action_state(idev) != IMG_ACQUIRE_STATE_DEACTIVATING) {
@@ -974,8 +972,7 @@ static void m_finger_complete(fpi_ssm *ssm)
 static void m_start_fingerdetect(struct fp_img_dev *idev)
 {
 	fpi_ssm *ssmf;
-	ssmf = fpi_ssm_new(FP_DEV(idev), m_finger_state, FGR_NUM_STATES);
-	fpi_ssm_set_user_data(ssmf, idev);
+	ssmf = fpi_ssm_new(FP_DEV(idev), m_finger_state, FGR_NUM_STATES, idev);
 	fpi_ssm_start(ssmf, m_finger_complete);
 }
 
@@ -1265,8 +1262,7 @@ static void m_tunedc_complete(fpi_ssm *ssm)
 	if (!fpi_ssm_get_error(ssm)) {
 		fpi_ssm *ssm_tune;
 		ssm_tune = fpi_ssm_new(FP_DEV(idev), m_tunevrb_state,
-					TUNEVRB_NUM_STATES);
-		fpi_ssm_set_user_data(ssm_tune, idev);
+					TUNEVRB_NUM_STATES, idev);
 		fpi_ssm_start(ssm_tune, m_tunevrb_complete);
 	} else {
 		struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -1385,8 +1381,7 @@ static void m_init_complete(fpi_ssm *ssm)
 	if (!fpi_ssm_get_error(ssm)) {
 		fpi_ssm *ssm_tune;
 		ssm_tune = fpi_ssm_new(FP_DEV(idev), m_tunedc_state,
-					TUNEDC_NUM_STATES);
-		fpi_ssm_set_user_data(ssm_tune, idev);
+					TUNEDC_NUM_STATES, idev);
 		fpi_ssm_start(ssm_tune, m_tunedc_complete);
 	} else {
 		struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
@@ -1416,16 +1411,14 @@ static int dev_activate(struct fp_img_dev *idev, enum fp_imgdev_state state)
 
 	if (dev->dcoffset == 0) {
 		fp_dbg("Tuning device...");
-		ssm = fpi_ssm_new(FP_DEV(idev), m_init_state, INIT_NUM_STATES);
-		fpi_ssm_set_user_data(ssm, idev);
+		ssm = fpi_ssm_new(FP_DEV(idev), m_init_state, INIT_NUM_STATES, idev);
 		fpi_ssm_start(ssm, m_init_complete);
 	} else {
 		fp_dbg("Using previous tuning (DCOFFSET=0x%02X,VRT=0x%02X,"
 			"VRB=0x%02X,GAIN=0x%02X).", dev->dcoffset, dev->vrt,
 			dev->vrb, dev->gain);
 		fpi_imgdev_activate_complete(idev, 0);
-		ssm = fpi_ssm_new(FP_DEV(idev), m_finger_state, FGR_NUM_STATES);
-		fpi_ssm_set_user_data(ssm, idev);
+		ssm = fpi_ssm_new(FP_DEV(idev), m_finger_state, FGR_NUM_STATES, idev);
 		fpi_ssm_start(ssm, m_finger_complete);
 	}
 	return 0;

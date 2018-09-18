@@ -78,7 +78,7 @@
 struct fpi_ssm {
 	struct fp_dev *dev;
 	fpi_ssm *parentsm;
-	void *priv;
+	void *user_data;
 	int nr_states;
 	int cur_state;
 	gboolean completed;
@@ -92,14 +92,17 @@ struct fpi_ssm {
  * @dev: a #fp_dev fingerprint device
  * @handler: the callback function
  * @nr_states: the number of states
+ * @user_data: the user data to pass to callbacks
  *
  * Allocate a new ssm, with @nr_states states. The @handler callback
  * will be called after each state transition.
  *
  * Returns: a new #fpi_ssm state machine
  */
-fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
-	int nr_states)
+fpi_ssm *fpi_ssm_new(struct fp_dev  *dev,
+		     ssm_handler_fn  handler,
+		     int             nr_states,
+		     void           *user_data)
 {
 	fpi_ssm *machine;
 	BUG_ON(nr_states < 1);
@@ -109,6 +112,7 @@ fpi_ssm *fpi_ssm_new(struct fp_dev *dev, ssm_handler_fn handler,
 	machine->nr_states = nr_states;
 	machine->dev = dev;
 	machine->completed = TRUE;
+	machine->user_data = user_data;
 	return machine;
 }
 
@@ -128,33 +132,18 @@ fpi_ssm_get_dev(fpi_ssm *machine)
 }
 
 /**
- * fpi_ssm_set_user_data:
- * @machine: an #fpi_ssm state machine
- * @user_data: a pointer to user data
- *
- * Set a user data pointer in the #fpi_ssm structure, to be
- * retrieved with fpi_ssm_get_user_data() at a later point.
- */
-void
-fpi_ssm_set_user_data(fpi_ssm *machine,
-	void *user_data)
-{
-	machine->priv = user_data;
-}
-
-/**
  * fpi_ssm_get_user_data:
  * @machine: an #fpi_ssm state machine
  *
- * Retrieve the pointer to user data set with
- * fpi_ssm_set_user_data().
+ * Retrieve the pointer to user data set when fpi_ssm_new()
+ * is called.
  *
  * Returns: a pointer
  */
 void *
 fpi_ssm_get_user_data(fpi_ssm *machine)
 {
-	return machine->priv;
+	return machine->user_data;
 }
 
 /**
