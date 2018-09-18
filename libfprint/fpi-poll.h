@@ -26,6 +26,8 @@
  * @data: the data passed to fpi_timeout_add()
  *
  * The prototype of the callback function for fpi_timeout_add().
+ * Note that after the callback is called, the #fpi_timeout structure will
+ * be freed.
  */
 typedef void (*fpi_timeout_fn)(struct fp_dev *dev, void *data);
 
