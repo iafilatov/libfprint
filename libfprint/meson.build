@@ -141,7 +141,7 @@ foreach driver: drivers
 endforeach
 
 if aeslib
-    drivers_sources += [ 'aeslib.c', 'aeslib.h' ]
+    drivers_sources += [ 'drivers/aeslib.c', 'drivers/aeslib.h' ]
 endif
 if aesx660
     drivers_sources += ['drivers/aesx660.c', 'drivers/aesx660.h' ]
