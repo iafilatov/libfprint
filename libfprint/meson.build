@@ -11,6 +11,8 @@ libfprint_sources = [
     'fpi-ssm.h',
     'fpi-poll.h',
     'fpi-poll.c',
+    'fpi-usb.h',
+    'fpi-usb.c',
     'img.c',
     'imgdev.c',
     'sync.c',

@@ -27,13 +27,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <glib.h>
-#include <libusb.h>
 
 #include "fprint.h"
 #include "fpi-log.h"
 #include "fpi-ssm.h"
 #include "fpi-poll.h"
 #include "fpi-dev.h"
+#include "fpi-usb.h"
 #include "assembling.h"
 #include "drivers/driver_ids.h"
 

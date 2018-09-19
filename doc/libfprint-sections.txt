@@ -193,3 +193,9 @@ FP_IMG_DEV
 fp_dev_set_instance_data
 FP_INSTANCE_DATA
 </SECTION>
+
+<SECTION>
+<INCLUDE>fpi-usb.h</INCLUDE>
+<FILE>fpi-usb</FILE>
+fpi_usb_alloc
+</SECTION>

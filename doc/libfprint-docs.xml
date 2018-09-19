@@ -42,6 +42,7 @@
     <xi:include href="xml/fpi-dev.xml"/>
     <xi:include href="xml/fpi-ssm.xml"/>
     <xi:include href="xml/fpi-poll.xml"/>
+    <xi:include href="xml/fpi-usb.xml"/>
   </part>
 
   <index id="api-index">
