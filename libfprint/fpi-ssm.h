@@ -76,6 +76,7 @@ void fpi_ssm_start_subsm(fpi_ssm *parent, fpi_ssm *child);
 
 /* for drivers */
 void fpi_ssm_next_state(fpi_ssm *machine);
+void fpi_ssm_next_state_timeout_cb(struct fp_dev *dev, void *data);
 void fpi_ssm_jump_to_state(fpi_ssm *machine, int state);
 void fpi_ssm_mark_completed(fpi_ssm *machine);
 void fpi_ssm_mark_failed(fpi_ssm *machine, int error);

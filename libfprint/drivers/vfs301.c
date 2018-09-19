@@ -26,28 +26,14 @@
 
 /************************** GENERIC STUFF *************************************/
 
-/* Callback of asynchronous sleep */
-static void
-async_sleep_cb(struct fp_dev *dev,
-	       void          *data)
-{
-	fpi_ssm *ssm = data;
-
-	fpi_ssm_next_state(ssm);
-}
-
 /* Submit asynchronous sleep */
 static void
 async_sleep(unsigned int       msec,
 	    fpi_ssm           *ssm,
 	    struct fp_img_dev *dev)
 {
-	fpi_timeout *timeout;
-
 	/* Add timeout */
-	timeout = fpi_timeout_add(msec, async_sleep_cb, FP_DEV(dev), ssm);
-
-	if (timeout == NULL) {
+	if (fpi_timeout_add(msec, fpi_ssm_next_state_timeout_cb, FP_DEV(dev), ssm) == NULL) {
 		/* Failed to add timeout */
 		fp_err("failed to add timeout");
 		fpi_imgdev_session_error(dev, -ETIME);

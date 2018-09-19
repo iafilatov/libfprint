@@ -472,15 +472,6 @@ static int capture_chunk_async(struct vfs5011_data *data,
 	return libusb_submit_transfer(data->flying_transfer);
 }
 
-static void
-async_sleep_cb(struct fp_dev *dev,
-	       void          *data)
-{
-	fpi_ssm *ssm = data;
-
-	fpi_ssm_next_state(ssm);
-}
-
 /*
  *  Device initialization. Windows driver only does it when the device is
  *  plugged in, but it doesn't harm to do this every time before scanning the
@@ -721,7 +712,7 @@ static void activate_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		break;
 
 	case DEV_ACTIVATE_DATA_COMPLETE:
-		timeout = fpi_timeout_add(1, async_sleep_cb, _dev, ssm);
+		timeout = fpi_timeout_add(1, fpi_ssm_next_state_timeout_cb, _dev, ssm);
 
 		if (timeout == NULL) {
 			/* Failed to add timeout */

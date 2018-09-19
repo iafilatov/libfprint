@@ -520,15 +520,6 @@ another_scan(struct fp_dev *dev,
 	fpi_ssm_jump_to_state(ssm, SSM_TURN_ON);
 }
 
-/* Another SSM stub to continue after waiting for probable vdev->active changes */
-static void
-scan_completed(struct fp_dev *dev,
-	       void          *data)
-{
-	fpi_ssm *ssm = data;
-	fpi_ssm_next_state(ssm);
-}
-
 /* Main SSM loop */
 static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 {
@@ -652,7 +643,7 @@ static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		clear_data(vdev);
 
 		/* Wait for probable vdev->active changing */
-		fpi_timeout_add(VFS_SSM_TIMEOUT, scan_completed, _dev, ssm);
+		fpi_timeout_add(VFS_SSM_TIMEOUT, fpi_ssm_next_state_timeout_cb, _dev, ssm);
 		break;
 
 	case SSM_NEXT_RECEIVE:

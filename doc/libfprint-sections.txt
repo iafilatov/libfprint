@@ -165,6 +165,7 @@ fpi_ssm_start
 fpi_ssm_start_subsm
 
 fpi_ssm_next_state
+fpi_ssm_next_state_timeout_cb
 fpi_ssm_jump_to_state
 fpi_ssm_mark_completed
 fpi_ssm_mark_failed

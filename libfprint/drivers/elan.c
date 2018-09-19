@@ -583,13 +583,6 @@ static void elan_capture(struct fp_img_dev *dev)
 	fpi_ssm_start(ssm, capture_complete);
 }
 
-static void
-fpi_ssm_next_state_async(struct fp_dev *dev,
-			 void          *data)
-{
-	fpi_ssm_next_state((fpi_ssm *)data);
-}
-
 /* this function needs to have elandev->background and elandev->last_read to be
  * the calibration mean */
 static int elan_need_calibration(struct elan_dev *elandev)
@@ -680,7 +673,7 @@ static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_da
 			if (elandev->calib_status == 0x00
 			    && elandev->last_read[0] == 0x01)
 				elandev->calib_status = 0x01;
-			if (!fpi_timeout_add(50, fpi_ssm_next_state_async, _dev, ssm))
+			if (!fpi_timeout_add(50, fpi_ssm_next_state_timeout_cb, _dev, ssm))
 				fpi_ssm_mark_failed(ssm, -ETIME);
 		}
 		break;

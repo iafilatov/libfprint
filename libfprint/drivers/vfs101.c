@@ -105,9 +105,6 @@ struct vfs101_dev
 	/* Ignore usb error */
 	int ignore_error;
 
-	/* Timeout */
-	fpi_timeout *timeout;
-
 	/* Loop counter */
 	int counter;
 
@@ -470,32 +467,13 @@ async_load(fpi_ssm           *ssm,
 	}
 }
 
-/* Callback of asynchronous sleep */
-static void
-async_sleep_cb(struct fp_dev *dev,
-	       void          *data)
-{
-	fpi_ssm *ssm = data;
-	struct vfs101_dev *vdev = FP_INSTANCE_DATA(dev);
-
-	/* Cleanup timeout */
-	vdev->timeout = NULL;
-
-	fpi_ssm_next_state(ssm);
-}
-
 /* Submit asynchronous sleep */
 static void
 async_sleep(unsigned int       msec,
 	    fpi_ssm           *ssm,
 	    struct fp_img_dev *dev)
 {
-	struct vfs101_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
-
-	/* Add timeout */
-	vdev->timeout = fpi_timeout_add(msec, async_sleep_cb, FP_DEV(dev), ssm);
-
-	if (vdev->timeout == NULL)
+	if (fpi_timeout_add(msec, fpi_ssm_next_state_timeout_cb, FP_DEV(dev), ssm) == NULL)
 	{
 		/* Failed to add timeout */
 		fp_err("failed to add timeout");
@@ -1505,7 +1483,7 @@ static void dev_deactivate(struct fp_img_dev *dev)
 	vdev->active = FALSE;
 
 	/* Handle eventualy existing events */
-	while (vdev->transfer || vdev->timeout)
+	while (vdev->transfer)
 		fp_handle_events();
 
 	/* Notify deactivate complete */

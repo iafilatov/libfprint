@@ -250,6 +250,28 @@ void fpi_ssm_next_state(fpi_ssm *machine)
 }
 
 /**
+ * fpi_ssm_next_state_timeout_cb:
+ * @dev: a struct #fp_dev
+ * @data: a pointer to an #fpi_ssm state machine
+ *
+ * Same as fpi_ssm_next_state(), but to be used as a callback
+ * for an fpi_timeout_add() callback, when the state change needs
+ * to happen after a timeout.
+ *
+ * Make sure to pass the #fpi_ssm as the `user_data` argument
+ * for that fpi_timeout_add() call.
+ */
+void
+fpi_ssm_next_state_timeout_cb(struct fp_dev *dev,
+			      void          *data)
+{
+	g_return_if_fail (dev != NULL);
+	g_return_if_fail (data != NULL);
+
+	fpi_ssm_next_state(data);
+}
+
+/**
  * fpi_ssm_jump_to_state:
  * @machine: an #fpi_ssm state machine
  * @state: the state to jump to
