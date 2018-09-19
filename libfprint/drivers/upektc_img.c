@@ -80,15 +80,10 @@ upektc_img_submit_req(fpi_ssm               *ssm,
 		      libusb_transfer_cb_fn  cb)
 {
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	int r;
 
 	BUG_ON(buf_size > MAX_CMD_SIZE);
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
 
@@ -113,14 +108,9 @@ upektc_img_read_data(fpi_ssm               *ssm,
 		     size_t                 buf_offset,
 		     libusb_transfer_cb_fn  cb)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	struct upektc_img_dev *upekdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	BUG_ON(buf_size > MAX_RESPONSE_SIZE);
 
@@ -518,11 +508,7 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data
 	{
 		unsigned char *data;
 
-		transfer = libusb_alloc_transfer(0);
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			break;
-		}
+		transfer = fpi_usb_alloc();
 		transfer->flags |= LIBUSB_TRANSFER_FREE_BUFFER |
 			LIBUSB_TRANSFER_FREE_TRANSFER;
 

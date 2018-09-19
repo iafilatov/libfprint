@@ -109,11 +109,8 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case WRITE_INIT:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			return;
-		}
+		struct libusb_transfer *transfer = fpi_usb_alloc();
+
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_out,
 			(unsigned char*)upekdev->setup_commands[upekdev->init_idx].cmd,
 			UPEKTC_CMD_LEN, write_init_cb, ssm, BULK_TIMEOUT);
@@ -126,13 +123,8 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	break;
 	case READ_DATA:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+		struct libusb_transfer *transfer = fpi_usb_alloc();
 		unsigned char *data;
-
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			break;
-		}
 
 		data = g_malloc(upekdev->setup_commands[upekdev->init_idx].response_len);
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_in, data,
@@ -228,12 +220,7 @@ static void finger_det_cmd_cb(struct libusb_transfer *t)
 		goto exit_free_transfer;
 	}
 
-	transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		fpi_imgdev_session_error(dev, -ENOMEM);
-		goto exit_free_transfer;
-	}
-
+	transfer = fpi_usb_alloc();
 	data = g_malloc(IMAGE_SIZE);
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_in, data, IMAGE_SIZE,
 		finger_det_data_cb, dev, BULK_TIMEOUT);
@@ -260,11 +247,7 @@ static void start_finger_detection(struct fp_img_dev *dev)
 		return;
 	}
 
-	transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		fpi_imgdev_session_error(dev, -ENOMEM);
-		return;
-	}
+	transfer = fpi_usb_alloc();
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_out,
 		(unsigned char *)scan_cmd, UPEKTC_CMD_LEN,
 		finger_det_cmd_cb, dev, BULK_TIMEOUT);
@@ -332,11 +315,8 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_WRITE_CMD:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			return;
-		}
+		struct libusb_transfer *transfer = fpi_usb_alloc();
+
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_out,
 			(unsigned char *)scan_cmd, UPEKTC_CMD_LEN,
 			capture_cmd_cb, ssm, BULK_TIMEOUT);
@@ -349,13 +329,8 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 	break;
 	case CAPTURE_READ_DATA:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+		struct libusb_transfer *transfer = fpi_usb_alloc();
 		unsigned char *data;
-
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			break;
-		}
 
 		data = g_malloc(IMAGE_SIZE);
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), upekdev->ep_in, data, IMAGE_SIZE,

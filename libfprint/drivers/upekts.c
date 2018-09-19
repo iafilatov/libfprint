@@ -90,7 +90,7 @@ static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 	unsigned char seq_a, unsigned char seq_b, const unsigned char *data,
 	uint16_t len, libusb_transfer_cb_fn callback, void *user_data)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	uint16_t crc;
 	const char *ciao = "Ciao";
 
@@ -98,9 +98,6 @@ static struct libusb_transfer *alloc_send_cmd_transfer(struct fp_dev *dev,
 	 * 1 byte lenLO, 2 byte CRC */
 	size_t urblen = len + 9;
 	unsigned char *buf;
-
-	if (!transfer)
-		return NULL;
 
 	if (!data && len > 0) {
 		fp_err("len>0 but no data?");
@@ -367,11 +364,8 @@ static void read_msg_cb(struct libusb_transfer *transfer)
 	 * to read the remainder. This is handled below. */
 	if (len > MAX_DATA_IN_READ_BUF) {
 		int needed = len - MAX_DATA_IN_READ_BUF;
-		struct libusb_transfer *etransfer = libusb_alloc_transfer(0);
+		struct libusb_transfer *etransfer = fpi_usb_alloc();
 		int r;
-
-		if (!transfer)
-			goto err;
 
 		fp_dbg("didn't fit in buffer, need to extend by %d bytes", needed);
 		data = g_realloc((gpointer) data, MSG_READ_BUF_SIZE + needed);
@@ -407,13 +401,8 @@ out:
 static int __read_msg_async(struct read_msg_data *udata)
 {
 	unsigned char *buf = g_malloc(MSG_READ_BUF_SIZE);
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	int r;
-
-	if (!transfer) {
-		g_free(buf);
-		return -ENOMEM;
-	}
 
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(udata->dev), EP_IN, buf,
 		MSG_READ_BUF_SIZE, read_msg_cb, udata, TIMEOUT);
@@ -670,12 +659,7 @@ static void initsm_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_data)
 	case WRITE_CTRL400: ;
 		unsigned char *data;
 
-		transfer = libusb_alloc_transfer(0);
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			break;
-		}
-		
+		transfer = fpi_usb_alloc();
 		data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 		libusb_fill_control_setup(data,
 			LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE, 0x0c, 0x100, 0x0400, 1);

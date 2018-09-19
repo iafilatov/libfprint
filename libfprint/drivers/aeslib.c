@@ -24,9 +24,9 @@
 #include <errno.h>
 #include <string.h>
 
-#include <libusb.h>
 #include <glib.h>
 
+#include "fpi-usb.h"
 #include "assembling.h"
 #include "aeslib.h"
 
@@ -73,13 +73,8 @@ static int do_write_regv(struct write_regv_data *wdata, int upper_bound)
 	unsigned char *data = g_malloc(alloc_size);
 	unsigned int i;
 	size_t data_offset = 0;
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	int r;
-
-	if (!transfer) {
-		g_free(data);
-		return -ENOMEM;
-	}
 
 	for (i = offset; i < offset + num; i++) {
 		const struct aes_regwrite *regwrite = &wdata->regs[i];

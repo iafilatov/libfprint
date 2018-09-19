@@ -583,13 +583,7 @@ sm_write_regs(fpi_ssm                     *ssm,
 	struct write_regs_data *wrdata = g_malloc(sizeof(*wrdata));
 	unsigned char *data;
 
-	wrdata->transfer = libusb_alloc_transfer(0);
-	if (!wrdata->transfer) {
-		g_free(wrdata);
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
-
+	wrdata->transfer = fpi_usb_alloc();
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
 	libusb_fill_control_setup(data, 0x40, 0x0c, 0, 0, 1);
 	libusb_fill_control_transfer(wrdata->transfer,
@@ -621,14 +615,9 @@ sm_write_reg(fpi_ssm           *ssm,
 	     uint8_t            reg,
 	     uint8_t            value)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	fp_dbg("set %02x=%02x", reg, value);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 1);
@@ -671,14 +660,9 @@ sm_read_reg(fpi_ssm           *ssm,
 	    struct fp_img_dev *dev,
 	    uint8_t            reg)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	fp_dbg("read reg %02x", reg);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE + 8);
@@ -723,14 +707,9 @@ static void
 sm_await_intr(fpi_ssm           *ssm,
 	      struct fp_img_dev *dev)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	G_DEBUG_HERE();
 	data = g_malloc(4);
@@ -1302,11 +1281,7 @@ static int dev_activate(struct fp_img_dev *dev, enum fp_imgdev_state state)
 	sdev->num_flying = 0;
 	for (i = 0; i < NUM_BULK_TRANSFERS; i++) {
 		unsigned char *data;
-		sdev->img_transfer[i] = libusb_alloc_transfer(0);
-		if (!sdev->img_transfer[i]) {
-			free_img_transfers(sdev);
-			return -ENOMEM;
-		}
+		sdev->img_transfer[i] = fpi_usb_alloc();
 		sdev->img_transfer_data[i].idx = i;
 		sdev->img_transfer_data[i].dev = dev;
 		data = g_malloc(4096);

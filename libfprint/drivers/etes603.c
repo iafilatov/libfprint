@@ -640,12 +640,9 @@ static int async_tx(struct fp_img_dev *idev, unsigned int ep, void *cb,
 	void *cb_arg)
 {
 	struct etes603_dev *dev = FP_INSTANCE_DATA(FP_DEV(idev));
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *buffer;
 	int length;
-
-	if (!transfer)
-		return -ENOMEM;
 
 	if (ep == EP_OUT) {
 		buffer = (unsigned char *)dev->req;

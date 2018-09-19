@@ -116,12 +116,7 @@ static void do_capture(struct fp_img_dev *dev)
 	unsigned char *data;
 	int r;
 
-	aesdev->img_trf = libusb_alloc_transfer(0);
-	if (!aesdev->img_trf) {
-		fpi_imgdev_session_error(dev, -EIO);
-		return;
-	}
-
+	aesdev->img_trf = fpi_usb_alloc();
 	data = g_malloc(aesdev->data_buflen);
 	libusb_fill_bulk_transfer(aesdev->img_trf, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data,
 		aesdev->data_buflen, img_cb, dev, 0);

@@ -91,15 +91,10 @@ sm_write_reg(fpi_ssm           *ssm,
 	     unsigned char      reg,
 	     unsigned char      value)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
 	
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
-
 	fp_dbg("set %02x=%02x", reg, value);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE);
 	libusb_fill_control_setup(data, CTRL_OUT, reg, value, 0, 0);
@@ -132,14 +127,9 @@ sm_exec_cmd(fpi_ssm           *ssm,
 	    unsigned char      cmd,
 	    unsigned char      param)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
-	
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	fp_dbg("cmd %02x param %02x", cmd, param);
 	data = g_malloc(LIBUSB_CONTROL_SETUP_SIZE);
@@ -228,13 +218,8 @@ capture_iterate(fpi_ssm           *ssm,
 {
 	struct v5s_dev *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int iteration = vdev->capture_iteration;
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN,
 		vdev->capture_img->data + (RQ_SIZE * iteration), RQ_SIZE,

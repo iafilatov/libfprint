@@ -380,22 +380,16 @@ static void elan_cmd_read(fpi_ssm *ssm, struct fp_img_dev *dev)
 		response_len =
 		    elandev->raw_frame_height * elandev->frame_width * 2;
 
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
-	elandev->cur_transfer = transfer;
-
+	elandev->cur_transfer = fpi_usb_alloc();
 	g_free(elandev->last_read);
 	elandev->last_read = g_malloc(response_len);
 
-	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)),
+	libusb_fill_bulk_transfer(elandev->cur_transfer, fpi_dev_get_usb_dev(FP_DEV(dev)),
 				  elandev->cmd->response_in,
 				  elandev->last_read, response_len, elan_cmd_cb,
 				  ssm, elandev->cmd_timeout);
-	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
-	int r = libusb_submit_transfer(transfer);
+	elandev->cur_transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
+	int r = libusb_submit_transfer(elandev->cur_transfer);
 	if (r < 0)
 		fpi_ssm_mark_failed(ssm, r);
 }
@@ -420,18 +414,12 @@ elan_run_cmd(fpi_ssm               *ssm,
 		return;
 	}
 
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
-	elandev->cur_transfer = transfer;
-
-	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), ELAN_EP_CMD_OUT,
+	elandev->cur_transfer = fpi_usb_alloc();
+	libusb_fill_bulk_transfer(elandev->cur_transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), ELAN_EP_CMD_OUT,
 				  (char *) cmd->cmd, ELAN_CMD_LEN, elan_cmd_cb, ssm,
 				  elandev->cmd_timeout);
-	transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
-	int r = libusb_submit_transfer(transfer);
+	elandev->cur_transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
+	int r = libusb_submit_transfer(elandev->cur_transfer);
 	if (r < 0)
 		fpi_ssm_mark_failed(ssm, r);
 }

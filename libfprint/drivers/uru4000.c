@@ -186,12 +186,9 @@ static int write_regs(struct fp_img_dev *dev, uint16_t first_reg,
 	void *user_data)
 {
 	struct write_regs_data *wrdata;
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
-
-	if (!transfer)
-		return -ENOMEM;
 
 	wrdata = g_malloc(sizeof(*wrdata));
 	wrdata->dev = dev;
@@ -253,12 +250,9 @@ static int read_regs(struct fp_img_dev *dev, uint16_t first_reg,
 	uint16_t num_regs, read_regs_cb_fn callback, void *user_data)
 {
 	struct read_regs_data *rrdata;
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
-
-	if (!transfer)
-		return -ENOMEM;
 
 	rrdata = g_malloc(sizeof(*rrdata));
 	rrdata->dev = dev;
@@ -428,13 +422,10 @@ out:
 static int start_irq_handler(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
 
-	if (!transfer)
-		return -ENOMEM;
-	
 	data = g_malloc(IRQ_LENGTH);
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_INTR, data, IRQ_LENGTH,
 		irq_handler, dev, 0);
@@ -1236,7 +1227,7 @@ static int execute_state_change(struct fp_img_dev *dev)
 		fp_dbg("starting capture");
 		urudev->irq_cb = NULL;
 
-		urudev->img_transfer = libusb_alloc_transfer(0);
+		urudev->img_transfer = fpi_usb_alloc();
 		urudev->img_data = g_malloc(sizeof(struct uru4k_image));
 		urudev->img_enc_seed = rand();
 

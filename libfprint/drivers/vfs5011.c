@@ -189,13 +189,7 @@ static void usbexchange_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 	switch (action->type) {
 	case ACTION_SEND:
 		fp_dbg("Sending %s", action->name);
-		transfer = libusb_alloc_transfer(0);
-		if (transfer == NULL) {
-			fp_err("Failed to allocate transfer");
-			fpi_imgdev_session_error(data->device, -ENOMEM);
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			return;
-		}
+		transfer = fpi_usb_alloc();
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(data->device)),
 					  action->endpoint, action->data,
 					  action->size, async_send_cb, ssm,
@@ -205,13 +199,7 @@ static void usbexchange_loop(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 
 	case ACTION_RECEIVE:
 		fp_dbg("Receiving %d bytes", action->size);
-		transfer = libusb_alloc_transfer(0);
-		if (transfer == NULL) {
-			fp_err("Failed to allocate transfer");
-			fpi_imgdev_session_error(data->device, -ENOMEM);
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			return;
-		}
+		transfer = fpi_usb_alloc();
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(data->device)),
 					  action->endpoint, data->receive_buf,
 					  action->size, async_recv_cb, ssm,
@@ -464,7 +452,7 @@ static int capture_chunk_async(struct vfs5011_data *data,
 		STOP_CHECK_LINES = 50
 	};
 
-	data->flying_transfer = libusb_alloc_transfer(0);
+	data->flying_transfer = fpi_usb_alloc();
 	libusb_fill_bulk_transfer(data->flying_transfer, handle, VFS5011_IN_ENDPOINT_DATA,
 				  data->capture_buffer,
 				  nline * VFS5011_LINE_SIZE,

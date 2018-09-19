@@ -33,8 +33,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <glib.h>
-#include <libusb-1.0/libusb.h>
 
+#include "fpi-usb.h"
 #include "vfs301_proto.h"
 #include "vfs301_proto_fragments.h"
 
@@ -499,12 +499,7 @@ void vfs301_proto_process_event_start(
 	USB_RECV(VFS301_RECEIVE_ENDPOINT_DATA, 64);
 
 	/* now read the fingerprint data, while there are some */
-	transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		dev->recv_progress = VFS301_FAILURE;
-		return;
-	}
-
+	transfer = fpi_usb_alloc();
 	dev->recv_progress = VFS301_ONGOING;
 	dev->recv_exp_amt = VFS301_FP_RECV_LEN_1;
 

@@ -125,12 +125,7 @@ static void finger_det_reqs_cb(struct libusb_transfer *t)
 		goto exit_free_transfer;
 	}
 
-	transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		fpi_imgdev_session_error(dev, -ENOMEM);
-		goto exit_free_transfer;
-	}
-
+	transfer = fpi_usb_alloc();
 	/* 2 bytes of result */
 	data = g_malloc(AES2550_EP_IN_BUF_SIZE);
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, AES2550_EP_IN_BUF_SIZE,
@@ -158,11 +153,7 @@ static void start_finger_detection(struct fp_img_dev *dev)
 		return;
 	}
 
-	transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		fpi_imgdev_session_error(dev, -ENOMEM);
-		return;
-	}
+	transfer = fpi_usb_alloc();
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT, finger_det_reqs,
 		sizeof(finger_det_reqs), finger_det_reqs_cb, dev, BULK_TIMEOUT);
 	r = libusb_submit_transfer(transfer);
@@ -330,11 +321,8 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case CAPTURE_WRITE_REQS:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			return;
-		}
+		struct libusb_transfer *transfer = fpi_usb_alloc();
+
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT, capture_reqs,
 			sizeof(capture_reqs), capture_reqs_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
@@ -346,13 +334,8 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 	break;
 	case CAPTURE_READ_DATA:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+		struct libusb_transfer *transfer = fpi_usb_alloc();
 		unsigned char *data;
-
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			break;
-		}
 
 		data = g_malloc(AES2550_EP_IN_BUF_SIZE);
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, AES2550_EP_IN_BUF_SIZE,
@@ -368,11 +351,8 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 	break;
 	case CAPTURE_SET_IDLE:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			return;
-		}
+		struct libusb_transfer *transfer = fpi_usb_alloc();
+
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT, capture_set_idle_reqs,
 			sizeof(capture_set_idle_reqs), capture_set_idle_reqs_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
@@ -489,11 +469,8 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case WRITE_INIT:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			return;
-		}
+		struct libusb_transfer *transfer = fpi_usb_alloc();
+
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT, init_reqs,
 			sizeof(init_reqs), init_reqs_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
@@ -505,13 +482,8 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	break;
 	case READ_DATA:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+		struct libusb_transfer *transfer = fpi_usb_alloc();
 		unsigned char *data;
-
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			break;
-		}
 
 		data = g_malloc(AES2550_EP_IN_BUF_SIZE);
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, AES2550_EP_IN_BUF_SIZE,
@@ -527,11 +499,8 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	break;
 	case CALIBRATE:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			return;
-		}
+		struct libusb_transfer *transfer = fpi_usb_alloc();
+
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT, calibrate_reqs,
 			sizeof(calibrate_reqs), init_reqs_cb, ssm, BULK_TIMEOUT);
 		r = libusb_submit_transfer(transfer);
@@ -543,13 +512,8 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	break;
 	case READ_CALIB_TABLE:
 	{
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+		struct libusb_transfer *transfer = fpi_usb_alloc();
 		unsigned char *data;
-
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			break;
-		}
 
 		data = g_malloc(AES2550_EP_IN_BUF_SIZE);
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, AES2550_EP_IN_BUF_SIZE,

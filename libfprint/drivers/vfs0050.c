@@ -60,7 +60,7 @@ async_write(fpi_ssm           *ssm,
 	struct libusb_device_handle *usb_dev = fpi_dev_get_usb_dev(FP_DEV(dev));
 	struct vfs_dev_t *vdev = FP_INSTANCE_DATA(FP_DEV(dev));
 
-	vdev->transfer = libusb_alloc_transfer(0);
+	vdev->transfer = fpi_usb_alloc();
 	vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
 	libusb_fill_bulk_transfer(vdev->transfer, usb_dev, 0x01, data, len,
 				  async_write_callback, ssm, VFS_USB_TIMEOUT);
@@ -109,7 +109,7 @@ async_read(fpi_ssm           *ssm,
 
 	ep |= LIBUSB_ENDPOINT_IN;
 
-	vdev->transfer = libusb_alloc_transfer(0);
+	vdev->transfer = fpi_usb_alloc();
 	vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
 
 	/* 0x83 is the only interrupt endpoint */
@@ -166,7 +166,7 @@ static void async_abort(fpi_ssm *ssm, int ep)
 
 	ep |= LIBUSB_ENDPOINT_IN;
 
-	vdev->transfer = libusb_alloc_transfer(0);
+	vdev->transfer = fpi_usb_alloc();
 	vdev->transfer->flags |=
 	    LIBUSB_TRANSFER_FREE_TRANSFER | LIBUSB_TRANSFER_FREE_BUFFER;
 
@@ -578,7 +578,7 @@ static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		}
 
 		/* Asyncronously enquire an interrupt */
-		vdev->transfer = libusb_alloc_transfer(0);
+		vdev->transfer = fpi_usb_alloc();
 		vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
 		libusb_fill_interrupt_transfer(vdev->transfer, usb_dev, 0x83,
 					       vdev->interrupt,
@@ -628,7 +628,7 @@ static void activate_ssm(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		}
 
 		/* Receive chunk of data */
-		vdev->transfer = libusb_alloc_transfer(0);
+		vdev->transfer = fpi_usb_alloc();
 		vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
 		libusb_fill_bulk_transfer(vdev->transfer, usb_dev, 0x82,
 					  (void *)vdev->lines_buffer +

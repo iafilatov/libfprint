@@ -46,13 +46,8 @@ aesX660_send_cmd_timeout(fpi_ssm               *ssm,
 			 int                    timeout)
 {
 	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_OUT,
 		(unsigned char *)cmd, cmd_len,
@@ -82,14 +77,9 @@ aesX660_read_response(fpi_ssm               *ssm,
 		      libusb_transfer_cb_fn  callback)
 {
 	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	data = g_malloc(buf_len);
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN,

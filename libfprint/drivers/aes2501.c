@@ -115,12 +115,7 @@ static void read_regs_rq_cb(struct fp_img_dev *dev, int result, void *user_data)
 	if (result != 0)
 		goto err;
 
-	transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		result = -ENOMEM;
-		goto err;
-	}
-
+	transfer = fpi_usb_alloc();
 	data = g_malloc(126);
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 126,
 		read_regs_data_cb, rdata, BULK_TIMEOUT);
@@ -207,14 +202,9 @@ static void generic_ignore_data_cb(struct libusb_transfer *transfer)
  * away, then increment the SSM */
 static void generic_read_ignore_data(fpi_ssm *ssm, struct fp_dev *dev, size_t bytes)
 {
-	struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+	struct libusb_transfer *transfer = fpi_usb_alloc();
 	unsigned char *data;
 	int r;
-
-	if (!transfer) {
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
 
 	data = g_malloc(bytes);
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(dev), EP_IN, data, bytes,
@@ -325,12 +315,7 @@ static void finger_det_reqs_cb(struct fp_img_dev *dev, int result,
 		return;
 	}
 
-	transfer = libusb_alloc_transfer(0);
-	if (!transfer) {
-		fpi_imgdev_session_error(dev, -ENOMEM);
-		return;
-	}
-
+	transfer = fpi_usb_alloc();
 	data = g_malloc(20);
 	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 20,
 		finger_det_data_cb, dev, BULK_TIMEOUT);
@@ -548,13 +533,8 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 				generic_write_regv_cb, ssm);
 		break;
 	case CAPTURE_READ_STRIP: ;
-		struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+		struct libusb_transfer *transfer = fpi_usb_alloc();
 		unsigned char *data;
-
-		if (!transfer) {
-			fpi_ssm_mark_failed(ssm, -ENOMEM);
-			break;
-		}
 
 		data = g_malloc(1705);
 		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 1705,

@@ -247,15 +247,7 @@ async_send(fpi_ssm           *ssm,
 	int r;
 
 	/* Allocation of transfer */
-	vdev->transfer = libusb_alloc_transfer(0);
-	if (!vdev->transfer)
-	{
-		/* Allocation transfer failed, return no memory error */
-		fp_err("allocation of usb transfer failed");
-		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
+	vdev->transfer = fpi_usb_alloc();
 
 	/* Put sequential number into the buffer */
 	vdev->seqnum++;
@@ -335,15 +327,7 @@ async_recv(fpi_ssm           *ssm,
 	int r;
 
 	/* Allocation of transfer */
-	vdev->transfer = libusb_alloc_transfer(0);
-	if (!vdev->transfer)
-	{
-		/* Allocation transfer failed, return no memory error */
-		fp_err("allocation of usb transfer failed");
-		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
+	vdev->transfer = fpi_usb_alloc();
 
 	/* Prepare bulk transfer */
 	libusb_fill_bulk_transfer(vdev->transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN(1), vdev->buffer, 0x0f, async_recv_cb, ssm, BULK_TIMEOUT);
@@ -438,15 +422,7 @@ async_load(fpi_ssm           *ssm,
 	int r;
 
 	/* Allocation of transfer */
-	vdev->transfer = libusb_alloc_transfer(0);
-	if (!vdev->transfer)
-	{
-		/* Allocation transfer failed, return no memory error */
-		fp_err("allocation of usb transfer failed");
-		fpi_imgdev_session_error(dev, -ENOMEM);
-		fpi_ssm_mark_failed(ssm, -ENOMEM);
-		return;
-	}
+	vdev->transfer = fpi_usb_alloc();
 
 	/* Append new data into the buffer */
 	buffer = vdev->buffer + vdev->length;
