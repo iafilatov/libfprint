@@ -35,6 +35,11 @@ static void complete_deactivation(struct fp_img_dev *dev);
 #define BULK_TIMEOUT		4000
 #define FRAME_HEIGHT		AESX660_FRAME_HEIGHT
 
+#define ID_LEN			8
+#define INIT_LEN		4
+#define CALIBRATE_DATA_LEN	4
+#define FINGER_DET_DATA_LEN	4
+
 static void
 aesX660_send_cmd_timeout(fpi_ssm               *ssm,
 			 struct fp_dev         *_dev,
@@ -227,8 +232,7 @@ static void finger_det_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *user_da
 			aesX660_send_cmd_cb, 0);
 	break;
 	case FINGER_DET_READ_FD_DATA:
-		/* Should return 4 byte of response */
-		aesX660_read_response(ssm, dev, 4, finger_det_read_fd_data_cb);
+		aesX660_read_response(ssm, dev, FINGER_DET_DATA_LEN, finger_det_read_fd_data_cb);
 	break;
 	case FINGER_DET_SET_IDLE:
 		aesX660_send_cmd(ssm, dev, set_idle_cmd, sizeof(set_idle_cmd),
@@ -548,8 +552,7 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 			aesX660_send_cmd_cb);
 	break;
 	case ACTIVATE_READ_ID:
-		/* Should return 8-byte response */
-		aesX660_read_response(ssm, _dev, 8, activate_read_id_cb);
+		aesX660_read_response(ssm, _dev, ID_LEN, activate_read_id_cb);
 	break;
 	case ACTIVATE_SEND_INIT_CMD:
 		fp_dbg("Activate: send init seq #%d cmd #%d\n",
@@ -562,16 +565,14 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 	break;
 	case ACTIVATE_READ_INIT_RESPONSE:
 		fp_dbg("Activate: read init response\n");
-		/* Should return 4-byte response */
-		aesX660_read_response(ssm, _dev, 4, activate_read_init_cb);
+		aesX660_read_response(ssm, _dev, INIT_LEN, activate_read_init_cb);
 	break;
 	case ACTIVATE_SEND_CALIBRATE_CMD:
 		aesX660_send_cmd(ssm, _dev, calibrate_cmd, sizeof(calibrate_cmd),
 			aesX660_send_cmd_cb);
 	break;
 	case ACTIVATE_READ_CALIBRATE_DATA:
-		/* Should return 4-byte response */
-		aesX660_read_response(ssm, _dev, 4, aesX660_read_calibrate_data_cb);
+		aesX660_read_response(ssm, _dev, CALIBRATE_DATA_LEN, aesX660_read_calibrate_data_cb);
 	break;
 	}
 }
