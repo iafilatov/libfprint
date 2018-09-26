@@ -88,9 +88,12 @@ struct aes2501_read_regs {
 	void *user_data;
 };
 
-static void read_regs_data_cb(struct libusb_transfer *transfer)
+static void read_regs_data_cb(struct libusb_transfer *transfer,
+			      struct fp_dev          *dev,
+			      fpi_ssm                *ssm,
+			      void                   *user_data)
 {
-	struct aes2501_read_regs *rdata = transfer->user_data;
+	struct aes2501_read_regs *rdata = user_data;
 	unsigned char *retdata = NULL;
 	int r;
 
@@ -105,14 +108,12 @@ static void read_regs_data_cb(struct libusb_transfer *transfer)
 
 	rdata->callback(rdata->dev, r, retdata, rdata->user_data);
 	g_free(rdata);
-	g_free(transfer->buffer);
-	libusb_free_transfer(transfer);
 }
 
 static void read_regs_rq_cb(struct fp_img_dev *dev, int result, void *user_data)
 {
 	struct aes2501_read_regs *rdata = user_data;
-	struct libusb_transfer *transfer;
+	fpi_usb_transfer *transfer;
 	unsigned char *data;
 	int r;
 
@@ -120,15 +121,18 @@ static void read_regs_rq_cb(struct fp_img_dev *dev, int result, void *user_data)
 	if (result != 0)
 		goto err;
 
-	transfer = fpi_usb_alloc();
 	data = g_malloc(READ_REGS_LEN);
-	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, READ_REGS_LEN,
-		read_regs_data_cb, rdata, BULK_TIMEOUT);
+	transfer = fpi_usb_fill_bulk_transfer(FP_DEV(dev),
+					      NULL,
+					      EP_IN,
+					      data,
+					      READ_REGS_LEN,
+					      read_regs_data_cb,
+					      rdata,
+					      BULK_TIMEOUT);
 
-	r = libusb_submit_transfer(transfer);
+	r = fpi_usb_submit_transfer(transfer);
 	if (r < 0) {
-		g_free(data);
-		libusb_free_transfer(transfer);
 		result = -EIO;
 		goto err;
 	}
@@ -188,39 +192,40 @@ static void generic_write_regv_cb(struct fp_img_dev *dev, int result,
 }
 
 /* check that read succeeded but ignore all data */
-static void generic_ignore_data_cb(struct libusb_transfer *transfer)
+static void generic_ignore_data_cb(struct libusb_transfer *transfer,
+				   struct fp_dev          *dev,
+				   fpi_ssm                *ssm,
+				   void                   *user_data)
 {
-	fpi_ssm *ssm = transfer->user_data;
-
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED)
 		fpi_ssm_mark_failed(ssm, -EIO);
 	else if (transfer->length != transfer->actual_length)
 		fpi_ssm_mark_failed(ssm, -EPROTO);
 	else
 		fpi_ssm_next_state(ssm);
-
-	g_free(transfer->buffer);
-	libusb_free_transfer(transfer);
 }
 
 /* read the specified number of bytes from the IN endpoint but throw them
  * away, then increment the SSM */
 static void generic_read_ignore_data(fpi_ssm *ssm, struct fp_dev *dev, size_t bytes)
 {
-	struct libusb_transfer *transfer = fpi_usb_alloc();
+	fpi_usb_transfer *transfer;
 	unsigned char *data;
 	int r;
 
 	data = g_malloc(bytes);
-	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(dev), EP_IN, data, bytes,
-		generic_ignore_data_cb, ssm, BULK_TIMEOUT);
+	transfer = fpi_usb_fill_bulk_transfer(dev,
+					      ssm,
+					      EP_IN,
+					      data,
+					      bytes,
+					      generic_ignore_data_cb,
+					      NULL,
+					      BULK_TIMEOUT);
 
-	r = libusb_submit_transfer(transfer);
-	if (r < 0) {
-		g_free(data);
-		libusb_free_transfer(transfer);
+	r = fpi_usb_submit_transfer(transfer);
+	if (r < 0)
 		fpi_ssm_mark_failed(ssm, r);
-	}
 }
 
 /****** IMAGE PROCESSING ******/
@@ -276,19 +281,22 @@ static const struct aes_regwrite finger_det_reqs[] = {
 
 static void start_finger_detection(struct fp_img_dev *dev);
 
-static void finger_det_data_cb(struct libusb_transfer *transfer)
+static void finger_det_data_cb(struct libusb_transfer *transfer,
+			       struct fp_dev          *_dev,
+			       fpi_ssm                *ssm,
+			       void                   *user_data)
 {
-	struct fp_img_dev *dev = transfer->user_data;
+	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
 	unsigned char *data = transfer->buffer;
 	int i;
 	int sum = 0;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_imgdev_session_error(dev, -EIO);
-		goto out;
+		return;
 	} else if (transfer->length != transfer->actual_length) {
 		fpi_imgdev_session_error(dev, -EPROTO);
-		goto out;
+		return;
 	}
 
 	/* examine histogram to determine finger presence */
@@ -302,16 +310,12 @@ static void finger_det_data_cb(struct libusb_transfer *transfer)
 		/* no finger, poll for a new histogram */
 		start_finger_detection(dev);
 	}
-
-out:
-	g_free(data);
-	libusb_free_transfer(transfer);
 }
 
 static void finger_det_reqs_cb(struct fp_img_dev *dev, int result,
 	void *user_data)
 {
-	struct libusb_transfer *transfer;
+	fpi_usb_transfer *transfer;
 	unsigned char *data;
 	int r;
 
@@ -320,17 +324,19 @@ static void finger_det_reqs_cb(struct fp_img_dev *dev, int result,
 		return;
 	}
 
-	transfer = fpi_usb_alloc();
 	data = g_malloc(FINGER_DETECTION_LEN);
-	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, FINGER_DETECTION_LEN,
-		finger_det_data_cb, dev, BULK_TIMEOUT);
+	transfer = fpi_usb_fill_bulk_transfer(FP_DEV(dev),
+					      NULL,
+					      EP_IN,
+					      data,
+					      FINGER_DETECTION_LEN,
+					      finger_det_data_cb,
+					      NULL,
+					      BULK_TIMEOUT);
 
-	r = libusb_submit_transfer(transfer);
-	if (r < 0) {
-		g_free(data);
-		libusb_free_transfer(transfer);
+	r = fpi_usb_submit_transfer(transfer);
+	if (r < 0)
 		fpi_imgdev_session_error(dev, r);
-	}
 }
 
 static void start_finger_detection(struct fp_img_dev *dev)
@@ -422,35 +428,37 @@ enum capture_states {
 	CAPTURE_NUM_STATES,
 };
 
-static void capture_read_strip_cb(struct libusb_transfer *transfer)
+static void capture_read_strip_cb(struct libusb_transfer *transfer,
+				  struct fp_dev          *_dev,
+				  fpi_ssm                *ssm,
+				  void                   *user_data)
 {
 	unsigned char *stripdata;
-	fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct aes2501_dev *aesdev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
+	struct aes2501_dev *aesdev = FP_INSTANCE_DATA(_dev);
 	unsigned char *data = transfer->buffer;
 	int sum;
 	int threshold;
 
 	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
 		fpi_ssm_mark_failed(ssm, -EIO);
-		goto out;
+		return;
 	} else if (transfer->length != transfer->actual_length) {
 		fpi_ssm_mark_failed(ssm, -EPROTO);
-		goto out;
+		return;
 	}
 
 	threshold = regval_from_dump(data + 1 + 192*8 + 1 + 16*2 + 1 + 8,
 		AES2501_REG_DATFMT);
 	if (threshold < 0) {
 		fpi_ssm_mark_failed(ssm, threshold);
-		goto out;
+		return;
 	}
 
 	sum = sum_histogram_values(data + 1 + 192*8, threshold & 0x0f);
 	if (sum < 0) {
 		fpi_ssm_mark_failed(ssm, sum);
-		goto out;
+		return;
 	}
 	fp_dbg("sum=%d", sum);
 
@@ -503,10 +511,6 @@ static void capture_read_strip_cb(struct libusb_transfer *transfer)
 
 		fpi_ssm_jump_to_state(ssm, CAPTURE_REQUEST_STRIP);
 	}
-
-out:
-	g_free(data);
-	libusb_free_transfer(transfer);
 }
 
 static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
@@ -538,19 +542,22 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 				generic_write_regv_cb, ssm);
 		break;
 	case CAPTURE_READ_STRIP: ;
-		struct libusb_transfer *transfer = fpi_usb_alloc();
+		fpi_usb_transfer *transfer;
 		unsigned char *data;
 
 		data = g_malloc(STRIP_CAPTURE_LEN);
-		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, STRIP_CAPTURE_LEN,
-			capture_read_strip_cb, ssm, BULK_TIMEOUT);
+		transfer = fpi_usb_fill_bulk_transfer(FP_DEV(dev),
+						      ssm,
+						      EP_IN,
+						      data,
+						      STRIP_CAPTURE_LEN,
+						      capture_read_strip_cb,
+						      NULL,
+						      BULK_TIMEOUT);
 
-		r = libusb_submit_transfer(transfer);
-		if (r < 0) {
-			g_free(data);
-			libusb_free_transfer(transfer);
+		r = fpi_usb_submit_transfer(transfer);
+		if (r < 0)
 			fpi_ssm_mark_failed(ssm, r);
-		}
 		break;
 	};
 }
