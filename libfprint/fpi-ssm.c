@@ -276,6 +276,7 @@ fpi_ssm_next_state_timeout_cb(struct fp_dev *dev,
  * @machine: an #fpi_ssm state machine
  * @state: the state to jump to
  *
+ * Jump to the @state state, bypassing intermediary states.
  */
 void fpi_ssm_jump_to_state(fpi_ssm *machine, int state)
 {
