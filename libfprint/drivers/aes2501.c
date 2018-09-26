@@ -36,6 +36,11 @@ static void complete_deactivation(struct fp_img_dev *dev);
 
 #define BULK_TIMEOUT 4000
 
+#define FINGER_DETECTION_LEN	20
+#define READ_REGS_LEN		126
+#define READ_REGS_RESP_LEN	159
+#define STRIP_CAPTURE_LEN	1705
+
 /*
  * The AES2501 is an imaging device using a swipe-type sensor. It samples
  * the finger at preprogrammed intervals, sending a 192x16 frame to the
@@ -116,8 +121,8 @@ static void read_regs_rq_cb(struct fp_img_dev *dev, int result, void *user_data)
 		goto err;
 
 	transfer = fpi_usb_alloc();
-	data = g_malloc(126);
-	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 126,
+	data = g_malloc(READ_REGS_LEN);
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, READ_REGS_LEN,
 		read_regs_data_cb, rdata, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -316,8 +321,8 @@ static void finger_det_reqs_cb(struct fp_img_dev *dev, int result,
 	}
 
 	transfer = fpi_usb_alloc();
-	data = g_malloc(20);
-	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 20,
+	data = g_malloc(FINGER_DETECTION_LEN);
+	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, FINGER_DETECTION_LEN,
 		finger_det_data_cb, dev, BULK_TIMEOUT);
 
 	r = libusb_submit_transfer(transfer);
@@ -516,14 +521,14 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 			generic_write_regv_cb, ssm);
 		break;
 	case CAPTURE_READ_DATA_1:
-		generic_read_ignore_data(ssm, _dev, 159);
+		generic_read_ignore_data(ssm, _dev, READ_REGS_RESP_LEN);
 		break;
 	case CAPTURE_WRITE_REQS_2:
 		aes_write_regv(dev, capture_reqs_2, G_N_ELEMENTS(capture_reqs_2),
 			generic_write_regv_cb, ssm);
 		break;
 	case CAPTURE_READ_DATA_2:
-		generic_read_ignore_data(ssm, _dev, 159);
+		generic_read_ignore_data(ssm, _dev, READ_REGS_RESP_LEN);
 		break;
 	case CAPTURE_REQUEST_STRIP:
 		if (aesdev->deactivating)
@@ -536,8 +541,8 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 		struct libusb_transfer *transfer = fpi_usb_alloc();
 		unsigned char *data;
 
-		data = g_malloc(1705);
-		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, 1705,
+		data = g_malloc(STRIP_CAPTURE_LEN);
+		libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_IN, data, STRIP_CAPTURE_LEN,
 			capture_read_strip_cb, ssm, BULK_TIMEOUT);
 
 		r = libusb_submit_transfer(transfer);
@@ -745,7 +750,7 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 		break;
 	case READ_DATA_1:
 		fp_dbg("read data 1");
-		generic_read_ignore_data(ssm, _dev, 20);
+		generic_read_ignore_data(ssm, _dev, FINGER_DETECTION_LEN);
 		break;
 	case WRITE_INIT_2:
 		aes_write_regv(dev, init_2, G_N_ELEMENTS(init_2),
