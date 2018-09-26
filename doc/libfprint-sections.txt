@@ -197,5 +197,11 @@ FP_INSTANCE_DATA
 <SECTION>
 <INCLUDE>fpi-usb.h</INCLUDE>
 <FILE>fpi-usb</FILE>
+fpi_usb_transfer
+
+fpi_usb_transfer_cb_fn
 fpi_usb_alloc
+fpi_usb_fill_bulk_transfer
+fpi_usb_submit_transfer
+fpi_usb_cancel_transfer
 </SECTION>
