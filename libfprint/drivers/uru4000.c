@@ -295,7 +295,7 @@ static int read_regs(struct fp_img_dev *dev, uint16_t first_reg,
  *
  * BIT 1: IRQ PENDING
  * Just had a brainwave. This bit is set when the device is trying to deliver
- * and interrupt to the host. Maybe?
+ * an interrupt to the host. Maybe?
  */
 
 static void response_cb(struct fp_img_dev *dev, int status, void *user_data)
@@ -847,7 +847,7 @@ static void imaging_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
  * confused state and returns hwstat 0x85. On next app run, we don't get the
  * 56aa interrupt. This is the best way I've found to fix it: mess around
  * with hwstat until it starts returning more recognisable values. This
- * doesn't happen on my other devices: uru4000, uru4000b, ms fp rdr v2 
+ * doesn't happen on my other devices: uru4000, uru4000b, ms fp rdr v2
  *
  * The windows driver copes with this OK, but then again it uploads firmware
  * right after reading the 0x85 hwstat, allowing some time to pass before it
@@ -909,10 +909,10 @@ static void rebootpwr_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_da
 	}
 }
 
-/* After messing with the device firmware in it's low-power state, we have to
+/* After messing with the device firmware in its low-power state, we have to
  * power it back up and wait for interrupt notification. It's not quite as easy
  * as that: the combination of both modifying firmware *and* doing C-R auth on
- * my ms fp v2 device causes us not to get to get the 56aa interrupt and
+ * my ms fp v2 device causes us not to get the 56aa interrupt and
  * for the hwstat write not to take effect. We have to loop a few times,
  * authenticating each time, until the device wakes up.
  *
