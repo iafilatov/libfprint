@@ -120,9 +120,10 @@ struct uru4k_dev {
 	unsigned char last_reg_rd[16];
 	unsigned char last_hwstat;
 
-	struct libusb_transfer *irq_transfer;
-	struct libusb_transfer *img_transfer;
+	fpi_usb_transfer *irq_transfer;
+	fpi_usb_transfer *img_transfer;
 	void *img_data;
+	int img_data_actual_length;
 	uint16_t img_lines_done, img_block;
 	uint32_t img_enc_seed;
 
@@ -366,10 +367,13 @@ sm_do_challenge_response(fpi_ssm           *ssm,
 
 static int start_irq_handler(struct fp_img_dev *dev);
 
-static void irq_handler(struct libusb_transfer *transfer)
+static void irq_handler(struct libusb_transfer *transfer,
+			struct fp_dev          *_dev,
+			fpi_ssm                *ssm,
+			void                   *user_data)
 {
-	struct fp_img_dev *dev = transfer->user_data;
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
+	struct uru4k_dev *urudev = FP_INSTANCE_DATA(_dev);
 	unsigned char *data = transfer->buffer;
 	uint16_t type;
 	int r = 0;
@@ -391,8 +395,6 @@ static void irq_handler(struct libusb_transfer *transfer)
 
 	type = GUINT16_FROM_BE(*((uint16_t *) data));
 	fp_dbg("recv irq type %04x", type);
-	g_free(data);
-	libusb_free_transfer(transfer);
 
 	/* The 0800 interrupt seems to indicate imminent failure (0 bytes transfer)
 	 * of the next scan. It still appears on occasion. */
@@ -408,44 +410,43 @@ static void irq_handler(struct libusb_transfer *transfer)
 	if (r == 0)
 		return;
 
-	transfer = NULL;
-	data = NULL;
 err:
 	if (urudev->irq_cb)
 		urudev->irq_cb(dev, r, 0, urudev->irq_cb_data);
 out:
-	g_free(data);
-	libusb_free_transfer(transfer);
 	urudev->irq_transfer = NULL;
 }
 
 static int start_irq_handler(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
-	struct libusb_transfer *transfer = fpi_usb_alloc();
+	fpi_usb_transfer *transfer;
 	unsigned char *data;
 	int r;
 
 	data = g_malloc(IRQ_LENGTH);
-	libusb_fill_bulk_transfer(transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_INTR, data, IRQ_LENGTH,
-		irq_handler, dev, 0);
+	transfer = fpi_usb_fill_bulk_transfer(FP_DEV(dev),
+					      NULL,
+					      EP_INTR,
+					      data,
+					      IRQ_LENGTH,
+					      irq_handler,
+					      NULL,
+					      0);
 
 	urudev->irq_transfer = transfer;
-	r = libusb_submit_transfer(transfer);
-	if (r < 0) {
-		g_free(data);
-		libusb_free_transfer(transfer);
+	r = fpi_usb_submit_transfer(transfer);
+	if (r < 0)
 		urudev->irq_transfer = NULL;
-	}
 	return r;
 }
 
 static void stop_irq_handler(struct fp_img_dev *dev, irqs_stopped_cb_fn cb)
 {
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
-	struct libusb_transfer *transfer = urudev->irq_transfer;
+	fpi_usb_transfer *transfer = urudev->irq_transfer;
 	if (transfer) {
-		libusb_cancel_transfer(transfer);
+		fpi_usb_cancel_transfer(transfer);
 		urudev->irqs_stopped_cb = cb;
 	}
 }
@@ -592,28 +593,6 @@ enum imaging_states {
 	IMAGING_NUM_STATES
 };
 
-static void image_transfer_cb(struct libusb_transfer *transfer)
-{
-	fpi_ssm *ssm = transfer->user_data;
-
-	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
-		fp_dbg("cancelled");
-		fpi_ssm_mark_failed(ssm, -ECANCELED);
-	} else if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-		fp_dbg("error");
-		fpi_ssm_mark_failed(ssm, -EIO);
-	} else {
-		fpi_ssm_next_state(ssm);
-	}
-}
-
-enum {
-	BLOCKF_CHANGE_KEY	= 0x80,
-	BLOCKF_NO_KEY_UPDATE	= 0x04,
-	BLOCKF_ENCRYPTED		= 0x02,
-	BLOCKF_NOT_PRESENT	= 0x01,
-};
-
 struct uru4k_image {
 	uint8_t		unknown_00[4];
 	uint16_t	num_lines;
@@ -625,6 +604,33 @@ struct uru4k_image {
 	} block_info[15];
 	uint8_t		unknown_2E[18];
 	uint8_t		data[IMAGE_HEIGHT][IMAGE_WIDTH];
+};
+
+static void image_transfer_cb(struct libusb_transfer *transfer,
+			      struct fp_dev          *dev,
+			      fpi_ssm                *ssm,
+			      void                   *user_data)
+{
+	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
+		fp_dbg("cancelled");
+		fpi_ssm_mark_failed(ssm, -ECANCELED);
+	} else if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+		fp_dbg("error");
+		fpi_ssm_mark_failed(ssm, -EIO);
+	} else {
+		struct uru4k_dev *urudev = FP_INSTANCE_DATA(dev);
+
+		urudev->img_data = g_memdup(transfer->buffer, sizeof(struct uru4k_image));
+		urudev->img_data_actual_length = transfer->actual_length;
+		fpi_ssm_next_state(ssm);
+	}
+}
+
+enum {
+	BLOCKF_CHANGE_KEY	= 0x80,
+	BLOCKF_NO_KEY_UPDATE	= 0x04,
+	BLOCKF_ENCRYPTED		= 0x02,
+	BLOCKF_NOT_PRESENT	= 0x01,
 };
 
 static uint32_t update_key(uint32_t key)
@@ -709,20 +715,20 @@ static void imaging_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 	case IMAGING_CAPTURE:
 		urudev->img_lines_done = 0;
 		urudev->img_block = 0;
-		libusb_fill_bulk_transfer(urudev->img_transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), EP_DATA,
-			urudev->img_data, sizeof(struct uru4k_image), image_transfer_cb, ssm, 0);
-		r = libusb_submit_transfer(urudev->img_transfer);
-		if (r < 0)
+		r = fpi_usb_submit_transfer(urudev->img_transfer);
+		if (r < 0) {
+			urudev->img_transfer = NULL;
 			fpi_ssm_mark_failed(ssm, -EIO);
+		}
 		break;
 	case IMAGING_SEND_INDEX:
 		fp_dbg("hw header lines %d", img->num_lines);
 
 		if (img->num_lines >= IMAGE_HEIGHT ||
-		    urudev->img_transfer->actual_length < img->num_lines * IMAGE_WIDTH + 64) {
+		    urudev->img_data_actual_length < img->num_lines * IMAGE_WIDTH + 64) {
 			fp_err("bad captured image (%d lines) or size mismatch %d < %d",
 				img->num_lines,
-				urudev->img_transfer->actual_length,
+				urudev->img_data_actual_length,
 				img->num_lines * IMAGE_WIDTH + 64);
 			fpi_ssm_jump_to_state(ssm, IMAGING_CAPTURE);
 			return;
@@ -830,11 +836,12 @@ static void imaging_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 	if (r)
 		fpi_imgdev_session_error(dev, r);
 
+	/* Freed by callback or cancellation */
+	urudev->img_transfer = NULL;
+
 	g_free(urudev->img_data);
 	urudev->img_data = NULL;
-
-	libusb_free_transfer(urudev->img_transfer);
-	urudev->img_transfer = NULL;
+	urudev->img_data_actual_length = 0;
 
 	r = execute_state_change(dev);
 	if (r)
@@ -1205,6 +1212,7 @@ static int execute_state_change(struct fp_img_dev *dev)
 {
 	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_ssm *ssm;
+	void *img_data;
 
 	switch (urudev->activate_state) {
 	case IMGDEV_STATE_INACTIVE:
@@ -1227,11 +1235,18 @@ static int execute_state_change(struct fp_img_dev *dev)
 		fp_dbg("starting capture");
 		urudev->irq_cb = NULL;
 
-		urudev->img_transfer = fpi_usb_alloc();
-		urudev->img_data = g_malloc(sizeof(struct uru4k_image));
-		urudev->img_enc_seed = rand();
-
 		ssm = fpi_ssm_new(FP_DEV(dev), imaging_run_state, IMAGING_NUM_STATES, dev);
+		img_data = g_malloc(sizeof(struct uru4k_image));
+		urudev->img_enc_seed = rand();
+		urudev->img_transfer = fpi_usb_fill_bulk_transfer(FP_DEV(dev),
+								  ssm,
+								  EP_DATA,
+								  img_data,
+								  sizeof(struct uru4k_image),
+								  image_transfer_cb,
+								  NULL,
+								  0);
+
 		fpi_ssm_start(ssm, imaging_complete);
 
 		return write_reg(dev, REG_MODE, MODE_CAPTURE,
