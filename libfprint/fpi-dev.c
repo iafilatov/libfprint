@@ -56,7 +56,7 @@ FP_IMG_DEV(struct fp_dev *dev)
 {
 	g_return_val_if_fail (dev, NULL);
 	g_return_val_if_fail (dev->drv, NULL);
-	g_return_val_if_fail (dev->drv->type != DRIVER_IMAGING, NULL);
+	g_return_val_if_fail (dev->drv->type == DRIVER_IMAGING, NULL);
 	return dev->img_dev;
 }
 
