@@ -32,6 +32,19 @@
 
 #define DIR_PERMS 0700
 
+struct fpi_print_data_fp2 {
+	char prefix[3];
+	uint16_t driver_id;
+	uint32_t devtype;
+	unsigned char data_type;
+	unsigned char data[0];
+} __attribute__((__packed__));
+
+struct fpi_print_data_item_fp2 {
+	uint32_t length;
+	unsigned char data[0];
+} __attribute__((__packed__));
+
 /**
  * SECTION: print_data
  * @title: Stored prints

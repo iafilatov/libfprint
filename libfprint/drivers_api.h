@@ -34,6 +34,7 @@
 #include "fpi-poll.h"
 #include "fpi-dev.h"
 #include "fpi-usb.h"
+#include "fpi-data.h"
 #include "assembling.h"
 #include "drivers/driver_ids.h"
 
@@ -123,29 +124,6 @@ struct fp_img_driver {
 	int (*change_state)(struct fp_img_dev *dev, enum fp_imgdev_state state);
 	void (*deactivate)(struct fp_img_dev *dev);
 };
-
-enum fp_print_data_type {
-	PRINT_DATA_RAW = 0, /* memset-imposed default */
-	PRINT_DATA_NBIS_MINUTIAE,
-};
-
-struct fp_print_data_item {
-	size_t length;
-	unsigned char data[0];
-};
-
-struct fp_print_data {
-	uint16_t driver_id;
-	uint32_t devtype;
-	enum fp_print_data_type type;
-	GSList *prints;
-};
-
-struct fp_print_data *fpi_print_data_new(struct fp_dev *dev);
-struct fp_print_data_item *fpi_print_data_item_new(size_t length);
-gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
-	enum fp_print_data_type type1, uint16_t driver_id2, uint32_t devtype2,
-	enum fp_print_data_type type2);
 
 struct fp_minutiae;
 
