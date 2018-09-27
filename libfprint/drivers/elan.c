@@ -667,11 +667,13 @@ static void calibrate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_da
 			elandev->calib_status = 0x03;
 			fpi_ssm_jump_to_state(ssm, CALIBRATE_GET_BACKGROUND);
 		} else {
+			fpi_timeout *timeout;
+
 			if (elandev->calib_status == 0x00
 			    && elandev->last_read[0] == 0x01)
 				elandev->calib_status = 0x01;
-			if (!fpi_timeout_add(50, fpi_ssm_next_state_timeout_cb, _dev, ssm))
-				fpi_ssm_mark_failed(ssm, -ETIME);
+			timeout = fpi_timeout_add(50, fpi_ssm_next_state_timeout_cb, _dev, ssm);
+			fpi_timeout_set_name(timeout, "calibrate_run_state");
 		}
 		break;
 	case CALIBRATE_REPEAT_STATUS:
@@ -880,27 +882,34 @@ static void
 elan_change_state_async(struct fp_dev *dev,
 			void          *data)
 {
+	g_message ("state change dev: %p", dev);
 	elan_change_state(FP_IMG_DEV (dev));
 }
 
 static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
+	fpi_timeout *timeout;
 
 	G_DEBUG_HERE();
 
 	switch (state) {
 	case IMGDEV_STATE_INACTIVE:
 	case IMGDEV_STATE_AWAIT_FINGER_ON:
-	case IMGDEV_STATE_AWAIT_FINGER_OFF:
+	case IMGDEV_STATE_AWAIT_FINGER_OFF: {
+		char *name;
+
 		/* schedule state change instead of calling it directly to allow all actions
 		 * related to the previous state to complete */
 		elandev->dev_state_next = state;
-		if (!fpi_timeout_add(10, elan_change_state_async, FP_DEV(dev), NULL)) {
-			fpi_imgdev_session_error(dev, -ETIME);
-			return -ETIME;
-		}
+		timeout = fpi_timeout_add(10, elan_change_state_async, FP_DEV(dev), NULL);
+
+		name = g_strdup_printf ("dev_change_state to %d", state);
+		fpi_timeout_set_name(timeout, name);
+		g_free (name);
+
 		break;
+		}
 	case IMGDEV_STATE_CAPTURE:
 		/* TODO MAYBE: split capture ssm into smaller ssms and use this state */
 		elandev->dev_state = state;
