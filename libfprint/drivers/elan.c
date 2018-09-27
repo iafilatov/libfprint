@@ -73,7 +73,7 @@ struct elan_dev {
 	/* commands */
 	const struct elan_cmd *cmd;
 	int cmd_timeout;
-	struct libusb_transfer *cur_transfer;
+	fpi_usb_transfer *cur_transfer;
 	/* end commands */
 
 	/* state */
@@ -319,11 +319,13 @@ static void elan_cmd_done(fpi_ssm *ssm)
 	fpi_ssm_next_state(ssm);
 }
 
-static void elan_cmd_cb(struct libusb_transfer *transfer)
+static void elan_cmd_cb(struct libusb_transfer *transfer,
+			struct fp_dev          *_dev,
+			fpi_ssm                *ssm,
+			void                   *user_data)
 {
-	fpi_ssm *ssm = transfer->user_data;
-	struct fp_img_dev *dev = fpi_ssm_get_user_data(ssm);
-	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
+	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
+	struct elan_dev *elandev = FP_INSTANCE_DATA(_dev);
 
 	G_DEBUG_HERE();
 
@@ -338,6 +340,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer)
 			fpi_ssm_mark_failed(ssm, -EPROTO);
 		} else if (transfer->endpoint & LIBUSB_ENDPOINT_IN) {
 			/* just finished receiving */
+			elandev->last_read = g_memdup(transfer->buffer, transfer->actual_length);
 			dbg_buf(elandev->last_read, transfer->actual_length);
 			elan_cmd_done(ssm);
 		} else {
@@ -366,6 +369,7 @@ static void elan_cmd_read(fpi_ssm *ssm, struct fp_img_dev *dev)
 {
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int response_len = elandev->cmd->response_len;
+	unsigned char *buffer;
 
 	G_DEBUG_HERE();
 
@@ -380,16 +384,18 @@ static void elan_cmd_read(fpi_ssm *ssm, struct fp_img_dev *dev)
 		response_len =
 		    elandev->raw_frame_height * elandev->frame_width * 2;
 
-	elandev->cur_transfer = fpi_usb_alloc();
-	g_free(elandev->last_read);
-	elandev->last_read = g_malloc(response_len);
+	g_clear_pointer(&elandev->last_read, g_free);
+	buffer = g_malloc(response_len);
 
-	libusb_fill_bulk_transfer(elandev->cur_transfer, fpi_dev_get_usb_dev(FP_DEV(dev)),
-				  elandev->cmd->response_in,
-				  elandev->last_read, response_len, elan_cmd_cb,
-				  ssm, elandev->cmd_timeout);
-	elandev->cur_transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
-	int r = libusb_submit_transfer(elandev->cur_transfer);
+	elandev->cur_transfer = fpi_usb_fill_bulk_transfer(FP_DEV(dev),
+							   ssm,
+							   elandev->cmd->response_in,
+							   buffer,
+							   response_len,
+							   elan_cmd_cb,
+							   NULL,
+							   elandev->cmd_timeout);
+	int r = fpi_usb_submit_transfer(elandev->cur_transfer);
 	if (r < 0)
 		fpi_ssm_mark_failed(ssm, r);
 }
@@ -414,12 +420,15 @@ elan_run_cmd(fpi_ssm               *ssm,
 		return;
 	}
 
-	elandev->cur_transfer = fpi_usb_alloc();
-	libusb_fill_bulk_transfer(elandev->cur_transfer, fpi_dev_get_usb_dev(FP_DEV(dev)), ELAN_EP_CMD_OUT,
-				  (char *) cmd->cmd, ELAN_CMD_LEN, elan_cmd_cb, ssm,
-				  elandev->cmd_timeout);
-	elandev->cur_transfer->flags = LIBUSB_TRANSFER_FREE_TRANSFER;
-	int r = libusb_submit_transfer(elandev->cur_transfer);
+	elandev->cur_transfer = fpi_usb_fill_bulk_transfer(FP_DEV(dev),
+							   ssm,
+							   ELAN_EP_CMD_OUT,
+							   g_memdup((char *) cmd->cmd, ELAN_CMD_LEN),
+							   ELAN_CMD_LEN,
+							   elan_cmd_cb,
+							   NULL,
+							   elandev->cmd_timeout);
+	int r = fpi_usb_submit_transfer(elandev->cur_transfer);
 	if (r < 0)
 		fpi_ssm_mark_failed(ssm, r);
 }
@@ -849,7 +858,7 @@ static void elan_change_state(struct fp_img_dev *dev)
 	case IMGDEV_STATE_INACTIVE:
 		if (elandev->cur_transfer)
 			/* deactivation will complete in transfer callback */
-			libusb_cancel_transfer(elandev->cur_transfer);
+			fpi_usb_cancel_transfer(elandev->cur_transfer);
 		else
 			elan_deactivate(dev);
 		break;
