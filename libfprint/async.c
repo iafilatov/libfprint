@@ -93,6 +93,7 @@ void fpi_drvcb_close_complete(struct fp_dev *dev)
 	G_DEBUG_HERE();
 	BUG_ON(dev->state != DEV_STATE_DEINITIALIZING);
 	dev->state = DEV_STATE_DEINITIALIZED;
+	fpi_timeout_cancel_all_for_dev(dev);
 	libusb_close(dev->udev);
 	if (dev->close_cb)
 		dev->close_cb(dev, dev->close_cb_data);
