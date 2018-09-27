@@ -35,8 +35,6 @@ static void complete_deactivation(struct fp_img_dev *dev);
 #define BULK_TIMEOUT		4000
 #define FRAME_HEIGHT		AESX660_FRAME_HEIGHT
 
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-
 static void
 aesX660_send_cmd_timeout(fpi_ssm               *ssm,
 			 struct fp_dev         *_dev,
@@ -334,7 +332,7 @@ static void capture_read_stripe_data_cb(struct libusb_transfer *transfer)
 
 	fp_dbg("Got %lu bytes of data", actual_len);
 	do {
-		copied = min(aesdev->buffer_max - aesdev->buffer_size, actual_len);
+		copied = MIN(aesdev->buffer_max - aesdev->buffer_size, actual_len);
 		memcpy(aesdev->buffer + aesdev->buffer_size,
 			data,
 			copied);
