@@ -477,3 +477,22 @@ void fpi_poll_exit(void)
 	libusb_set_pollfd_notifiers(fpi_usb_ctx, NULL, NULL, NULL);
 }
 
+void
+fpi_timeout_cancel_all_for_dev(struct fp_dev *dev)
+{
+	GSList *l;
+
+	g_return_if_fail (dev != NULL);
+
+	l = active_timers;
+	while (l) {
+		struct fpi_timeout *timeout = l->data;
+		GSList *current = l;
+
+		l = l->next;
+		if (timeout->dev == dev) {
+			g_free (timeout);
+			active_timers = g_slist_delete_link (active_timers, current);
+		}
+	}
+}

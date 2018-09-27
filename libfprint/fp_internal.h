@@ -327,7 +327,7 @@ int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
 
 /* polling */
-
+void fpi_timeout_cancel_all_for_dev(struct fp_dev *dev);
 void fpi_poll_init(void);
 void fpi_poll_exit(void);
 
