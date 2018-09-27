@@ -360,7 +360,7 @@ API_EXPORTED int fp_handle_events(void)
 
 /**
  * fp_get_next_timeout:
- * @tv: a %timeval structure containing the duration to the next timeout.
+ * @tv: a #timeval structure containing the duration to the next timeout.
  *
  * A zero filled @tv timeout means events are to be handled immediately
  *
