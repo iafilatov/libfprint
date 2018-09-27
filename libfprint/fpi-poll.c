@@ -146,7 +146,9 @@ fpi_timeout_set_name(fpi_timeout *timeout,
  *
  * Note that you should hold onto the return value of this function to cancel it
  * use fpi_timeout_cancel(), otherwise the callback could be called while the driver
- * is being torn down. %NULL is returned on failure.
+ * is being torn down.
+ *
+ * This function can be considered to never fail.
  *
  * Returns: an #fpi_timeout structure
  */
@@ -167,6 +169,7 @@ fpi_timeout *fpi_timeout_add(unsigned int    msec,
 	r = clock_gettime(CLOCK_MONOTONIC, &ts);
 	if (r < 0) {
 		fp_err("failed to read monotonic clock, errno=%d", errno);
+		BUG();
 		return NULL;
 	}
 
