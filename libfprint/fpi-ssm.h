@@ -28,6 +28,8 @@
 #include <glib.h>
 #include <libusb.h>
 
+#include "fprint.h"
+
 /* async drv <--> lib comms */
 
 /**
@@ -80,7 +82,7 @@ void fpi_ssm_next_state_timeout_cb(struct fp_dev *dev, void *data);
 void fpi_ssm_jump_to_state(fpi_ssm *machine, int state);
 void fpi_ssm_mark_completed(fpi_ssm *machine);
 void fpi_ssm_mark_failed(fpi_ssm *machine, int error);
-void *fpi_ssm_get_user_data(fpi_ssm *machine);
+void *fpi_ssm_get_user_data(fpi_ssm *machine) LIBFPRINT_DEPRECATED;
 int fpi_ssm_get_error(fpi_ssm *machine);
 int fpi_ssm_get_cur_state(fpi_ssm *machine);
 
