@@ -324,11 +324,18 @@ static void elan_cmd_cb(struct libusb_transfer *transfer,
 			fpi_ssm                *ssm,
 			void                   *user_data)
 {
-	struct fp_img_dev *dev = FP_IMG_DEV(_dev);
-	struct elan_dev *elandev = FP_INSTANCE_DATA(_dev);
+	struct fp_img_dev *dev;
+	struct elan_dev *elandev;
 
 	G_DEBUG_HERE();
 
+	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
+		fp_dbg("transfer cancelled");
+		return;
+	}
+
+	dev = FP_IMG_DEV(_dev);
+	elandev = FP_INSTANCE_DATA(_dev);
 	elandev->cur_transfer = NULL;
 
 	switch (transfer->status) {
@@ -348,11 +355,6 @@ static void elan_cmd_cb(struct libusb_transfer *transfer,
 			G_DEBUG_HERE();
 			elan_cmd_read(ssm, dev);
 		}
-		break;
-	case LIBUSB_TRANSFER_CANCELLED:
-		fp_dbg("transfer cancelled");
-		fpi_ssm_mark_failed(ssm, -ECANCELED);
-		elan_deactivate(dev);
 		break;
 	case LIBUSB_TRANSFER_TIMED_OUT:
 		fp_dbg("transfer timed out");
