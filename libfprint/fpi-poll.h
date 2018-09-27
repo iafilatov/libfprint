@@ -42,4 +42,6 @@ fpi_timeout *fpi_timeout_add(unsigned int    msec,
 			     fpi_timeout_fn  callback,
 			     struct fp_dev  *dev,
 			     void           *data);
+void fpi_timeout_set_name(fpi_timeout *timeout,
+			  const char  *name);
 void fpi_timeout_cancel(fpi_timeout *timeout);

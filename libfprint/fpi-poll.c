@@ -86,6 +86,7 @@ struct fpi_timeout {
 	fpi_timeout_fn callback;
 	struct fp_dev *dev;
 	void *data;
+	char *name;
 };
 
 static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
@@ -101,6 +102,35 @@ static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
 		return 1;
 	else
 		return 0;
+}
+
+static void
+fpi_timeout_free(fpi_timeout *timeout)
+{
+	if (timeout == NULL)
+		return;
+
+	g_free(timeout->name);
+	g_free(timeout);
+}
+
+/**
+ * fpi_timeout_set_name:
+ * @timeout: a #fpi_timeout
+ * @name: the name to give the timeout
+ *
+ * Sets a name for a timeout, allowing that name to be printed
+ * along with any timeout related debug.
+ */
+void
+fpi_timeout_set_name(fpi_timeout *timeout,
+		     const char  *name)
+{
+	g_return_if_fail (timeout != NULL);
+	g_return_if_fail (name != NULL);
+	g_return_if_fail (timeout->name == NULL);
+
+	timeout->name = g_strdup(name);
 }
 
 /**
@@ -140,7 +170,7 @@ fpi_timeout *fpi_timeout_add(unsigned int    msec,
 		return NULL;
 	}
 
-	timeout = g_malloc(sizeof(*timeout));
+	timeout = g_new0(fpi_timeout, 1);
 	timeout->callback = callback;
 	timeout->dev = dev;
 	timeout->data = data;
@@ -169,7 +199,27 @@ void fpi_timeout_cancel(fpi_timeout *timeout)
 {
 	G_DEBUG_HERE();
 	active_timers = g_slist_remove(active_timers, timeout);
-	g_free(timeout);
+	fpi_timeout_free(timeout);
+}
+
+void
+fpi_timeout_cancel_for_dev(struct fp_dev *dev)
+{
+	GSList *l;
+
+	g_return_if_fail (dev != NULL);
+
+	l = active_timers;
+	while (l) {
+		struct fpi_timeout *timeout = l->data;
+		GSList *current = l;
+
+		l = l->next;
+		if (timeout->dev == dev) {
+			fpi_timeout_free (timeout);
+			active_timers = g_slist_delete_link (active_timers, current);
+		}
+	}
 }
 
 /* get the expiry time and optionally the timeout structure for the next
@@ -216,7 +266,7 @@ static void handle_timeout(struct fpi_timeout *timeout)
 	G_DEBUG_HERE();
 	timeout->callback(timeout->dev, timeout->data);
 	active_timers = g_slist_remove(active_timers, timeout);
-	g_free(timeout);
+	fpi_timeout_free(timeout);
 }
 
 static int handle_timeouts(void)
@@ -413,7 +463,7 @@ void fpi_poll_init(void)
 
 void fpi_poll_exit(void)
 {
-	g_slist_free_full(active_timers, g_free);
+	g_slist_free_full(active_timers, (GDestroyNotify) fpi_timeout_free);
 	active_timers = NULL;
 	fd_added_cb = NULL;
 	fd_removed_cb = NULL;
