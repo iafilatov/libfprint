@@ -119,7 +119,7 @@ static struct fp_print_data *print_data_new(uint16_t driver_id,
 	return data;
 }
 
-void fpi_print_data_item_free(struct fp_print_data_item *item)
+static void fpi_print_data_item_free(struct fp_print_data_item *item)
 {
 	g_free(item);
 }
