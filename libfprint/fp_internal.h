@@ -31,6 +31,7 @@
 #include "fpi-log.h"
 #include "fpi-dev.h"
 #include "fpi-data.h"
+#include "fpi-img.h"
 #include "drivers/driver_ids.h"
 
 #define container_of(ptr, type, member) ({                      \
@@ -264,28 +265,6 @@ struct fp_minutiae {
 	struct fp_minutia **list;
 };
 
-/* bit values for fp_img.flags */
-#define FP_IMG_V_FLIPPED	(1<<0)
-#define FP_IMG_H_FLIPPED	(1<<1)
-#define FP_IMG_COLORS_INVERTED	(1<<2)
-#define FP_IMG_BINARIZED_FORM	(1<<3)
-#define FP_IMG_PARTIAL		(1<<4)
-
-#define FP_IMG_STANDARDIZATION_FLAGS (FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED \
-	| FP_IMG_COLORS_INVERTED)
-
-struct fp_img {
-	int width;
-	int height;
-	size_t length;
-	uint16_t flags;
-	struct fp_minutiae *minutiae;
-	unsigned char *binarized;
-	unsigned char data[0];
-};
-
-struct fp_img *fpi_img_new(size_t length);
-struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
 gboolean fpi_img_is_sane(struct fp_img *img);
 int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 	struct fp_print_data **ret);
@@ -293,7 +272,6 @@ int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 	struct fp_print_data *new_print);
 int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 	struct fp_print_data **gallery, int match_threshold, size_t *match_offset);
-struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
 
 /* polling */
 void fpi_timeout_cancel_all_for_dev(struct fp_dev *dev);

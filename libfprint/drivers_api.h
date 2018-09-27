@@ -35,6 +35,7 @@
 #include "fpi-dev.h"
 #include "fpi-usb.h"
 #include "fpi-data.h"
+#include "fpi-img.h"
 #include "assembling.h"
 #include "drivers/driver_ids.h"
 
@@ -126,31 +127,6 @@ struct fp_img_driver {
 };
 
 struct fp_minutiae;
-
-/* bit values for fp_img.flags */
-#define FP_IMG_V_FLIPPED	(1<<0)
-#define FP_IMG_H_FLIPPED	(1<<1)
-#define FP_IMG_COLORS_INVERTED	(1<<2)
-#define FP_IMG_BINARIZED_FORM	(1<<3)
-#define FP_IMG_PARTIAL		(1<<4)
-
-#define FP_IMG_STANDARDIZATION_FLAGS (FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED \
-	| FP_IMG_COLORS_INVERTED)
-
-struct fp_img {
-	int width;
-	int height;
-	size_t length;
-	uint16_t flags;
-	struct fp_minutiae *minutiae;
-	unsigned char *binarized;
-	unsigned char data[0];
-};
-
-struct fp_img *fpi_img_new(size_t length);
-struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *dev);
-struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
-struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
 
 void fpi_drvcb_open_complete(struct fp_dev *dev, int status);
 void fpi_drvcb_close_complete(struct fp_dev *dev);

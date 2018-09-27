@@ -7,6 +7,8 @@ libfprint_sources = [
     'fpi-data.h',
     'fpi-dev.c',
     'fpi-dev.h',
+    'fpi-img.c',
+    'fpi-img.h',
     'fpi-log.h',
     'fpi-ssm.c',
     'fpi-ssm.h',
@@ -14,7 +16,6 @@ libfprint_sources = [
     'fpi-poll.c',
     'fpi-usb.h',
     'fpi-usb.c',
-    'img.c',
     'imgdev.c',
     'sync.c',
     'assembling.c',
@@ -155,7 +156,7 @@ endif
 
 other_sources = []
 if imaging_dep.found()
-    other_sources += [ 'pixman.c' ]
+    other_sources += [ 'fpi-img-pixman.c' ]
 endif
 
 libfprint_sources += configure_file(input: 'empty_file',
