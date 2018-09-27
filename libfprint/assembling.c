@@ -350,8 +350,6 @@ static void interpolate_lines(struct fpi_line_asmbl_ctx *ctx,
 	}
 }
 
-static int min(int a, int b) {return (a < b) ? a : b; }
-
 /* Rescale image to account for variable swiping speed */
 struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
 				  GSList *lines, size_t lines_len)
@@ -377,7 +375,7 @@ struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
 		int j, firstrow, lastrow;
 
 		firstrow = i + 1;
-		lastrow = min(i + ctx->max_search_offset, lines_len - 1);
+		lastrow = MIN(i + ctx->max_search_offset, lines_len - 1);
 
 		row2 = g_slist_next(row1);
 		for (j = firstrow; j <= lastrow; j++) {
