@@ -413,7 +413,7 @@ void fpi_poll_init(void)
 
 void fpi_poll_exit(void)
 {
-	g_slist_free(active_timers);
+	g_slist_free_full(active_timers, g_free);
 	active_timers = NULL;
 	fd_added_cb = NULL;
 	fd_removed_cb = NULL;
