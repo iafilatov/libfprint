@@ -28,6 +28,7 @@
 #define FP_COMPONENT "upekts"
 
 #include "drivers_api.h"
+#include "fpi-async.h"
 #include "upek_proto.h"
 
 #define EP_IN (1 | LIBUSB_ENDPOINT_IN)

@@ -34,10 +34,6 @@
 #include "fpi-img.h"
 #include "drivers/driver_ids.h"
 
-#define container_of(ptr, type, member) ({                      \
-        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-        (type *)( (char *)__mptr - offsetof(type,member) );})
-
 enum fp_dev_state {
 	DEV_STATE_INITIAL = 0,
 	DEV_STATE_ERROR,
@@ -222,6 +218,9 @@ extern GSList *opened_devices;
 
 void fpi_img_driver_setup(struct fp_img_driver *idriver);
 
+#define container_of(ptr, type, member) ({                      \
+        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+        (type *)( (char *)__mptr - offsetof(type,member) );})
 #define fpi_driver_to_img_driver(drv) \
 	container_of((drv), struct fp_img_driver, driver)
 
@@ -278,28 +277,4 @@ void fpi_timeout_cancel_all_for_dev(struct fp_dev *dev);
 void fpi_poll_init(void);
 void fpi_poll_exit(void);
 
-void fpi_drvcb_open_complete(struct fp_dev *dev, int status);
-void fpi_drvcb_close_complete(struct fp_dev *dev);
-
-void fpi_drvcb_enroll_started(struct fp_dev *dev, int status);
-void fpi_drvcb_enroll_stage_completed(struct fp_dev *dev, int result,
-	struct fp_print_data *data, struct fp_img *img);
-void fpi_drvcb_enroll_stopped(struct fp_dev *dev);
-
-void fpi_drvcb_verify_started(struct fp_dev *dev, int status);
-void fpi_drvcb_report_verify_result(struct fp_dev *dev, int result,
-	struct fp_img *img);
-void fpi_drvcb_verify_stopped(struct fp_dev *dev);
-
-void fpi_drvcb_identify_started(struct fp_dev *dev, int status);
-void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
-	size_t match_offset, struct fp_img *img);
-void fpi_drvcb_identify_stopped(struct fp_dev *dev);
-
-void fpi_drvcb_capture_started(struct fp_dev *dev, int status);
-void fpi_drvcb_report_capture_result(struct fp_dev *dev, int result,
-	struct fp_img *img);
-void fpi_drvcb_capture_stopped(struct fp_dev *dev);
-
 #endif
-

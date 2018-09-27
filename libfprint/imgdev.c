@@ -22,6 +22,7 @@
 #include <glib.h>
 
 #include "fp_internal.h"
+#include "fpi-async.h"
 
 #define MIN_ACCEPTABLE_MINUTIAE 10
 #define BOZORTH3_DEFAULT_THRESHOLD 40

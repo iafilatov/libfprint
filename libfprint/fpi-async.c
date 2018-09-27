@@ -20,6 +20,7 @@
 #define FP_COMPONENT "async"
 
 #include "fp_internal.h"
+#include "fpi-async.h"
 
 #include <config.h>
 #include <errno.h>

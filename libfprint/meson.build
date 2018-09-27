@@ -1,7 +1,8 @@
 libfprint_sources = [
     'fp_internal.h',
     'drivers_api.h',
-    'async.c',
+    'fpi-async.c',
+    'fpi-async.h',
     'core.c',
     'fpi-data.c',
     'fpi-data.h',

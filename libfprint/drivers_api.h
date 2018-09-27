@@ -128,29 +128,6 @@ struct fp_img_driver {
 
 struct fp_minutiae;
 
-void fpi_drvcb_open_complete(struct fp_dev *dev, int status);
-void fpi_drvcb_close_complete(struct fp_dev *dev);
-
-void fpi_drvcb_enroll_started(struct fp_dev *dev, int status);
-void fpi_drvcb_enroll_stage_completed(struct fp_dev *dev, int result,
-	struct fp_print_data *data, struct fp_img *img);
-void fpi_drvcb_enroll_stopped(struct fp_dev *dev);
-
-void fpi_drvcb_verify_started(struct fp_dev *dev, int status);
-void fpi_drvcb_report_verify_result(struct fp_dev *dev, int result,
-	struct fp_img *img);
-void fpi_drvcb_verify_stopped(struct fp_dev *dev);
-
-void fpi_drvcb_identify_started(struct fp_dev *dev, int status);
-void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
-	size_t match_offset, struct fp_img *img);
-void fpi_drvcb_identify_stopped(struct fp_dev *dev);
-
-void fpi_drvcb_capture_started(struct fp_dev *dev, int status);
-void fpi_drvcb_report_capture_result(struct fp_dev *dev, int result,
-	struct fp_img *img);
-void fpi_drvcb_capture_stopped(struct fp_dev *dev);
-
 /* for image drivers */
 void fpi_imgdev_open_complete(struct fp_img_dev *imgdev, int status);
 void fpi_imgdev_close_complete(struct fp_img_dev *imgdev);
