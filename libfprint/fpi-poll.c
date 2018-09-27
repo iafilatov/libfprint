@@ -250,11 +250,18 @@ static int get_next_timeout_expiry(struct timeval *out,
 		*out_timeout = next_timeout;
 
 	if (timercmp(&tv, &next_timeout->expiry, >=)) {
-		fp_dbg("first timeout already expired");
+		if (next_timeout->name)
+			fp_dbg("first timeout '%s' already expired", next_timeout->name);
+		else
+			fp_dbg("first timeout already expired");
 		timerclear(out);
 	} else {
 		timersub(&next_timeout->expiry, &tv, out);
-		fp_dbg("next timeout in %ld.%06lds", out->tv_sec, out->tv_usec);
+		if (next_timeout->name)
+			fp_dbg("next timeout '%s' in %ld.%06lds", next_timeout->name,
+			       out->tv_sec, out->tv_usec);
+		else
+			fp_dbg("next timeout in %ld.%06lds", out->tv_sec, out->tv_usec);
 	}
 
 	return 1;
