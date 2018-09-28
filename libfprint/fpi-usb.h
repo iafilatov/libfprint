@@ -1,5 +1,4 @@
 /*
- * Driver API definitions
  * Copyright (C) 2018 Bastien Nocera <hadess@hadess.net>
  *
  * This library is free software; you can redistribute it and/or

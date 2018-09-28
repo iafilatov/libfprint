@@ -1,5 +1,4 @@
 /*
- * Polling/timing management
  * Copyright (C) 2008 Daniel Drake <dsd@gentoo.org>
  * Copyright (C) 2018 Bastien Nocera <hadess@hadess.net>
  *
