@@ -18,6 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#ifndef __FPI_POLL_H__
+#define __FPI_POLL_H__
+
 #include "fprint.h"
 
 /**
@@ -45,3 +48,5 @@ fpi_timeout *fpi_timeout_add(unsigned int    msec,
 void fpi_timeout_set_name(fpi_timeout *timeout,
 			  const char  *name);
 void fpi_timeout_cancel(fpi_timeout *timeout);
+
+#endif
