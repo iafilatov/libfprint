@@ -29,7 +29,7 @@
 #include <libusb.h>
 #include <glib.h>
 
-#include "assembling.h"
+#include "fpi-assembling.h"
 
 static unsigned int calc_error(struct fpi_frame_asmbl_ctx *ctx,
 			       struct fpi_frame *first_frame,

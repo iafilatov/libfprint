@@ -27,7 +27,7 @@
 #include <glib.h>
 
 #include "fpi-usb.h"
-#include "assembling.h"
+#include "fpi-assembling.h"
 #include "aeslib.h"
 
 #define MAX_REGWRITES_PER_REQUEST	16

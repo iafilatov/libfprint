@@ -1,6 +1,4 @@
 /*
- * Image assembling routines
- * Shared functions between libfprint Authentec drivers
  * Copyright (C) 2007 Daniel Drake <dsd@gentoo.org>
  * Copyright (C) 2015 Vasily Khoruzhick <anarsoul@gmail.com>
  *
@@ -19,8 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef __ASSEMBLING_H__
-#define __ASSEMBLING_H__
+#ifndef __FPI_ASSEMBLING_H__
+#define __FPI_ASSEMBLING_H__
 
 #include <fprint.h>
 

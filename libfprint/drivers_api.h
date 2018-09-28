@@ -36,7 +36,7 @@
 #include "fpi-usb.h"
 #include "fpi-data.h"
 #include "fpi-img.h"
-#include "assembling.h"
+#include "fpi-assembling.h"
 #include "drivers/driver_ids.h"
 
 libusb_device_handle *fpi_dev_get_usb_dev(struct fp_dev *dev);

@@ -4,6 +4,8 @@ libfprint_sources = [
     'fpi-async.c',
     'fpi-async.h',
     'core.c',
+    'fpi-assembling.c',
+    'fpi-assembling.h',
     'fpi-data.c',
     'fpi-data.h',
     'fpi-dev.c',
@@ -19,8 +21,6 @@ libfprint_sources = [
     'fpi-usb.h',
     'fpi-usb.c',
     'imgdev.c',
-    'assembling.c',
-    'assembling.h',
     'drivers/driver_ids.h',
 ]
 
