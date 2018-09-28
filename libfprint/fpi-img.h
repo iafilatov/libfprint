@@ -22,6 +22,8 @@
 
 #include <stdint.h>
 
+struct fp_minutiae;
+
 /* bit values for fp_img.flags */
 #define FP_IMG_V_FLIPPED	(1<<0)
 #define FP_IMG_H_FLIPPED	(1<<1)

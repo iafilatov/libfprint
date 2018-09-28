@@ -92,9 +92,5 @@ struct fp_img_driver {
 	void (*deactivate)(struct fp_img_dev *dev);
 };
 
-struct fp_minutiae;
-
-/* for image drivers */
-
 #endif
 
