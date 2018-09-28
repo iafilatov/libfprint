@@ -124,9 +124,6 @@ fpi_ssm *fpi_ssm_new(struct fp_dev  *dev,
  * is called.
  *
  * Returns: a pointer
- *
- * Deprecated: Make sure your asynchronous functions pass that
- * @user_data along.
  */
 void *
 fpi_ssm_get_user_data(fpi_ssm *machine)
