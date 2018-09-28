@@ -69,12 +69,19 @@ struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *imgdev)
 
 gboolean fpi_img_is_sane(struct fp_img *img)
 {
+	guint len;
+
 	/* basic checks */
-	if (!img->length || !img->width || !img->height)
+	if (!img->length || img->width <= 0 || img->height <= 0)
 		return FALSE;
 
-	/* buffer is big enough? */
-	if ((img->length * img->height) < img->length)
+	/* Are width and height just too big? */
+	if (!g_uint_checked_mul(&len, img->width, img->height) ||
+	    len > G_MAXINT)
+		return FALSE;
+
+	/* buffer big enough? */
+	if (len > img->length)
 		return FALSE;
 
 	return TRUE;
