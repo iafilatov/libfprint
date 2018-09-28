@@ -14,7 +14,11 @@ before_script:
 build:
   stage: build
   script:
-    - meson . _build
+    # Build with a driver that doesn't need imaging, or nss
+    - meson -Ddrivers=elan . _build
+    - ninja -C _build
+    # And build with everything
+    - meson -Ddrivers=all . _build
     - ninja -C _build
     - ninja -C _build install
 
