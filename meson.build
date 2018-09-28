@@ -52,8 +52,8 @@ if drivers == [ 'all' ]
     drivers = all_drivers
 endif
 
-nss_dep = []
-imaging_dep = []
+nss_dep = dependency('', required: false)
+imaging_dep = dependency('', required: false)
 foreach driver: drivers
     if driver == 'uru4000'
         nss_dep = dependency('nss', required: false)
