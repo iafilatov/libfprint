@@ -725,7 +725,7 @@ int alloc_power_stats(int **owis, double **opowmaxs, int **opowmax_dirs,
       /* Free memory allocated to this point. */
       free(wis);
       free(powmaxs);
-      free(pownorms);
+      free(powmax_dirs);
       fprintf(stderr, "ERROR : alloc_power_stats : malloc : pownorms\n");
       return(-53);
    }
