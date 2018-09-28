@@ -736,11 +736,13 @@ int pixelize_map(int **omap, const int iw, const int ih,
    }
 
    if((ret = block_offsets(&blkoffs, &bw, &bh, iw, ih, 0, blocksize))){
+      free(pmap);
       return(ret);
    }
 
    if((bw != mw) || (bh != mh)){
       free(blkoffs);
+      free(pmap);
       fprintf(stderr,
          "ERROR : pixelize_map : block dimensions do not match\n");
       return(-591);
