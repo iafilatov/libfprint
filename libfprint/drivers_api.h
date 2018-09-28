@@ -25,6 +25,7 @@
 
 #include "fprint.h"
 #include "fpi-log.h"
+#include "fpi-dev.h"
 #include "fpi-dev-img.h"
 #include "fpi-core.h"
 #include "fpi-ssm.h"
