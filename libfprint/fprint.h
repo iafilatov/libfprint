@@ -25,6 +25,8 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <stddef.h>
+#include <unistd.h>
 #include <sys/time.h>
 
 #define LIBFPRINT_DEPRECATED __attribute__((__deprecated__))
