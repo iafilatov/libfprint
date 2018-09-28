@@ -35,6 +35,11 @@
 #include "fpi-img.h"
 #include "drivers/driver_ids.h"
 
+/* Global variables */
+extern libusb_context *fpi_usb_ctx;
+extern GSList *opened_devices;
+
+/* fp_dev structure definition */
 enum fp_dev_state {
 	DEV_STATE_INITIAL = 0,
 	DEV_STATE_ERROR,
@@ -58,8 +63,6 @@ enum fp_dev_state {
 	DEV_STATE_CAPTURE_DONE,
 	DEV_STATE_CAPTURE_STOPPING,
 };
-
-struct fp_driver **fprint_get_drivers (void);
 
 struct fp_dev {
 	struct fp_driver *drv;
@@ -110,6 +113,7 @@ struct fp_dev {
 	struct fp_print_data **identify_gallery;
 };
 
+/* fp_img_dev structure definition */
 struct fp_img_dev {
 	struct fp_dev *parent;
 
@@ -126,9 +130,7 @@ struct fp_img_dev {
 	size_t identify_match_offset;
 };
 
-int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev);
-int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev);
-
+/* fp_driver structure definition */
 struct usb_id {
 	uint16_t vendor;
 	uint16_t product;
@@ -162,10 +164,12 @@ struct fp_driver {
 	int (*capture_stop)(struct fp_dev *dev);
 };
 
-enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv);
-
-/* flags for fp_img_driver.flags */
-#define FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE (1 << 0)
+/* fp_img_driver structure definition */
+#define container_of(ptr, type, member) ({                      \
+        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+        (type *)( (char *)__mptr - offsetof(type,member) );})
+#define fpi_driver_to_img_driver(drv) \
+	container_of((drv), struct fp_img_driver, driver)
 
 struct fp_img_driver {
 	struct fp_driver driver;
@@ -182,19 +186,7 @@ struct fp_img_driver {
 	void (*deactivate)(struct fp_img_dev *dev);
 };
 
-#include "drivers_definitions.h"
-
-extern libusb_context *fpi_usb_ctx;
-extern GSList *opened_devices;
-
-void fpi_img_driver_setup(struct fp_img_driver *idriver);
-
-#define container_of(ptr, type, member) ({                      \
-        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-        (type *)( (char *)__mptr - offsetof(type,member) );})
-#define fpi_driver_to_img_driver(drv) \
-	container_of((drv), struct fp_img_driver, driver)
-
+/* fp_dscv_dev structure definition */
 struct fp_dscv_dev {
 	struct libusb_device *udev;
 	struct fp_driver *drv;
@@ -202,6 +194,7 @@ struct fp_dscv_dev {
 	uint32_t devtype;
 };
 
+/* fp_dscv_print structure definition */
 struct fp_dscv_print {
 	uint16_t driver_id;
 	uint32_t devtype;
@@ -209,11 +202,7 @@ struct fp_dscv_print {
 	char *path;
 };
 
-void fpi_data_exit(void);
-gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
-	enum fp_print_data_type type1, uint16_t driver_id2, uint32_t devtype2,
-	enum fp_print_data_type type2);
-
+/* fp_minutia structure definition */
 struct fp_minutia {
 	int x;
 	int y;
@@ -229,12 +218,32 @@ struct fp_minutia {
 	int num_nbrs;
 };
 
+/* fp_minutiae structure definition */
 struct fp_minutiae {
 	int alloc;
 	int num;
 	struct fp_minutia **list;
 };
 
+/* Defined in fpi-dev-img.c */
+void fpi_img_driver_setup(struct fp_img_driver *idriver);
+int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev);
+int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev);
+
+/* Exported for use in command-line tools
+ * Defined in fpi-core.c */
+struct fp_driver **fprint_get_drivers (void);
+
+/* Defined in fpi-core.c */
+enum fp_print_data_type fpi_driver_get_data_type(struct fp_driver *drv);
+
+/* Defined in fpi-data.c */
+void fpi_data_exit(void);
+gboolean fpi_print_data_compatible(uint16_t driver_id1, uint32_t devtype1,
+	enum fp_print_data_type type1, uint16_t driver_id2, uint32_t devtype2,
+	enum fp_print_data_type type2);
+
+/* Defined in fpi-img.c */
 gboolean fpi_img_is_sane(struct fp_img *img);
 int fpi_img_to_print_data(struct fp_img_dev *imgdev, struct fp_img *img,
 	struct fp_print_data **ret);
@@ -243,9 +252,11 @@ int fpi_img_compare_print_data(struct fp_print_data *enrolled_print,
 int fpi_img_compare_print_data_to_gallery(struct fp_print_data *print,
 	struct fp_print_data **gallery, int match_threshold, size_t *match_offset);
 
-/* polling */
+/* Defined in fpi-poll.c */
 void fpi_timeout_cancel_all_for_dev(struct fp_dev *dev);
 void fpi_poll_init(void);
 void fpi_poll_exit(void);
+
+#include "drivers_definitions.h"
 
 #endif
