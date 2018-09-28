@@ -11,6 +11,8 @@ libfprint_sources = [
     'fpi-data.h',
     'fpi-dev.c',
     'fpi-dev.h',
+    'fpi-dev-img.c',
+    'fpi-dev-img.h',
     'fpi-img.c',
     'fpi-img.h',
     'fpi-log.h',
@@ -21,7 +23,6 @@ libfprint_sources = [
     'fpi-poll.c',
     'fpi-usb.h',
     'fpi-usb.c',
-    'imgdev.c',
     'drivers/driver_ids.h',
 ]
 

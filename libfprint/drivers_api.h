@@ -30,6 +30,7 @@
 
 #include "fprint.h"
 #include "fpi-log.h"
+#include "fpi-dev-img.h"
 #include "fpi-core.h"
 #include "fpi-ssm.h"
 #include "fpi-poll.h"
@@ -39,38 +40,6 @@
 #include "fpi-img.h"
 #include "fpi-assembling.h"
 #include "drivers/driver_ids.h"
-
-enum fp_imgdev_state {
-	IMGDEV_STATE_INACTIVE,
-	IMGDEV_STATE_AWAIT_FINGER_ON,
-	IMGDEV_STATE_CAPTURE,
-	IMGDEV_STATE_AWAIT_FINGER_OFF,
-};
-
-enum fp_imgdev_action {
-	IMG_ACTION_NONE = 0,
-	IMG_ACTION_ENROLL,
-	IMG_ACTION_VERIFY,
-	IMG_ACTION_IDENTIFY,
-	IMG_ACTION_CAPTURE,
-};
-
-enum fp_imgdev_enroll_state {
-	IMG_ACQUIRE_STATE_NONE = 0,
-	IMG_ACQUIRE_STATE_ACTIVATING,
-	IMG_ACQUIRE_STATE_AWAIT_FINGER_ON,
-	IMG_ACQUIRE_STATE_AWAIT_IMAGE,
-	IMG_ACQUIRE_STATE_AWAIT_FINGER_OFF,
-	IMG_ACQUIRE_STATE_DONE,
-	IMG_ACQUIRE_STATE_DEACTIVATING,
-};
-
-enum fp_imgdev_enroll_state fpi_imgdev_get_action_state(struct fp_img_dev *imgdev);
-enum fp_imgdev_action fpi_imgdev_get_action(struct fp_img_dev *imgdev);
-int fpi_imgdev_get_action_result(struct fp_img_dev *imgdev);
-void fpi_imgdev_set_action_result(struct fp_img_dev *imgdev, int action_result);
-int fpi_imgdev_get_img_width(struct fp_img_dev *imgdev);
-int fpi_imgdev_get_img_height(struct fp_img_dev *imgdev);
 
 struct usb_id {
 	uint16_t vendor;
@@ -126,15 +95,6 @@ struct fp_img_driver {
 struct fp_minutiae;
 
 /* for image drivers */
-void fpi_imgdev_open_complete(struct fp_img_dev *imgdev, int status);
-void fpi_imgdev_close_complete(struct fp_img_dev *imgdev);
-void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status);
-void fpi_imgdev_deactivate_complete(struct fp_img_dev *imgdev);
-void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
-	gboolean present);
-void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img);
-void fpi_imgdev_abort_scan(struct fp_img_dev *imgdev, int result);
-void fpi_imgdev_session_error(struct fp_img_dev *imgdev, int error);
 
 #endif
 

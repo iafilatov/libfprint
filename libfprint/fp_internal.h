@@ -30,6 +30,7 @@
 #include "fprint.h"
 #include "fpi-log.h"
 #include "fpi-dev.h"
+#include "fpi-dev-img.h"
 #include "fpi-data.h"
 #include "fpi-img.h"
 #include "drivers/driver_ids.h"
@@ -107,36 +108,6 @@ struct fp_dev {
 
 	/* FIXME: better place to put this? */
 	struct fp_print_data **identify_gallery;
-};
-
-enum fp_imgdev_state {
-	IMGDEV_STATE_INACTIVE,
-	IMGDEV_STATE_AWAIT_FINGER_ON,
-	IMGDEV_STATE_CAPTURE,
-	IMGDEV_STATE_AWAIT_FINGER_OFF,
-};
-
-enum fp_imgdev_action {
-	IMG_ACTION_NONE = 0,
-	IMG_ACTION_ENROLL,
-	IMG_ACTION_VERIFY,
-	IMG_ACTION_IDENTIFY,
-	IMG_ACTION_CAPTURE,
-};
-
-enum fp_imgdev_enroll_state {
-	IMG_ACQUIRE_STATE_NONE = 0,
-	IMG_ACQUIRE_STATE_ACTIVATING,
-	IMG_ACQUIRE_STATE_AWAIT_FINGER_ON,
-	IMG_ACQUIRE_STATE_AWAIT_IMAGE,
-	IMG_ACQUIRE_STATE_AWAIT_FINGER_OFF,
-	IMG_ACQUIRE_STATE_DONE,
-	IMG_ACQUIRE_STATE_DEACTIVATING,
-};
-
-enum fp_imgdev_verify_state {
-	IMG_VERIFY_STATE_NONE = 0,
-	IMG_VERIFY_STATE_ACTIVATING
 };
 
 struct fp_img_dev {
