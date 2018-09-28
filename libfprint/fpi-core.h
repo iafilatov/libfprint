@@ -17,6 +17,60 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <libusb.h>
+#ifndef __FPI_CORE_H__
+#define __FPI_CORE_H__
+
 #include <fprint.h>
 
+struct usb_id {
+	uint16_t vendor;
+	uint16_t product;
+	unsigned long driver_data;
+};
+
+enum fp_driver_type {
+	DRIVER_PRIMITIVE = 0,
+	DRIVER_IMAGING = 1,
+};
+
+struct fp_driver {
+	const uint16_t id;
+	const char *name;
+	const char *full_name;
+	const struct usb_id * const id_table;
+	enum fp_driver_type type;
+	enum fp_scan_type scan_type;
+
+	/* Device operations */
+	int (*discover)(struct libusb_device_descriptor *dsc, uint32_t *devtype);
+	int (*open)(struct fp_dev *dev, unsigned long driver_data);
+	void (*close)(struct fp_dev *dev);
+	int (*enroll_start)(struct fp_dev *dev);
+	int (*enroll_stop)(struct fp_dev *dev);
+	int (*verify_start)(struct fp_dev *dev);
+	int (*verify_stop)(struct fp_dev *dev, gboolean iterating);
+	int (*identify_start)(struct fp_dev *dev);
+	int (*identify_stop)(struct fp_dev *dev, gboolean iterating);
+	int (*capture_start)(struct fp_dev *dev);
+	int (*capture_stop)(struct fp_dev *dev);
+};
+
+/* flags for fp_img_driver.flags */
+#define FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE (1 << 0)
+
+struct fp_img_driver {
+	struct fp_driver driver;
+	uint16_t flags;
+	int img_width;
+	int img_height;
+	int bz3_threshold;
+
+	/* Device operations */
+	int (*open)(struct fp_img_dev *dev, unsigned long driver_data);
+	void (*close)(struct fp_img_dev *dev);
+	int (*activate)(struct fp_img_dev *dev, enum fp_imgdev_state state);
+	int (*change_state)(struct fp_img_dev *dev, enum fp_imgdev_state state);
+	void (*deactivate)(struct fp_img_dev *dev);
+};
+
+#endif
