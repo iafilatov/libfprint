@@ -30,6 +30,7 @@
 
 #include "fprint.h"
 #include "fpi-log.h"
+#include "fpi-core.h"
 #include "fpi-ssm.h"
 #include "fpi-poll.h"
 #include "fpi-dev.h"
@@ -38,10 +39,6 @@
 #include "fpi-img.h"
 #include "fpi-assembling.h"
 #include "drivers/driver_ids.h"
-
-libusb_device_handle *fpi_dev_get_usb_dev(struct fp_dev *dev);
-void fpi_dev_set_nr_enroll_stages(struct fp_dev *dev, int nr_enroll_stages);
-struct fp_print_data *fpi_dev_get_verify_data(struct fp_dev *dev);
 
 enum fp_imgdev_state {
 	IMGDEV_STATE_INACTIVE,
