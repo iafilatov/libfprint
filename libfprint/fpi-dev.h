@@ -17,6 +17,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#ifndef __FPI_DEV_H__
+#define __FPI_DEV_H__
+
 struct fp_dev;
 
 /**
@@ -33,3 +36,5 @@ struct fp_img_dev       *FP_IMG_DEV       (struct fp_dev *dev);
 void                     fp_dev_set_instance_data (struct fp_dev *dev,
 						   void          *instance_data);
 void                    *FP_INSTANCE_DATA         (struct fp_dev *dev);
+
+#endif
