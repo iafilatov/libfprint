@@ -675,6 +675,7 @@ int morph_TF_map(int *tfmap, const int mw, const int mh,
 
    mimage = (unsigned char *)malloc(mw*mh);
    if(mimage == (unsigned char *)NULL){
+      free(cimage);
       fprintf(stderr, "ERROR : morph_TF_map : malloc : mimage\n");
       return(-661);
    }
