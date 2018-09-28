@@ -96,3 +96,22 @@ FP_INSTANCE_DATA (struct fp_dev *dev)
 
 	return dev->instance_data;
 }
+
+libusb_device_handle *
+fpi_dev_get_usb_dev(struct fp_dev *dev)
+{
+	return dev->udev;
+}
+
+void
+fpi_dev_set_nr_enroll_stages(struct fp_dev *dev,
+	int nr_enroll_stages)
+{
+	dev->nr_enroll_stages = nr_enroll_stages;
+}
+
+struct fp_print_data *
+fpi_dev_get_verify_data(struct fp_dev *dev)
+{
+	return dev->verify_data;
+}

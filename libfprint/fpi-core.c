@@ -528,25 +528,6 @@ API_EXPORTED int fp_dev_supports_dscv_print(struct fp_dev *dev,
 		0, print->driver_id, print->devtype, 0);
 }
 
-libusb_device_handle *
-fpi_dev_get_usb_dev(struct fp_dev *dev)
-{
-	return dev->udev;
-}
-
-void
-fpi_dev_set_nr_enroll_stages(struct fp_dev *dev,
-	int nr_enroll_stages)
-{
-	dev->nr_enroll_stages = nr_enroll_stages;
-}
-
-struct fp_print_data *
-fpi_dev_get_verify_data(struct fp_dev *dev)
-{
-	return dev->verify_data;
-}
-
 /**
  * fp_driver_get_name:
  * @drv: the driver

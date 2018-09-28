@@ -20,6 +20,9 @@
 #ifndef __FPI_DEV_H__
 #define __FPI_DEV_H__
 
+#include <libusb.h>
+#include <fprint.h>
+
 struct fp_dev;
 
 /**
@@ -36,5 +39,10 @@ struct fp_img_dev       *FP_IMG_DEV       (struct fp_dev *dev);
 void                     fp_dev_set_instance_data (struct fp_dev *dev,
 						   void          *instance_data);
 void                    *FP_INSTANCE_DATA         (struct fp_dev *dev);
+
+libusb_device_handle *fpi_dev_get_usb_dev(struct fp_dev *dev);
+void fpi_dev_set_nr_enroll_stages(struct fp_dev *dev,
+				  int nr_enroll_stages);
+struct fp_print_data *fpi_dev_get_verify_data(struct fp_dev *dev);
 
 #endif
