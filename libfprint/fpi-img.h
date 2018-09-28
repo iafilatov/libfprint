@@ -1,5 +1,4 @@
 /*
- * Driver API definitions
  * Copyright (C) 2007-2008 Daniel Drake <dsd@gentoo.org>
  * Copyright (C) 2018 Bastien Nocera <hadess@hadess.net>
  *
@@ -47,5 +46,8 @@ struct fp_img *fpi_img_new(size_t length);
 struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *dev);
 struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize);
 struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
+
+int fpi_std_sq_dev(const unsigned char *buf, int size);
+int fpi_mean_sq_diff_norm(unsigned char *buf1, unsigned char *buf2, int size);
 
 #endif
