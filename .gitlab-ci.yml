@@ -17,6 +17,7 @@ build:
     # Build with a driver that doesn't need imaging, or nss
     - meson -Ddrivers=elan . _build
     - ninja -C _build
+    - rm -rf _build/
     # And build with everything
     - meson -Ddrivers=all . _build
     - ninja -C _build
