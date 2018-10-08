@@ -14,6 +14,10 @@ option('x11-examples',
        description: 'Whether to build X11 example applications',
        type: 'boolean',
        value: true)
+option('gtk-examples',
+       description: 'Whether to build GTK+ example applications',
+       type: 'boolean',
+       value: true)
 option('doc',
        description: 'Whether to build the API documentation',
        type: 'boolean',

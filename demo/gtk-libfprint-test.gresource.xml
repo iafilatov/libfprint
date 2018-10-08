@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/libfprint_demo">
+    <file>gtk-libfprint-test.ui</file>
+  </gresource>
+</gresources>
