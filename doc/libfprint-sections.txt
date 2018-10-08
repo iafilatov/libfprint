@@ -134,6 +134,7 @@ fp_img_save_to_file
 fp_img_standardize
 fp_img_binarize
 fp_img_get_minutiae
+fp_minutia_get_coords
 </SECTION>
 
 <SECTION>

@@ -533,6 +533,30 @@ API_EXPORTED struct fp_minutia **fp_img_get_minutiae(struct fp_img *img,
 	return img->minutiae->list;
 }
 
+/**
+ * fp_minutia_get_coords:
+ * @minutia: a struct #fp_minutia
+ * @x: the return variable for the X coordinate of the minutia
+ * @y: the return variable for the Y coordinate of the minutia
+ *
+ * Sets @x and @y to be the coordinates of the detected minutia, so it
+ * can be presented in a more verbose user interface. This is usually only
+ * used for debugging purposes.
+ *
+ * Returns: 0 on success, -1 on error.
+ */
+API_EXPORTED int fp_minutia_get_coords(struct fp_minutia *minutia, int *coord_x, int *coord_y)
+{
+	g_return_val_if_fail (minutia != NULL, -1);
+	g_return_val_if_fail (coord_x != NULL, -1);
+	g_return_val_if_fail (coord_y != NULL, -1);
+
+	*coord_x = minutia->x;
+	*coord_y = minutia->y;
+
+	return 0;
+}
+
 enum fp_imgdev_enroll_state
 fpi_imgdev_get_action_state(struct fp_img_dev *imgdev)
 {
