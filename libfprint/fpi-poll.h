@@ -48,4 +48,6 @@ void fpi_timeout_set_name(fpi_timeout *timeout,
 			  const char  *name);
 void fpi_timeout_cancel(fpi_timeout *timeout);
 
+gboolean fpi_poll_is_setup(void);
+
 #endif

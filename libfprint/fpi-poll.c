@@ -482,6 +482,12 @@ void fpi_poll_exit(void)
 	libusb_set_pollfd_notifiers(fpi_usb_ctx, NULL, NULL, NULL);
 }
 
+gboolean
+fpi_poll_is_setup(void)
+{
+	return (fd_added_cb != NULL && fd_removed_cb != NULL);
+}
+
 void
 fpi_timeout_cancel_all_for_dev(struct fp_dev *dev)
 {
