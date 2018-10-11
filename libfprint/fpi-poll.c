@@ -163,6 +163,7 @@ fpi_timeout *fpi_timeout_add(unsigned int    msec,
 	int r;
 
 	g_return_val_if_fail (dev != NULL, NULL);
+	g_return_val_if_fail (fpi_poll_is_setup(), NULL);
 
 	fp_dbg("in %dms", msec);
 
