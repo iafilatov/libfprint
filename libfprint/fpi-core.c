@@ -259,8 +259,7 @@ API_EXPORTED struct fp_dscv_dev **fp_discover_devs(void)
 	int r;
 	int i = 0;
 
-	if (registered_drivers == NULL)
-		return NULL;
+	g_return_val_if_fail (registered_drivers != NULL, NULL);
 
 	r = libusb_get_device_list(fpi_usb_ctx, &devs);
 	if (r < 0) {
