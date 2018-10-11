@@ -52,6 +52,10 @@ if drivers == [ 'all' ]
     drivers = all_drivers
 endif
 
+if drivers.length() == 0 or drivers[0] == ''
+    error('Cannot build libfprint without drivers, please specify a valid value for the drivers option')
+endif
+
 nss_dep = dependency('', required: false)
 imaging_dep = dependency('', required: false)
 foreach driver: drivers
