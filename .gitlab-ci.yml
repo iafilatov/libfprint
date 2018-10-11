@@ -4,7 +4,7 @@ stages:
 
 variables:
   DEPENDENCIES: libusb1-devel glib2-devel nss-devel pixman-devel systemd meson gtk-doc
-                gcc gcc-c++ glibc-devel libX11-devel libXv-devel
+                gcc gcc-c++ glibc-devel libX11-devel libXv-devel gtk3-devel
 
 
 before_script:
