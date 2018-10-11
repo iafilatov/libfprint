@@ -538,7 +538,7 @@ API_EXPORTED int fp_async_capture_start(struct fp_dev *dev, int unconditional,
 	if (r < 0) {
 		dev->capture_cb = NULL;
 		dev->state = DEV_STATE_ERROR;
-		fp_err("failed to start verification, error %d", r);
+		fp_err("failed to start capture, error %d", r);
 	}
 	return r;
 }
@@ -624,7 +624,7 @@ API_EXPORTED int fp_async_capture_stop(struct fp_dev *dev,
 
 	r = drv->capture_stop(dev);
 	if (r < 0) {
-		fp_err("failed to stop verification");
+		fp_err("failed to stop capture");
 		dev->capture_stop_cb = NULL;
 	}
 	return r;
