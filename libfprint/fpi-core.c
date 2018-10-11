@@ -580,6 +580,24 @@ API_EXPORTED enum fp_scan_type fp_driver_get_scan_type(struct fp_driver *drv)
 }
 
 /**
+ * fp_driver_supports_imaging:
+ * @drv: the driver
+ *
+ * Determines if a driver has imaging capabilities. If a driver has imaging
+ * capabilities you are able to perform imaging operations such as retrieving
+ * scan images using fp_dev_img_capture(). However, not all drivers support
+ * imaging devices – some do all processing in hardware. This function will
+ * indicate which class a device in question falls into.
+ *
+ * Returns: 1 if the device is an imaging device, 0 if the device does not
+ * provide images to the host computer
+ */
+API_EXPORTED int fp_driver_supports_imaging(struct fp_driver *drv)
+{
+	return drv->capture_start != NULL;
+}
+
+/**
  * fp_dev_supports_imaging:
  * @dev: the fingerprint device
  *

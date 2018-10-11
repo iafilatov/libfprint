@@ -40,6 +40,7 @@ fp_driver_get_name
 fp_driver_get_full_name
 fp_driver_get_driver_id
 fp_driver_get_scan_type
+fp_driver_supports_imaging
 </SECTION>
 
 <SECTION>

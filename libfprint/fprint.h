@@ -130,6 +130,7 @@ const char *fp_driver_get_name(struct fp_driver *drv);
 const char *fp_driver_get_full_name(struct fp_driver *drv);
 uint16_t fp_driver_get_driver_id(struct fp_driver *drv);
 enum fp_scan_type fp_driver_get_scan_type(struct fp_driver *drv);
+int fp_driver_supports_imaging(struct fp_driver *drv);
 
 /* Device discovery */
 struct fp_dscv_dev **fp_discover_devs(void);
