@@ -418,6 +418,8 @@ API_EXPORTED ssize_t fp_get_pollfds(struct fp_pollfd **pollfds)
 	ssize_t cnt = 0;
 	size_t i = 0;
 
+	g_return_val_if_fail (fpi_usb_ctx != NULL, -EIO);
+
 	usbfds = libusb_get_pollfds(fpi_usb_ctx);
 	if (!usbfds) {
 		*pollfds = NULL;
