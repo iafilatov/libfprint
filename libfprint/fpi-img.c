@@ -269,9 +269,8 @@ static void minutiae_to_xyt(struct fp_minutiae *minutiae, int bwidth,
 	struct minutiae_struct c[MAX_FILE_MINUTIAE];
 	struct xyt_struct *xyt = (struct xyt_struct *) buf;
 
-	/* FIXME: only considers first 150 minutiae (MAX_FILE_MINUTIAE) */
-	/* nist does weird stuff with 150 vs 1000 limits */
-	int nmin = min(minutiae->num, MAX_FILE_MINUTIAE);
+	/* struct xyt_struct uses arrays of MAX_BOZORTH_MINUTIAE (200) */
+	int nmin = min(minutiae->num, MAX_BOZORTH_MINUTIAE);
 
 	for (i = 0; i < nmin; i++){
 		minutia = minutiae->list[i];
