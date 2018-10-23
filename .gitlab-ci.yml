@@ -1,25 +1,64 @@
 image: fedora:rawhide
 stages:
   - build
+  - test
 
 variables:
   DEPENDENCIES: libusb1-devel glib2-devel nss-devel pixman-devel systemd meson gtk-doc
-                gcc gcc-c++ glibc-devel libX11-devel libXv-devel gtk3-devel
+                gcc gcc-c++ glibc-devel libX11-devel libXv-devel gtk3-devel flatpak-builder
+  BUNDLE: "org.freedesktop.libfprint.Demo.flatpak"
 
-
-before_script:
-  - dnf update -y --nogpgcheck && dnf install -y --nogpgcheck $DEPENDENCIES
-
-
-build:
-  stage: build
+.build_one_driver_template: &build_one_driver
   script:
+    - dnf update -y --nogpgcheck && dnf install -y --nogpgcheck $DEPENDENCIES
     # Build with a driver that doesn't need imaging, or nss
     - meson -Ddrivers=elan . _build
     - ninja -C _build
     - rm -rf _build/
+
+.build_template: &build
+  script:
+    - dnf update -y --nogpgcheck && dnf install -y --nogpgcheck $DEPENDENCIES
     # And build with everything
     - meson -Ddrivers=all . _build
     - ninja -C _build
     - ninja -C _build install
 
+build:
+  stage: build
+  <<: *build_one_driver
+  <<: *build
+
+.flatpak_script_template: &flatpak_script
+    script:
+        - flatpak-builder --stop-at=${FLATPAK_MODULE} app ${MANIFEST_PATH}
+        # Make sure to keep this in sync with the Flatpak manifest, all arguments
+        # are passed except the config-args because we build it ourselves
+        - flatpak build app meson --prefix=/app --libdir=lib ${MESON_ARGS} _build
+        - flatpak build app ninja -C _build install
+        - flatpak build app rm -rf /app/include/ /app/lib/pkgconfig/
+        - flatpak-builder --finish-only --repo=repo app ${MANIFEST_PATH}
+        # Generate a Flatpak bundle
+        - flatpak build-bundle repo ${BUNDLE} --runtime-repo=${RUNTIME_REPO} ${DBUS_ID}
+
+.flatpak_artifacts_template: &flatpak_artifacts
+    artifacts:
+        paths:
+            - ${BUNDLE}
+        when: always
+        expire_in: 30 days
+
+.flatpak_template: &flatpak
+    <<: *flatpak_script
+    <<: *flatpak_artifacts
+
+flatpak master:
+    image: registry.gitlab.gnome.org/gnome/gnome-runtime-images/gnome:master
+    stage: test
+    variables:
+        MANIFEST_PATH: "demo/org.freedesktop.libfprint.Demo.json"
+        # From demo/org.freedesktop.libfprint.Demo.json
+        MESON_ARGS: "-Dudev_rules=false -Dx11-examples=false -Dgtk-examples=true"
+        FLATPAK_MODULE: "libfprint"
+        DBUS_ID: "org.freedesktop.libfprint.Demo"
+    <<: *flatpak
