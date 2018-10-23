@@ -400,7 +400,8 @@ void fp_async_dev_close(struct fp_dev *dev, fp_operation_stop_cb callback,
  * @user_data: user data passed to the callback
  *
  * Type definition for a function that will be called when
- * fp_async_enroll_start() finishes.
+ * fp_async_enroll_start() finishes. See fp_enroll_finger_img() for
+ * the expected behaviour of your program based on the @result.
  */
 typedef void (*fp_enroll_stage_cb)(struct fp_dev *dev, int result,
 	struct fp_print_data *print, struct fp_img *img, void *user_data);
