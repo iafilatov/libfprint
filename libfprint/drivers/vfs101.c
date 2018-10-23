@@ -56,7 +56,7 @@
 #define VFS_IMG_MIN_IMAGE_LEVEL	144
 
 /* Best image contrast */
-#define VFS_IMG_BEST_CONRAST	128
+#define VFS_IMG_BEST_CONTRAST	128
 
 /* Device parameters address */
 #define VFS_PAR_000E			0x000e
@@ -851,7 +851,7 @@ static void vfs_check_contrast(struct vfs101_dev *vdev)
 
 	fp_dbg("contrast = %d, level = %ld", vdev->contrast, count);
 
-	if (abs(count - VFS_IMG_BEST_CONRAST) < abs(vdev->best_clevel - VFS_IMG_BEST_CONRAST))
+	if (abs(count - VFS_IMG_BEST_CONTRAST) < abs(vdev->best_clevel - VFS_IMG_BEST_CONTRAST))
 	{
 		/* Better contrast found, use it */
 		vdev->best_contrast = vdev->contrast;
