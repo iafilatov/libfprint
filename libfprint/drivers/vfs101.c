@@ -851,7 +851,7 @@ static void vfs_check_contrast(struct vfs101_dev *vdev)
 
 	fp_dbg("contrast = %d, level = %ld", vdev->contrast, count);
 
-	if (abs(count - VFS_IMG_BEST_CONTRAST) < abs(vdev->best_clevel - VFS_IMG_BEST_CONTRAST))
+	if (labs(count - VFS_IMG_BEST_CONTRAST) < abs(vdev->best_clevel - VFS_IMG_BEST_CONTRAST))
 	{
 		/* Better contrast found, use it */
 		vdev->best_contrast = vdev->contrast;
