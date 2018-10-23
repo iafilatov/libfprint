@@ -84,7 +84,7 @@ static void sync_close_cb(struct fp_dev *dev, void *user_data)
  * fp_dev_close:
  * @dev: the struct #fp_dev device to close. If %NULL, function simply returns
  *
- * Close a device. You must call this function when you are finished using
+ * Closes a device. You must call this function when you have finished using
  * a fingerprint device.
  */
 API_EXPORTED void fp_dev_close(struct fp_dev *dev)
@@ -338,7 +338,7 @@ static void verify_stop_cb(struct fp_dev *dev, void *user_data)
  * storage. If an image is returned, it must be freed with fp_img_free() after
  * use
 
- * Performs a new scan and verify it against a previously enrolled print.
+ * Performs a new scan and verifies it against a previously enrolled print.
  * If the device is an imaging device, it can also return the image from
  * the scan, even when the verify fails with a RETRY code. It is legal to
  * call this function even on non-imaging devices, just don't expect them to
