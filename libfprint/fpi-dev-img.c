@@ -238,7 +238,7 @@ void fpi_imgdev_abort_scan(struct fp_img_dev *imgdev, int result)
 
 void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 {
-	struct fp_print_data *print;
+	struct fp_print_data *print = NULL;
 	int r;
 	G_DEBUG_HERE();
 
