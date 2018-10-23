@@ -43,11 +43,11 @@
 
 #define dbg_buf(buf, len)                                     \
   if (len == 1)                                               \
-    fp_dbg("%02hx", buf[0]);                                  \
+    fp_dbg("%02x", buf[0]);                                  \
   else if (len == 2)                                          \
-    fp_dbg("%04hx", buf[0] << 8 | buf[1]);                    \
+    fp_dbg("%04x", buf[0] << 8 | buf[1]);                    \
   else if (len > 2)                                           \
-    fp_dbg("%04hx... (%d bytes)", buf[0] << 8 | buf[1], len)
+    fp_dbg("%04x... (%d bytes)", buf[0] << 8 | buf[1], len)
 
 unsigned char elan_get_pixel(struct fpi_frame_asmbl_ctx *ctx,
 			     struct fpi_frame *frame, unsigned int x,
