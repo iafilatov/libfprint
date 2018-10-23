@@ -62,6 +62,7 @@ API_EXPORTED int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb call
 	int r;
 
 	g_return_val_if_fail(ddev != NULL, -ENODEV);
+	g_return_val_if_fail (callback != NULL, -EINVAL);
 
 	drv = ddev->drv;
 
@@ -178,6 +179,7 @@ API_EXPORTED int fp_async_enroll_start(struct fp_dev *dev,
 
 	g_return_val_if_fail(dev != NULL, -ENODEV);
 	g_return_val_if_fail (fpi_poll_is_setup(), -EIO);
+	g_return_val_if_fail (callback != NULL, -EINVAL);
 
 	drv = dev->drv;
 
@@ -294,6 +296,7 @@ API_EXPORTED int fp_async_verify_start(struct fp_dev *dev,
 
 	g_return_val_if_fail(dev != NULL, -ENODEV);
 	g_return_val_if_fail (fpi_poll_is_setup(), -EIO);
+	g_return_val_if_fail (callback != NULL, -EINVAL);
 
 	drv = dev->drv;
 
@@ -428,6 +431,7 @@ API_EXPORTED int fp_async_identify_start(struct fp_dev *dev,
 
 	g_return_val_if_fail(dev != NULL, -ENODEV);
 	g_return_val_if_fail (fpi_poll_is_setup(), -EIO);
+	g_return_val_if_fail (callback != NULL, -EINVAL);
 
 	drv = dev->drv;
 
@@ -562,6 +566,7 @@ API_EXPORTED int fp_async_capture_start(struct fp_dev *dev, int unconditional,
 
 	g_return_val_if_fail(dev != NULL, -ENODEV);
 	g_return_val_if_fail (fpi_poll_is_setup(), -EIO);
+	g_return_val_if_fail (callback != NULL, -EINVAL);
 
 	drv = dev->drv;
 
