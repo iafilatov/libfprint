@@ -381,7 +381,7 @@ API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
 
 	/* if we have no pending timeouts and the same is true for libusb,
 	 * indicate that we have no pending timouts */
-	if (r_fprint == 0 && r_libusb == 0)
+	if (r_fprint <= 0 && r_libusb <= 0)
 		return 0;
 
 	/* if fprint have no pending timeouts return libusb timeout */
