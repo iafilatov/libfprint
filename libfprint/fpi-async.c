@@ -40,11 +40,18 @@ void fpi_drvcb_open_complete(struct fp_dev *dev, int status)
 
 /**
  * fp_async_dev_open:
- * @ddev:
- * @callback:
- * @user_data:
+ * @ddev: the struct #fp_dscv_dev discovered device to open
+ * @callback: the callback to call when the device has been opened
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Opens and initialises a device. This is the function you call in order
+ * to convert a #fp_dscv_dev discovered device into an actual device handle
+ * that you can perform operations with.
+ *
+ * The error status of the opening will be provided as an argument to the
+ * #fp_dev_open_cb callback.
+ *
+ * Returns: 0 on success, non-zero on error
  */
 API_EXPORTED int fp_async_dev_open(struct fp_dscv_dev *ddev, fp_dev_open_cb callback,
 	void *user_data)
@@ -104,9 +111,12 @@ void fpi_drvcb_close_complete(struct fp_dev *dev)
 
 /**
  * fp_async_dev_close:
- * @dev:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @callback: the callback to call when the device has been closed
+ * @user_data: user data to pass to the callback
+ *
+ * Closes a device. You must call this function when you have finished using
+ * a fingerprint device.
  */
 API_EXPORTED void fp_async_dev_close(struct fp_dev *dev,
 	fp_operation_stop_cb callback, void *user_data)
@@ -150,11 +160,15 @@ void fpi_drvcb_enroll_started(struct fp_dev *dev, int status)
 
 /**
  * fp_async_enroll_start:
- * @dev:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @callback: the callback to call for each stage of the enrollment
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Starts an enrollment and calls @callback for each enrollment stage.
+ * See [Enrolling](libfprint-Devices-operations.html#enrolling)
+ * for an explanation of enroll stages.
+ *
+ * Returns: 0 on success, non-zero on error
  */
 API_EXPORTED int fp_async_enroll_start(struct fp_dev *dev,
 	fp_enroll_stage_cb callback, void *user_data)
@@ -217,11 +231,13 @@ void fpi_drvcb_enroll_stopped(struct fp_dev *dev)
 
 /**
  * fp_async_enroll_stop:
- * @dev:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @callback: the callback to call when the enrollment has been cancelled
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Stops an ongoing enrollment started with fp_async_enroll_start().
+ *
+ * Returns: 0 on success, non-zero on error
  */
 API_EXPORTED int fp_async_enroll_stop(struct fp_dev *dev,
 	fp_operation_stop_cb callback, void *user_data)
@@ -258,12 +274,17 @@ API_EXPORTED int fp_async_enroll_stop(struct fp_dev *dev,
 
 /**
  * fp_async_verify_start:
- * @dev:
- * @data:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @data: the print to verify against. Must have been previously
+ * enrolled with a device compatible to the device selected to perform the scan
+ * @callback: the callback to call when the verification has finished
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Starts a verification and calls @callback when the verification has
+ * finished. See fp_verify_finger_img() for the synchronous API. When the
+ * @callback has been called, you must call fp_async_verify_stop().
+ *
+ * Returns: 0 on success, non-zero on error
  */
 API_EXPORTED int fp_async_verify_start(struct fp_dev *dev,
 	struct fp_print_data *data, fp_img_operation_cb callback, void *user_data)
@@ -340,11 +361,13 @@ void fpi_drvcb_verify_stopped(struct fp_dev *dev)
 
 /**
  * fp_async_verify_stop:
- * @dev:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @callback: the callback to call to finish a verification
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Finishes an ongoing verification started with fp_async_verify_start().
+ *
+ * Returns: 0 on success, non-zero on error
  */
 API_EXPORTED int fp_async_verify_stop(struct fp_dev *dev,
 	fp_operation_stop_cb callback, void *user_data)
@@ -385,12 +408,17 @@ API_EXPORTED int fp_async_verify_stop(struct fp_dev *dev,
 
 /**
  * fp_async_identify_start:
- * @dev:
- * @gallery:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @gallery: NULL-terminated array of pointers to the prints to
+ * identify against. Each one must have been previously enrolled with a device
+ * compatible to the device selected to perform the scan
+ * @callback: the callback to call when the identification has finished
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Performs a new scan and verifies it against a previously enrolled print.
+ * See also: fp_verify_finger_img()
+ *
+ * Returns: 0 on success, non-zero on error
  */
 API_EXPORTED int fp_async_identify_start(struct fp_dev *dev,
 	struct fp_print_data **gallery, fp_identify_cb callback, void *user_data)
@@ -457,11 +485,13 @@ void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
 
 /**
  * fp_async_identify_stop:
- * @dev:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @callback: the callback to call when the identification has stopped
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Stops an ongoing identification started with fp_async_identify_start().
+ *
+ * Returns: 0 on success, non-zero on error
  */
 API_EXPORTED int fp_async_identify_stop(struct fp_dev *dev,
 	fp_operation_stop_cb callback, void *user_data)
@@ -512,12 +542,17 @@ void fpi_drvcb_identify_stopped(struct fp_dev *dev)
 
 /**
  * fp_async_capture_start:
- * @dev:
- * @unconditional:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @unconditional: whether to unconditionally capture an image, or to only capture when a finger is detected
+ * @callback: the callback to call when the capture has finished
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Start the capture of an #fp_img from a device. When the @callback has been called,
+ * you must call fp_async_capture_stop().
+ *
+ * Returns: 0 on success, non-zero on error. -ENOTSUP indicates that either the
+ * @unconditional flag was set but the device does not support this, or that the•
+ * device does not support imaging
  */
 API_EXPORTED int fp_async_capture_start(struct fp_dev *dev, int unconditional,
 	fp_img_operation_cb callback, void *user_data)
@@ -593,11 +628,13 @@ void fpi_drvcb_capture_stopped(struct fp_dev *dev)
 
 /**
  * fp_async_capture_stop:
- * @dev:
- * @callback:
- * @user_data:
+ * @dev: the struct #fp_dev device
+ * @callback: the callback to call when the capture has been stopped
+ * @user_data: user data to pass to the callback
  *
- * Returns:
+ * Stops an ongoing verification started with fp_async_capture_start().
+ *
+ * Returns: 0 on success, non-zero on error
  */
 API_EXPORTED int fp_async_capture_stop(struct fp_dev *dev,
 	fp_operation_stop_cb callback, void *user_data)
