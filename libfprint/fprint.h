@@ -351,7 +351,7 @@ void fp_set_debug(int level) LIBFPRINT_DEPRECATED;
 
 /**
  * fp_operation_stop_cb:
- * @dev: the #fp_dev device
+ * @dev: the struct #fp_dev device
  * @user_data: user data passed to the callback
  *
  * Type definition for a function that will be called when fp_async_dev_close(),
@@ -362,7 +362,7 @@ typedef void (*fp_operation_stop_cb)(struct fp_dev *dev, void *user_data);
 
 /**
  * fp_img_operation_cb:
- * @dev: the #fp_dev device
+ * @dev: the struct #fp_dev device
  * @result: an #fp_verify_result for fp_async_verify_start(), or an #fp_capture_result
  * for fp_async_capture_start(), or a negative value on error
  * @img: the captured #fp_img if capture or verification was successful
@@ -376,7 +376,7 @@ typedef void (*fp_img_operation_cb)(struct fp_dev *dev, int result,
 
 /**
  * fp_dev_open_cb:
- * @dev: the #fp_dev device
+ * @dev: the struct #fp_dev device
  * @status: 0 on success, or a negative value on error
  * @user_data: user data passed to the callback
  *
@@ -393,7 +393,7 @@ void fp_async_dev_close(struct fp_dev *dev, fp_operation_stop_cb callback,
 
 /**
  * fp_enroll_stage_cb:
- * @dev: the #fp_dev device
+ * @dev: the struct #fp_dev device
  * @result: a #fp_enroll_result on success, or a negative value on failure
  * @print: the enrollment data from the final stage
  * @img: an #fp_img to free with fp_img_free()
@@ -419,7 +419,7 @@ int fp_async_verify_stop(struct fp_dev *dev, fp_operation_stop_cb callback,
 
 /**
  * fp_identify_cb:
- * @dev: the #fp_dev device
+ * @dev: the struct #fp_dev device
  * @result: a #fp_verify_result on success, or a negative value on error.
  * @match_offset: the array index of the matched gallery print (if any was found).
  * Only valid if %FP_VERIFY_MATCH was returned.

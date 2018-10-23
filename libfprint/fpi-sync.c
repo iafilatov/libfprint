@@ -40,7 +40,7 @@ static void sync_open_cb(struct fp_dev *dev, int status, void *user_data)
 
 /**
  * fp_dev_open:
- * @ddev: the discovered device to open
+ * @ddev: the struct #fp_dscv_dev discovered device to open
  *
  * Opens and initialises a device. This is the function you call in order
  * to convert a #fp_dscv_dev discovered device into an actual device handle

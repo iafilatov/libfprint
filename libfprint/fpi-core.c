@@ -453,7 +453,7 @@ API_EXPORTED struct fp_dscv_dev *fp_dscv_dev_for_dscv_print(struct fp_dscv_dev *
 
 /**
  * fp_dev_get_driver:
- * @dev: the device
+ * @dev: the struct #fp_dev device
  *
  * Get the #fp_driver for a fingerprint device.
  *
@@ -466,7 +466,7 @@ API_EXPORTED struct fp_driver *fp_dev_get_driver(struct fp_dev *dev)
 
 /**
  * fp_dev_get_nr_enroll_stages:
- * @dev: the device
+ * @dev: the struct #fp_dev device
  *
  * Gets the number of [enroll stages](intro.html#enrollment) required to enroll a
  * fingerprint with the device.
@@ -480,7 +480,7 @@ API_EXPORTED int fp_dev_get_nr_enroll_stages(struct fp_dev *dev)
 
 /**
  * fp_dev_get_devtype:
- * @dev: the device
+ * @dev: the struct #fp_dev device
  *
  * Gets the [devtype](advanced-topics.html#device-types) for a device.
  *
@@ -493,7 +493,7 @@ API_EXPORTED uint32_t fp_dev_get_devtype(struct fp_dev *dev)
 
 /**
  * fp_dev_supports_print_data:
- * @dev: the device
+ * @dev: the struct #fp_dev device
  * @data: the stored print
  *
  * Determines if a stored print is compatible with a certain device.
@@ -510,7 +510,7 @@ API_EXPORTED int fp_dev_supports_print_data(struct fp_dev *dev,
 
 /**
  * fp_dev_supports_dscv_print:
- * @dev: the device
+ * @dev: the struct #fp_dev device
  * @print: the discovered print
  *
  * Determines if a #fp_dscv_print discovered print appears to be compatible
@@ -599,7 +599,7 @@ API_EXPORTED int fp_driver_supports_imaging(struct fp_driver *drv)
 
 /**
  * fp_dev_supports_imaging:
- * @dev: the fingerprint device
+ * @dev: the struct #fp_dev device
  *
  * Determines if a device has imaging capabilities. If a device has imaging
  * capabilities you are able to perform imaging operations such as retrieving
@@ -617,7 +617,7 @@ API_EXPORTED int fp_dev_supports_imaging(struct fp_dev *dev)
 
 /**
  * fp_dev_supports_identification:
- * @dev: the fingerprint device
+ * @dev: the struct #fp_dev device
  *
  * Determines if a device is capable of [identification](intro.html#identification)
  * through fp_identify_finger() and similar. Not all devices support this
@@ -632,7 +632,7 @@ API_EXPORTED int fp_dev_supports_identification(struct fp_dev *dev)
 
 /**
  * fp_dev_get_img_width:
- * @dev: the fingerprint device
+ * @dev: the struct #fp_dev device
  *
  * Gets the expected width of images that will be captured from the device.
  * This function will return -1 for devices that are not
@@ -654,7 +654,7 @@ API_EXPORTED int fp_dev_get_img_width(struct fp_dev *dev)
 
 /**
  * fp_dev_get_img_height:
- * @dev: the fingerprint device
+ * @dev: the struct #fp_dev device
  *
  * Gets the expected height of images that will be captured from the device.
  * This function will return -1 for devices that are not
