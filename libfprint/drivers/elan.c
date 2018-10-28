@@ -824,7 +824,7 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 
 static void elan_deactivate(struct fp_img_dev *dev)
 {
-	G_DEBUG_HERE();
+	fp_dbg("");
 
 	fpi_imgdev_deactivate_complete(dev);
 }
