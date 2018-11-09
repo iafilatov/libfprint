@@ -63,6 +63,15 @@ struct fpi_print_data_item_fp2 {
  * in any fashion that suits you.
  */
 
+/**
+ * SECTION: fpi-data
+ * @title: Stored prints creation
+ *
+ * Stored print can be loaded and created by certain drivers which do their own
+ * print matching in hardware. Most drivers will not be using those functions.
+ * See #fp_print_data for the public API counterpart.
+ */
+
 static char *base_store = NULL;
 
 static void storage_setup(void)

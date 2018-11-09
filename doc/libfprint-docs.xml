@@ -44,6 +44,7 @@
     <xi:include href="xml/fpi-poll.xml"/>
     <xi:include href="xml/fpi-img.xml"/>
     <xi:include href="xml/fpi-assembling.xml"/>
+    <xi:include href="xml/fpi-data.xml"/>
     <xi:include href="xml/fpi-usb.xml"/>
   </part>
 
