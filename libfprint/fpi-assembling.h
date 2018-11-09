@@ -29,13 +29,13 @@ struct fpi_frame {
 };
 
 struct fpi_frame_asmbl_ctx {
-	unsigned frame_width;
-	unsigned frame_height;
-	unsigned image_width;
+	unsigned int frame_width;
+	unsigned int frame_height;
+	unsigned int image_width;
 	unsigned char (*get_pixel)(struct fpi_frame_asmbl_ctx *ctx,
 				   struct fpi_frame *frame,
-				   unsigned x,
-				   unsigned y);
+				   unsigned int x,
+				   unsigned int y);
 };
 
 void fpi_do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
@@ -45,16 +45,16 @@ struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 			    GSList *stripes, size_t stripes_len);
 
 struct fpi_line_asmbl_ctx {
-	unsigned line_width;
-	unsigned max_height;
-	unsigned resolution;
-	unsigned median_filter_size;
-	unsigned max_search_offset;
+	unsigned int line_width;
+	unsigned int max_height;
+	unsigned int resolution;
+	unsigned int median_filter_size;
+	unsigned int max_search_offset;
 	int (*get_deviation)(struct fpi_line_asmbl_ctx *ctx,
 			     GSList *line1, GSList *line2);
 	unsigned char (*get_pixel)(struct fpi_line_asmbl_ctx *ctx,
 				   GSList *line,
-				   unsigned x);
+				   unsigned int x);
 };
 
 struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
