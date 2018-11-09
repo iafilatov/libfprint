@@ -71,7 +71,7 @@ submit_image(fpi_ssm           *ssm,
 	img->width = VFS301_FP_OUTPUT_WIDTH;
 	img->height = height;
 
-	img = fpi_img_resize(img, img->height * img->width);
+	img = fpi_img_realloc(img, img->height * img->width);
 	fpi_imgdev_image_captured(dev, img);
 
 	return 1;

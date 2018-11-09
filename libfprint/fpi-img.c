@@ -87,7 +87,7 @@ gboolean fpi_img_is_sane(struct fp_img *img)
 	return TRUE;
 }
 
-struct fp_img *fpi_img_resize(struct fp_img *img, size_t newsize)
+struct fp_img *fpi_img_realloc(struct fp_img *img, size_t newsize)
 {
 	return g_realloc(img, sizeof(*img) + newsize);
 }
