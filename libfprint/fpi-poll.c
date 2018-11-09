@@ -89,6 +89,8 @@ struct fpi_timeout {
 	char *name;
 };
 
+static gboolean fpi_poll_is_setup(void);
+
 static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
 {
 	fpi_timeout *a = (fpi_timeout *) _a;
@@ -483,7 +485,7 @@ void fpi_poll_exit(void)
 	libusb_set_pollfd_notifiers(fpi_usb_ctx, NULL, NULL, NULL);
 }
 
-gboolean
+static gboolean
 fpi_poll_is_setup(void)
 {
 	return (fd_added_cb != NULL && fd_removed_cb != NULL);
