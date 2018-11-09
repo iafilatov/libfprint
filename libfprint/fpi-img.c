@@ -551,10 +551,10 @@ API_EXPORTED struct fp_minutia **fp_img_get_minutiae(struct fp_img *img,
 /**
  * fp_minutia_get_coords:
  * @minutia: a struct #fp_minutia
- * @x: the return variable for the X coordinate of the minutia
- * @y: the return variable for the Y coordinate of the minutia
+ * @coord_x: the return variable for the X coordinate of the minutia
+ * @coord_y: the return variable for the Y coordinate of the minutia
  *
- * Sets @x and @y to be the coordinates of the detected minutia, so it
+ * Sets @coord_x and @coord_y to be the coordinates of the detected minutia, so it
  * can be presented in a more verbose user interface. This is usually only
  * used for debugging purposes.
  *
