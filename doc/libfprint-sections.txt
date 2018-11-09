@@ -197,6 +197,27 @@ FP_INSTANCE_DATA
 </SECTION>
 
 <SECTION>
+<INCLUDE>fpi-img.h</INCLUDE>
+<FILE>fpi-img</FILE>
+fp_minutiae
+
+FP_IMG_V_FLIPPED
+FP_IMG_H_FLIPPED
+FP_IMG_COLORS_INVERTED
+FP_IMG_BINARIZED_FORM
+FP_IMG_PARTIAL
+FP_IMG_STANDARDIZATION_FLAGS
+
+fpi_img_new
+fpi_img_new_for_imgdev
+fpi_img_realloc
+fpi_img_resize
+
+fpi_std_sq_dev
+fpi_mean_sq_diff_norm
+</SECTION>
+
+<SECTION>
 <INCLUDE>fpi-usb.h</INCLUDE>
 <FILE>fpi-usb</FILE>
 fpi_usb_transfer

@@ -48,6 +48,15 @@
  * natural upright orientation.
  */
 
+/**
+ * SECTION:fpi-img
+ * @title: Driver Image operations
+ *
+ * Those are the driver-specific helpers for #fp_img manipulation. See #fp_img's
+ * documentation for more information about data formats, and their uses in
+ * front-end applications.
+ */
+
 struct fp_img *fpi_img_new(size_t length)
 {
 	struct fp_img *img = g_malloc0(sizeof(*img) + length);
