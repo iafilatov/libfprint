@@ -35,7 +35,9 @@
 
 #ifdef FP_COMPONENT
 #undef G_LOG_DOMAIN
+#ifndef __GTK_DOC_IGNORE__
 #define G_LOG_DOMAIN "libfprint-"FP_COMPONENT
+#endif
 #endif
 
 #include <glib.h>
