@@ -22,7 +22,7 @@
 
 /**
  * SECTION:fpi-dev
- * @title: Device structures
+ * @title: Device operations
  *
  * Those macros and functions will help get access to and from struct #fp_dev,
  * and struct #fp_img_dev types, as well as get and set the instance struct

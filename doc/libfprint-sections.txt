@@ -195,6 +195,10 @@ FP_DEV
 FP_IMG_DEV
 fp_dev_set_instance_data
 FP_INSTANCE_DATA
+
+fpi_dev_get_usb_dev
+fpi_dev_get_verify_data
+fpi_dev_set_nr_enroll_stages
 </SECTION>
 
 <SECTION>
