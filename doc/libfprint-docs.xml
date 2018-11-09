@@ -38,17 +38,32 @@
 
   <part>
     <title>Writing Drivers</title>
-    <xi:include href="xml/fpi-log.xml"/>
-    <xi:include href="xml/fpi-dev.xml"/>
-    <xi:include href="xml/fpi-dev-img.xml"/>
-    <xi:include href="xml/fpi-core.xml"/>
-    <xi:include href="xml/fpi-core-img.xml"/>
-    <xi:include href="xml/fpi-async.xml"/>
-    <xi:include href="xml/fpi-ssm.xml"/>
-    <xi:include href="xml/fpi-poll.xml"/>
-    <xi:include href="xml/fpi-img.xml"/>
-    <xi:include href="xml/fpi-assembling.xml"/>
-    <xi:include href="xml/fpi-data.xml"/>
+    <chapter id="driver-helpers">
+      <title>Logging, and async machinery</title>
+      <xi:include href="xml/fpi-log.xml"/>
+      <xi:include href="xml/fpi-ssm.xml"/>
+      <xi:include href="xml/fpi-poll.xml"/>
+    </chapter>
+
+    <chapter id="driver-dev">
+      <title>Device and driver structures</title>
+      <xi:include href="xml/fpi-dev.xml"/>
+      <xi:include href="xml/fpi-dev-img.xml"/>
+      <xi:include href="xml/fpi-core.xml"/>
+      <xi:include href="xml/fpi-core-img.xml"/>
+    </chapter>
+
+    <chapter id="driver-img">
+      <title>Image manipulation</title>
+      <xi:include href="xml/fpi-img.xml"/>
+      <xi:include href="xml/fpi-assembling.xml"/>
+    </chapter>
+
+    <chapter id="driver-hw-matching">
+      <title>Hardware print matchine</title>
+      <xi:include href="xml/fpi-async.xml"/>
+      <xi:include href="xml/fpi-data.xml"/>
+    </chapter>
     <xi:include href="xml/fpi-usb.xml"/>
   </part>
 
