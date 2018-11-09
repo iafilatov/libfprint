@@ -43,6 +43,7 @@
     <xi:include href="xml/fpi-dev-img.xml"/>
     <xi:include href="xml/fpi-core.xml"/>
     <xi:include href="xml/fpi-core-img.xml"/>
+    <xi:include href="xml/fpi-async.xml"/>
     <xi:include href="xml/fpi-ssm.xml"/>
     <xi:include href="xml/fpi-poll.xml"/>
     <xi:include href="xml/fpi-img.xml"/>

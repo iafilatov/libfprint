@@ -26,6 +26,14 @@
 #include <errno.h>
 #include <glib.h>
 
+/**
+ * SECTION:fpi-async
+ * @title: Asynchronous operations reporting
+ *
+ * Those functions are used by primitive drivers to report back their
+ * current status. Most drivers, imaging ones, do not need to use them.
+ */
+
 /* Drivers call this when device initialisation has completed */
 void fpi_drvcb_open_complete(struct fp_dev *dev, int status)
 {
