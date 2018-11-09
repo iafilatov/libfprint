@@ -31,6 +31,16 @@
 
 #include "fpi-assembling.h"
 
+/**
+ * SECTION:fpi-assembling
+ * @title: Image frame assembly
+ *
+ * Those are the helpers to manipulate capture data from fingerprint readers
+ * into a uniform image that can be further processed. This is usually used
+ * by drivers for devices which have a small sensor and thus need to capture
+ * data in small stripes.
+ */
+
 static unsigned int calc_error(struct fpi_frame_asmbl_ctx *ctx,
 			       struct fpi_frame *first_frame,
 			       struct fpi_frame *second_frame,

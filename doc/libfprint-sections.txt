@@ -219,6 +219,18 @@ fpi_mean_sq_diff_norm
 </SECTION>
 
 <SECTION>
+<INCLUDE>fpi-assembling.h</INCLUDE>
+<FILE>fpi-assembling</FILE>
+fpi_frame
+fpi_frame_asmbl_ctx
+fpi_line_asmbl_ctx
+
+fpi_do_movement_estimation
+fpi_assemble_frames
+fpi_assemble_lines
+</SECTION>
+
+<SECTION>
 <INCLUDE>fpi-usb.h</INCLUDE>
 <FILE>fpi-usb</FILE>
 fpi_usb_transfer
