@@ -16,6 +16,7 @@ private_headers = [
   'aesx660.h',
   'driver_ids.h',
   'elan.h',
+  'upek_proto.h',
   'upeksonly.h',
   'upektc.h',
   'upektc_img.h',
@@ -32,6 +33,7 @@ private_headers = [
   'log.h',
   'bz_array.h',
   'lfs.h',
+  'mytime.h',
 ]
 
 html_images = [
