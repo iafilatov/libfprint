@@ -23,7 +23,7 @@
 
 #include "fp_internal.h"
 
-struct fp_img *fpi_im_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor)
+struct fp_img *fpi_img_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor)
 {
 	int new_width = img->width * w_factor;
 	int new_height = img->height * h_factor;
