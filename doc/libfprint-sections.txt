@@ -3,6 +3,7 @@
 <INCLUDE>fprint.h</INCLUDE>
 <FILE>events</FILE>
 <TITLE>Initialisation and events handling</TITLE>
+LIBFPRINT_DEPRECATED
 fp_set_debug
 fp_init
 fp_exit

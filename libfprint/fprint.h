@@ -29,6 +29,13 @@ extern "C" {
 #include <unistd.h>
 #include <sys/time.h>
 
+/**
+ * LIBFPRINT_DEPRECATED:
+ *
+ * Expands to the GNU C deprecated attribute if the compiler is `gcc`. When
+ * called with the `-Wdeprecated-declarations` option, `gcc` will generate warnings
+ * when deprecated interfaces are used.
+ */
 #define LIBFPRINT_DEPRECATED __attribute__((__deprecated__))
 
 /**
