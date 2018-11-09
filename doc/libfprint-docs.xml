@@ -40,6 +40,8 @@
     <title>Writing Drivers</title>
     <xi:include href="xml/fpi-log.xml"/>
     <xi:include href="xml/fpi-dev.xml"/>
+    <xi:include href="xml/fpi-core.xml"/>
+    <xi:include href="xml/fpi-core-img.xml"/>
     <xi:include href="xml/fpi-ssm.xml"/>
     <xi:include href="xml/fpi-poll.xml"/>
     <xi:include href="xml/fpi-img.xml"/>

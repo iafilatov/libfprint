@@ -198,6 +198,20 @@ FP_INSTANCE_DATA
 </SECTION>
 
 <SECTION>
+<INCLUDE>fpi-core.h</INCLUDE>
+<FILE>fpi-core</FILE>
+usb_id
+fp_driver_type
+</SECTION>
+
+<SECTION>
+<INCLUDE>fpi-core.h</INCLUDE>
+<FILE>fpi-core-img</FILE>
+FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE
+fp_img_driver
+</SECTION>
+
+<SECTION>
 <INCLUDE>fpi-img.h</INCLUDE>
 <FILE>fpi-img</FILE>
 fp_minutiae

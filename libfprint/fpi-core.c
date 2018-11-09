@@ -111,6 +111,25 @@ GSList *opened_devices = NULL;
  * verification) on some devices which do not provide images.
  */
 
+/**
+ * SECTION:fpi-core
+ * @title: Driver structures
+ *
+ * Driver structures need to be defined inside each driver in
+ * order for the core library to know what function to call, and the capabilities
+ * of the driver and the devices it supports.
+ */
+
+/**
+ * SECTION:fpi-core-img
+ * @title: Image driver structures
+ *
+ * Image driver structures need to be defined inside each image driver in
+ * order for the core library to know what function to call, and the capabilities
+ * of the driver and the devices it supports. Its structure is based off the
+ * #fp_driver struct.
+ */
+
 static GSList *registered_drivers = NULL;
 
 static void register_driver(struct fp_driver *drv)
