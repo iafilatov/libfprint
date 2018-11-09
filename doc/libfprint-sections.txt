@@ -182,6 +182,7 @@ fpi_ssm_get_cur_state
 fpi_timeout
 fpi_timeout_fn
 fpi_timeout_add
+fpi_timeout_set_name
 fpi_timeout_cancel
 </SECTION>
 
