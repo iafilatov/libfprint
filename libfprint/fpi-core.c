@@ -33,6 +33,7 @@ GSList *opened_devices = NULL;
 /**
  * SECTION:discovery
  * @title: Device discovery
+ * @short_description: Device discovery functions
  *
  * These functions allow you to scan the system for supported fingerprint
  * scanning hardware. This is your starting point when integrating libfprint
@@ -47,6 +48,7 @@ GSList *opened_devices = NULL;
 /**
  * SECTION:drv
  * @title: Driver operations
+ * @short_description: Driver operation functions
  *
  * Internally, libfprint is abstracted into various drivers to communicate
  * with the different types of supported fingerprint readers. libfprint works
@@ -61,6 +63,7 @@ GSList *opened_devices = NULL;
 /**
  * SECTION:dev
  * @title: Devices operations
+ * @short_description: Device operation functions
  *
  * In order to interact with fingerprint scanners, your software will
  * interface primarily with libfprint's representation of devices, detailed
@@ -114,6 +117,7 @@ GSList *opened_devices = NULL;
 /**
  * SECTION:fpi-core
  * @title: Driver structures
+ * @short_description: Driver structures
  *
  * Driver structures need to be defined inside each driver in
  * order for the core library to know what function to call, and the capabilities
@@ -123,6 +127,7 @@ GSList *opened_devices = NULL;
 /**
  * SECTION:fpi-core-img
  * @title: Image driver structures
+ * @short_description: Image driver structures
  *
  * Image driver structures need to be defined inside each image driver in
  * order for the core library to know what function to call, and the capabilities

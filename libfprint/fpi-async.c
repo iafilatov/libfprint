@@ -29,6 +29,7 @@
 /**
  * SECTION:fpi-async
  * @title: Asynchronous operations reporting
+ * @short_description: Asynchronous operations reporting functions
  *
  * Those functions are used by primitive drivers to report back their
  * current status. Most drivers, imaging ones, do not need to use them.

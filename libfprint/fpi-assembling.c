@@ -34,6 +34,7 @@
 /**
  * SECTION:fpi-assembling
  * @title: Image frame assembly
+ * @short_description: Image frame assembly helpers
  *
  * Those are the helpers to manipulate capture data from fingerprint readers
  * into a uniform image that can be further processed. This is usually used

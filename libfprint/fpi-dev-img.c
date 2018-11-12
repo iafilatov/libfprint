@@ -28,6 +28,7 @@
 /**
  * SECTION:fpi-dev-img
  * @title: Image device operations
+ * @short_description: Image device operation functions
  *
  * As drivers work through different operations, they need to report back
  * to the core as to their internal state, so errors and successes can be

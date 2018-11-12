@@ -33,6 +33,7 @@
 /**
  * SECTION:events
  * @title: Initialisation and events handling
+ * @short_description: Initialisation and events handling functions
  *
  * These functions are only applicable to users of libfprint's asynchronous
  * API.
@@ -67,6 +68,7 @@
 /**
  * SECTION:fpi-poll
  * @title: Timeouts
+ * @short_description: Timeout handling helpers
  *
  * Helper functions to schedule a function call to be made after a timeout. This
  * is useful to avoid making blocking calls while waiting for hardware to answer

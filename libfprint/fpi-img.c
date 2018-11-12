@@ -31,6 +31,7 @@
 /**
  * SECTION:img
  * @title: Image operations
+ * @short_description: Image operation functions
  *
  * libfprint offers several ways of retrieving images from imaging devices,
  * one example being the fp_dev_img_capture() function. The functions
@@ -51,6 +52,7 @@
 /**
  * SECTION:fpi-img
  * @title: Driver Image operations
+ * @short_description: Driver image operation functions
  *
  * Those are the driver-specific helpers for #fp_img manipulation. See #fp_img's
  * documentation for more information about data formats, and their uses in

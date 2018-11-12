@@ -23,6 +23,7 @@
 /**
  * SECTION:fpi-log
  * @title: Logging
+ * @short_description: Logging functions
  *
  * Logging in libfprint is handled through GLib's logging system, and behave the same
  * way as in the GLib [Message Output and Debugging Functions](https://developer.gnome.org/glib/stable/glib-Message-Logging.html)

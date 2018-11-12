@@ -23,6 +23,7 @@
 /**
  * SECTION:fpi-usb
  * @title: Helpers for libusb
+ * @short_description: libusb-related helpers
  *
  * A collection of [libusb helpers](http://libusb.sourceforge.net/api-1.0/group__poll.html#details)
  * to make driver development easier. Please refer to the libusb API documentation for more

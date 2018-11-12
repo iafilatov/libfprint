@@ -48,6 +48,7 @@ struct fpi_print_data_item_fp2 {
 /**
  * SECTION: print_data
  * @title: Stored prints
+ * @short_description: Stored prints functions
  *
  * Stored prints are represented by a structure named #fp_print_data.
  * Stored prints are originally obtained from an enrollment function such as
@@ -66,6 +67,7 @@ struct fpi_print_data_item_fp2 {
 /**
  * SECTION: fpi-data
  * @title: Stored prints creation
+ * @short_description: Stored prints creation functions
  *
  * Stored print can be loaded and created by certain drivers which do their own
  * print matching in hardware. Most drivers will not be using those functions.
@@ -582,6 +584,7 @@ API_EXPORTED uint32_t fp_print_data_get_devtype(struct fp_print_data *data)
 /**
  * SECTION:dscv_print
  * @title: Print discovery (deprecated)
+ * @short_description: Print discovery functions
  *
  * The [stored print](libfprint-Stored-prints.html) documentation detailed a simple API
  * for storing per-device prints for a single user, namely

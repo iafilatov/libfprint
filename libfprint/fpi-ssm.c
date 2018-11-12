@@ -28,6 +28,7 @@
 /**
  * SECTION:fpi-ssm
  * @title: Sequential state machine
+ * @short_description: State machine helpers
  *
  * Asynchronous driver design encourages some kind of state machine behind it.
  * In most cases, the state machine is entirely linear - you only go to the
