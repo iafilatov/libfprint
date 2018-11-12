@@ -164,6 +164,13 @@ struct usb_id {
 	unsigned long driver_data;
 };
 
+/**
+ * fp_driver_type:
+ * @DRIVER_PRIMITIVE: primitive, non-imaging, driver
+ * @DRIVER_IMAGING: imaging driver
+ *
+ * The type of device the driver supports.
+ */
 enum fp_driver_type {
 	DRIVER_PRIMITIVE = 0,
 	DRIVER_IMAGING = 1,
