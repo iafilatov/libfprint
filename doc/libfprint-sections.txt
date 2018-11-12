@@ -140,11 +140,6 @@ fp_minutia_get_coords
 </SECTION>
 
 <SECTION>
-<INCLUDE>fprint.h</INCLUDE>
-<FILE>poll</FILE>
-</SECTION>
-
-<SECTION>
 <INCLUDE>fpi-log.h</INCLUDE>
 <FILE>fpi-log</FILE>
 fp_dbg
