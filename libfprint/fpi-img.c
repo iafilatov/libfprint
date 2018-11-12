@@ -303,6 +303,9 @@ static void minutiae_to_xyt(struct fp_minutiae *minutiae, int bwidth,
 	xyt->nrows = nmin;
 }
 
+#define FP_IMG_STANDARDIZATION_FLAGS (FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED \
+	| FP_IMG_COLORS_INVERTED)
+
 static int fpi_img_detect_minutiae(struct fp_img *img)
 {
 	struct fp_minutiae *minutiae;

@@ -24,21 +24,34 @@
 
 struct fp_minutiae;
 
-/* bit values for fp_img.flags */
-#define FP_IMG_V_FLIPPED	(1<<0)
-#define FP_IMG_H_FLIPPED	(1<<1)
-#define FP_IMG_COLORS_INVERTED	(1<<2)
-#define FP_IMG_BINARIZED_FORM	(1<<3)
-#define FP_IMG_PARTIAL		(1<<4)
-
-#define FP_IMG_STANDARDIZATION_FLAGS (FP_IMG_V_FLIPPED | FP_IMG_H_FLIPPED \
-	| FP_IMG_COLORS_INVERTED)
+/**
+ * FpiImgFlags:
+ * @FP_IMG_V_FLIPPED: the image is vertically flipped
+ * @FP_IMG_H_FLIPPED: the image is horizontally flipped
+ * @FP_IMG_COLORS_INVERTED: the colours are inverted
+ * @FP_IMG_BINARIZED_FORM: binarised image, see fp_img_binarize()
+ * @FP_IMG_PARTIAL: the image is partial, useful for driver to keep track
+ *   of incomplete captures
+ *
+ * Flags used in the #fp_img structure to describe the image contained
+ * into the structure. Note that a number of functions will refuse to
+ * handle images which haven't been standardised through fp_img_standardize()
+ * (meaning the @FP_IMG_V_FLIPPED, @FP_IMG_H_FLIPPED and @FP_IMG_COLORS_INVERTED
+ * should all be unset when the image needs to be analysed).
+ */
+typedef enum {
+	FP_IMG_V_FLIPPED       = 1 << 0,
+	FP_IMG_H_FLIPPED       = 1 << 1,
+	FP_IMG_COLORS_INVERTED = 1 << 2,
+	FP_IMG_BINARIZED_FORM  = 1 << 3,
+	FP_IMG_PARTIAL         = 1 << 4
+} FpiImgFlags;
 
 struct fp_img {
 	int width;
 	int height;
 	size_t length;
-	uint16_t flags;
+	FpiImgFlags flags;
 	struct fp_minutiae *minutiae;
 	unsigned char *binarized;
 	unsigned char data[0];

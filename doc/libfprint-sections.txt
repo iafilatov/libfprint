@@ -261,13 +261,7 @@ fpi_drvcb_verify_stopped
 <INCLUDE>fpi-img.h</INCLUDE>
 <FILE>fpi-img</FILE>
 fp_minutiae
-
-FP_IMG_V_FLIPPED
-FP_IMG_H_FLIPPED
-FP_IMG_COLORS_INVERTED
-FP_IMG_BINARIZED_FORM
-FP_IMG_PARTIAL
-FP_IMG_STANDARDIZATION_FLAGS
+FpiImgFlags
 
 fpi_img_new
 fpi_img_new_for_imgdev
