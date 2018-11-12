@@ -35,6 +35,8 @@
  * @dev: a struct #fp_img_dev
  *
  * Returns the struct #fp_dev associated with @dev, or %NULL on failure.
+ *
+ * Returns: a struct #fp_dev or %NULL
  */
 struct fp_dev *
 FP_DEV(struct fp_img_dev *dev)
@@ -50,7 +52,9 @@ FP_DEV(struct fp_img_dev *dev)
  * FP_IMG_DEV:
  * @dev: a struct #fp_dev representing an imaging device.
  *
- * Returns: a struct #fp_img_dev or %NULL on failure.
+ * Returns a struct #fp_img_dev associated with @dev, or %NULL on failure.
+ *
+ * Returns: a struct #fp_img_dev or %NULL
  */
 struct fp_img_dev *
 FP_IMG_DEV(struct fp_dev *dev)
@@ -102,7 +106,10 @@ FP_INSTANCE_DATA (struct fp_dev *dev)
  * fpi_dev_get_usb_dev:
  * @dev: a struct #fp_dev
  *
- * Return the #libusb_device_handle for this device.
+ * Returns the #libusb_device_handle associated with @dev or %NULL
+ * if none are associated.
+ *
+ * Returns: a #libusb_device_handle pointer or %NULL
  */
 libusb_device_handle *
 fpi_dev_get_usb_dev(struct fp_dev *dev)
@@ -130,9 +137,11 @@ fpi_dev_set_nr_enroll_stages(struct fp_dev *dev,
  * fpi_dev_get_verify_data:
  * @dev: a struct #fp_dev
  *
- * Returns the verify data associated with this instance of the device.
+ * Returns the verify data associated with @dev.
  * This is usually only necessary for primitive devices which need to
  * have access to the raw verify data as it might have been stored on disk.
+ *
+ * Returns: a struct #fp_print_data pointer or %NULL
  */
 struct fp_print_data *
 fpi_dev_get_verify_data(struct fp_dev *dev)
