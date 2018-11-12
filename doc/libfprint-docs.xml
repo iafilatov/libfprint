@@ -60,7 +60,7 @@
     </chapter>
 
     <chapter id="driver-hw-matching">
-      <title>Hardware print matchine</title>
+      <title>Hardware print matching</title>
       <xi:include href="xml/fpi-async.xml"/>
       <xi:include href="xml/fpi-data.xml"/>
     </chapter>
