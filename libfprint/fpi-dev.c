@@ -97,12 +97,27 @@ FP_INSTANCE_DATA (struct fp_dev *dev)
 	return dev->instance_data;
 }
 
+/**
+ * fpi_dev_get_usb_dev:
+ * @dev: a struct #fp_dev
+ *
+ * Return the #libusb_device_handle for this device.
+ */
 libusb_device_handle *
 fpi_dev_get_usb_dev(struct fp_dev *dev)
 {
 	return dev->udev;
 }
 
+/**
+ * fpi_dev_set_nr_enroll_stages:
+ * @dev: a struct #fp_dev
+ * @nr_enroll_stages: the number of enroll stages
+ *
+ * Sets the number of enroll stages that this device uses. This is
+ * usually only necessary for primitive devices which have a hard-coded
+ * number of enroll stages baked into their protocol.
+ */
 void
 fpi_dev_set_nr_enroll_stages(struct fp_dev *dev,
 	int nr_enroll_stages)
@@ -110,6 +125,14 @@ fpi_dev_set_nr_enroll_stages(struct fp_dev *dev,
 	dev->nr_enroll_stages = nr_enroll_stages;
 }
 
+/**
+ * fpi_dev_get_verify_data:
+ * @dev: a struct #fp_dev
+ *
+ * Returns the verify data associated with this instance of the device.
+ * This is usually only necessary for primitive devices which need to
+ * have access to the raw verify data as it might have been stored on disk.
+ */
 struct fp_print_data *
 fpi_dev_get_verify_data(struct fp_dev *dev)
 {
