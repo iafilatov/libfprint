@@ -234,7 +234,7 @@ fp_driver_type
 <SECTION>
 <INCLUDE>fpi-core.h</INCLUDE>
 <FILE>fpi-core-img</FILE>
-FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE
+FpiImgDriverFlags
 fp_img_driver
 </SECTION>
 

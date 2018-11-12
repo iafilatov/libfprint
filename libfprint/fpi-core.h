@@ -55,12 +55,20 @@ struct fp_driver {
 	int (*capture_stop)(struct fp_dev *dev);
 };
 
-/* flags for fp_img_driver.flags */
-#define FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE (1 << 0)
+/**
+ * FpiImgDriverFlags:
+ * @FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE: Whether the driver supports
+ *   unconditional image capture. No driver currently does.
+ *
+ * Flags used in the #fp_img_driver to advertise the capabilities of drivers.
+ */
+typedef enum {
+	FP_IMGDRV_SUPPORTS_UNCONDITIONAL_CAPTURE = 1 << 0
+} FpiImgDriverFlags;
 
 struct fp_img_driver {
 	struct fp_driver driver;
-	uint16_t flags;
+	FpiImgDriverFlags flags;
 	int img_width;
 	int img_height;
 	int bz3_threshold;
