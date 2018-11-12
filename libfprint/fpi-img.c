@@ -318,7 +318,7 @@ static int fpi_img_detect_minutiae(struct fp_img *img)
 	GTimer *timer;
 
 	if (img->flags & FP_IMG_STANDARDIZATION_FLAGS) {
-		fp_err("cant detect minutiae for non-standardized image");
+		fp_err("Cannot detect minutiae for non-standardized images");
 		return -EINVAL;
 	}
 
