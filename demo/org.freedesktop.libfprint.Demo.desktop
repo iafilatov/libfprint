@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Fingerprint Reader Demo
+Comment=Test fingerprint readers
+Keywords=finger;print;fingerprint;fprint;demo;driver;reader;
+Exec=gtk-libfprint-test
+Icon=org.freedesktop.libfprint.Demo
+Terminal=false
+Type=Application
+Categories=GTK;GNOME;Development;System;
+StartupNotify=true

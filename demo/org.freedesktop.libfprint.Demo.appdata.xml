@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+  <id>org.freedesktop.libfprint.Demo.desktop</id>
+  <name>Fingerprint Reader Demo</name>
+  <summary>Test fingerprint readers</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LGPL-2.1+</project_license>
+  <description>
+    <p>
+      Fingerprint Reader Demo is a test application for the libfprint
+      fingerprint reader library. Its purpose is to test drivers, new and old,
+      in a sandbox, to make sure that the drivers and associated functions
+      work correctly.
+    </p>
+    <p>
+      Fingerprint Reader Demo does not modify the system, or replace integration
+      in desktop environments.
+    </p>
+  </description>
+  <url type="homepage">https://fprint.freedesktop.org</url>
+  <screenshots>
+    <screenshot type="default" width="1024" height="576">https://git.gnome.org/browse/totem/plain/data/appdata/ss-main.png</screenshot>
+    <screenshot width="1024" height="576">https://git.gnome.org/browse/totem/plain/data/appdata/ss-music-playlist.png</screenshot>
+  </screenshots>
+  <updatecontact>hadess@hadess.net</updatecontact>
+  <!-- Incorrect, but appstream-util won't validate without it -->
+  <translation type="gettext">libfprint</translation>
+</component>

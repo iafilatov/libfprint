@@ -1,0 +1,51 @@
+{
+    "app-id": "org.freedesktop.libfprint.Demo",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "master",
+    "sdk": "org.gnome.Sdk",
+    "command": "gtk-libfprint-test",
+    "finish-args": [
+        /* X11 + XShm access */
+        "--share=ipc", "--socket=x11",
+        /* Wayland access */
+        "--socket=wayland",
+        /* OpenGL access */
+        "--device=dri",
+        /* USB access */
+        "--device=all"
+    ],
+    "cleanup": [ "/include", "/lib/pkgconfig/" ],
+    "modules": [
+        {
+            "name": "libusb",
+            "config-opts": [ "--disable-static", "--disable-udev" ],
+            "cleanup": [
+                "/lib/*.la",
+                "/lib/pkgconfig",
+                "/include"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/libusb/libusb/archive/v1.0.22.tar.gz",
+                    "sha256": "3500f7b182750cd9ccf9be8b1df998f83df56a39ab264976bdb3307773e16f48"
+                }
+            ],
+            "post-install": [
+                "install -Dm644 COPYING /app/share/licenses/libusb/COPYING"
+            ]
+        },
+        {
+            "name": "libfprint",
+            "buildsystem": "meson",
+            "config-opts": [ "-Dudev_rules=false", "-Dx11-examples=false", "-Dgtk-examples=true" ],
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://gitlab.freedesktop.org/libfprint/libfprint.git",
+                    "branch": "wip/hadess/gtk-example"
+                }
+            ]
+        }
+    ]
+}
