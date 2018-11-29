@@ -59,6 +59,15 @@
  * front-end applications.
  */
 
+/**
+ * fpi_img_new:
+ * @length: the length of data to allocate
+ *
+ * Creates a new #fp_img structure with @length bytes of data allocated
+ * to hold the image.
+ *
+ * Returns: a new #fp_img to free with fp_img_free()
+ */
 struct fp_img *fpi_img_new(size_t length)
 {
 	struct fp_img *img = g_malloc0(sizeof(*img) + length);
@@ -67,6 +76,16 @@ struct fp_img *fpi_img_new(size_t length)
 	return img;
 }
 
+/**
+ * fpi_img_new_for_imgdev:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ *
+ * Creates a new #fp_img structure, like fpi_img_new(), but uses the
+ * driver's advertised height and width to calculate the size of the
+ * length of data to allocate.
+ *
+ * Returns: a new #fp_img to free with fp_img_free()
+ */
 struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *imgdev)
 {
 	struct fp_img_driver *imgdrv = fpi_driver_to_img_driver(FP_DEV(imgdev)->drv);
@@ -78,6 +97,16 @@ struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *imgdev)
 	return img;
 }
 
+/**
+ * fpi_img_is_sane:
+ * @img: a #fp_img image
+ *
+ * Checks whether an #fp_img structure passes some basic checks, such
+ * as length, width and height being non-zero, and the buffer being
+ * big enough to hold the image of said size.
+ *
+ * Returns: %TRUE if the image is sane, %FALSE otherwise
+ */
 gboolean fpi_img_is_sane(struct fp_img *img)
 {
 	guint len;
@@ -98,6 +127,15 @@ gboolean fpi_img_is_sane(struct fp_img *img)
 	return TRUE;
 }
 
+/**
+ * fpi_img_realloc:
+ * @img: an #fp_img image
+ * @newsize: the new length of the image
+ *
+ * Changes the size of the data part of the #fp_img.
+ *
+ * Returns: the modified #fp_img, the same as the first argument to this function
+ */
 struct fp_img *fpi_img_realloc(struct fp_img *img, size_t newsize)
 {
 	return g_realloc(img, sizeof(*img) + newsize);

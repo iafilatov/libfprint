@@ -23,6 +23,18 @@
 
 #include "fp_internal.h"
 
+/**
+ * fpi_img_resize:
+ * @img: an #fp_img image
+ * @w_factor: horizontal factor to resize the image by
+ * @h_factor: vertical factor to resize the image by
+ *
+ * Resizes the #fp_img image by scaling it by @w_factor times horizontally
+ * and @h_factor times vertically.
+ *
+ * Returns: a newly allocated #fp_img, the original @img will not be modified
+ * and will also need to be freed
+ */
 struct fp_img *fpi_img_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor)
 {
 	int new_width = img->width * w_factor;

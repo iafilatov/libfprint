@@ -47,6 +47,21 @@ typedef enum {
 	FP_IMG_PARTIAL         = 1 << 4
 } FpiImgFlags;
 
+/**
+ * fp_img:
+ * @width: the width of the image
+ * @height: the height of the image
+ * @length: the length of the data associated with the image
+ * @flags: @FpiImgFlags flags describing the image contained in the structure
+ * @minutiae: an opaque structure representing the detected minutiae
+ * @binarized: the binarized image data
+ * @data: the start of the image data, which will be of @length size.
+ *
+ * A structure representing a captured, or processed image. The @flags member
+ * will show its current state, including whether whether the binarized form
+ * if present, whether it is complete, and whether it needs particular changes
+ * before being processed.
+ */
 struct fp_img {
 	int width;
 	int height;
@@ -58,7 +73,7 @@ struct fp_img {
 };
 
 struct fp_img *fpi_img_new(size_t length);
-struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *dev);
+struct fp_img *fpi_img_new_for_imgdev(struct fp_img_dev *imgdev);
 struct fp_img *fpi_img_realloc(struct fp_img *img, size_t newsize);
 struct fp_img *fpi_img_resize(struct fp_img *img, unsigned int w_factor, unsigned int h_factor);
 
