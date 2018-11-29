@@ -36,14 +36,4 @@ void fpi_drvcb_report_verify_result(struct fp_dev *dev, int result,
 	struct fp_img *img);
 void fpi_drvcb_verify_stopped(struct fp_dev *dev);
 
-void fpi_drvcb_identify_started(struct fp_dev *dev, int status);
-void fpi_drvcb_report_identify_result(struct fp_dev *dev, int result,
-	size_t match_offset, struct fp_img *img);
-void fpi_drvcb_identify_stopped(struct fp_dev *dev);
-
-void fpi_drvcb_capture_started(struct fp_dev *dev, int status);
-void fpi_drvcb_report_capture_result(struct fp_dev *dev, int result,
-	struct fp_img *img);
-void fpi_drvcb_capture_stopped(struct fp_dev *dev);
-
 #endif

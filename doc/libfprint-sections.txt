@@ -235,17 +235,11 @@ fp_img_driver
 <SECTION>
 <INCLUDE>fpi-async.h</INCLUDE>
 <FILE>fpi-async</FILE>
-fpi_drvcb_capture_started
-fpi_drvcb_capture_stopped
 fpi_drvcb_close_complete
 fpi_drvcb_enroll_stage_completed
 fpi_drvcb_enroll_started
 fpi_drvcb_enroll_stopped
-fpi_drvcb_identify_started
-fpi_drvcb_identify_stopped
 fpi_drvcb_open_complete
-fpi_drvcb_report_capture_result
-fpi_drvcb_report_identify_result
 fpi_drvcb_report_verify_result
 fpi_drvcb_verify_started
 fpi_drvcb_verify_stopped
