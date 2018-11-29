@@ -39,24 +39,56 @@
 #define BOZORTH3_DEFAULT_THRESHOLD 40
 #define IMG_ENROLL_STAGES 5
 
+/**
+ * fpi_imgdev_get_action_state:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ *
+ * Returns the state of an imaging device while enrolling a fingerprint.
+ *
+ * Returns: a enum #fp_imgdev_enroll_state
+ */
 enum fp_imgdev_enroll_state
 fpi_imgdev_get_action_state(struct fp_img_dev *imgdev)
 {
 	return imgdev->action_state;
 }
 
+/**
+ * fpi_imgdev_get_action:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ *
+ * Returns the current action being performed by an imaging device.
+ *
+ * Returns: a enum #fp_imgdev_action
+ */
 enum fp_imgdev_action
 fpi_imgdev_get_action(struct fp_img_dev *imgdev)
 {
 	return imgdev->action;
 }
 
+/**
+ * fpi_imgdev_get_action_result:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ *
+ * Returns an integer representing the result of an action. Which enum
+ * the result code is taken from depends on the current action being performed.
+ * See #fp_capture_result, #fp_enroll_result and #fp_verify_result.
+ */
 int
 fpi_imgdev_get_action_result(struct fp_img_dev *imgdev)
 {
 	return imgdev->action_result;
 }
 
+/**
+ * fpi_imgdev_set_action_result:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ * @action_result: an action result
+ *
+ * Drivers should use fpi_imgdev_image_captured() instead. This function
+ * should not be used, and will be removed soon.
+ */
 void
 fpi_imgdev_set_action_result(struct fp_img_dev *imgdev,
 	int action_result)
@@ -91,6 +123,14 @@ err:
 	return r;
 }
 
+/**
+ * fpi_imgdev_open_complete:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ * @status: an error code
+ *
+ * Function to call when the device has been opened, whether
+ * successfully of not.
+ */
 void fpi_imgdev_open_complete(struct fp_img_dev *imgdev, int status)
 {
 	fpi_drvcb_open_complete(FP_DEV(imgdev), status);
@@ -106,6 +146,12 @@ static void img_dev_close(struct fp_dev *dev)
 		fpi_drvcb_close_complete(dev);
 }
 
+/**
+ * fpi_imgdev_close_complete:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ *
+ * Function to call when the device has been closed.
+ */
 void fpi_imgdev_close_complete(struct fp_img_dev *imgdev)
 {
 	fpi_drvcb_close_complete(FP_DEV(imgdev));
@@ -153,6 +199,14 @@ static int sanitize_image(struct fp_img_dev *imgdev, struct fp_img **_img)
 	return 0;
 }
 
+/**
+ * fpi_imgdev_report_finger_status:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ * @present: whether the finger is present on the sensor
+ *
+ * Reports from the driver whether the user's finger is on
+ * the sensor.
+ */
 void fpi_imgdev_report_finger_status(struct fp_img_dev *imgdev,
 	gboolean present)
 {
@@ -255,6 +309,14 @@ static void identify_process_img(struct fp_img_dev *imgdev)
 	imgdev->identify_match_offset = match_offset;
 }
 
+/**
+ * fpi_imgdev_abort_scan:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ * @result: the scan result
+ *
+ * Aborts a scan after an error, and set the action result. See
+ * fpi_imgdev_get_action_result() for possible values.
+ */
 void fpi_imgdev_abort_scan(struct fp_img_dev *imgdev, int result)
 {
 	imgdev->action_result = result;
@@ -262,6 +324,13 @@ void fpi_imgdev_abort_scan(struct fp_img_dev *imgdev, int result)
 	dev_change_state(imgdev, IMGDEV_STATE_AWAIT_FINGER_OFF);
 }
 
+/**
+ * fpi_imgdev_image_captured:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ * @img: an #fp_img image
+ *
+ * Report to the core that the driver captured this image from the sensor.
+ */
 void fpi_imgdev_image_captured(struct fp_img_dev *imgdev, struct fp_img *img)
 {
 	struct fp_print_data *print = NULL;
@@ -342,6 +411,13 @@ next_state:
 	dev_change_state(imgdev, IMGDEV_STATE_AWAIT_FINGER_OFF);
 }
 
+/**
+ * fpi_imgdev_session_error:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ * @error: an error code
+ *
+ * Report an error that occurred in the driver.
+ */
 void fpi_imgdev_session_error(struct fp_img_dev *imgdev, int error)
 {
 	fp_dbg("error %d", error);
@@ -365,6 +441,14 @@ void fpi_imgdev_session_error(struct fp_img_dev *imgdev, int error)
 	}
 }
 
+/**
+ * fpi_imgdev_activate_complete:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ * @status: the activation result
+ *
+ * Marks an activation as complete, whether successful or not.
+ * See fpi_imgdev_get_action_result() for possible values.
+ */
 void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status)
 {
 	fp_dbg("status %d", status);
@@ -393,6 +477,12 @@ void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status)
 	}
 }
 
+/**
+ * fpi_imgdev_deactivate_complete:
+ * @imgdev: a #fp_img_dev imaging fingerprint device
+ *
+ * Marks a deactivation as complete.
+ */
 void fpi_imgdev_deactivate_complete(struct fp_img_dev *imgdev)
 {
 	G_DEBUG_HERE();
