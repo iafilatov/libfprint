@@ -235,7 +235,6 @@ fp_img_driver
 <SECTION>
 <INCLUDE>fpi-img.h</INCLUDE>
 <FILE>fpi-img</FILE>
-fp_minutiae
 FpiImgFlags
 
 fpi_img_new

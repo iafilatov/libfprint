@@ -67,7 +67,9 @@ struct fp_img {
 	int height;
 	size_t length;
 	FpiImgFlags flags;
+	/*< private >*/
 	struct fp_minutiae *minutiae;
+	/*< public >*/
 	unsigned char *binarized;
 	unsigned char data[0];
 };
