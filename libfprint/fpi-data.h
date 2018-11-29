@@ -20,24 +20,15 @@
 #ifndef __FPI_DATA_H__
 #define __FPI_DATA_H__
 
-enum fp_print_data_type {
-	PRINT_DATA_RAW = 0, /* memset-imposed default */
-	PRINT_DATA_NBIS_MINUTIAE
-};
-
+struct fp_print_data;
 struct fp_print_data_item {
 	size_t length;
 	unsigned char data[0];
 };
 
-struct fp_print_data {
-	uint16_t driver_id;
-	uint32_t devtype;
-	enum fp_print_data_type type;
-	GSList *prints;
-};
-
 struct fp_print_data *fpi_print_data_new(struct fp_dev *dev);
 struct fp_print_data_item *fpi_print_data_item_new(size_t length);
+struct fp_print_data_item *fpi_print_data_get_item(struct fp_print_data *data);
+void fpi_print_data_add_item(struct fp_print_data *data, struct fp_print_data_item *item);
 
 #endif

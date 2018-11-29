@@ -281,7 +281,6 @@ fpi_assemble_lines
 <SECTION>
 <INCLUDE>fpi-data.h</INCLUDE>
 <FILE>fpi-data</FILE>
-fp_print_data_type
 fp_print_data_item
 
 fpi_print_data_new

@@ -1042,7 +1042,7 @@ static void e_handle_resp02(struct fp_dev *dev, unsigned char *data,
 		item = fpi_print_data_item_new(data_len - sizeof(scan_comp));
 		memcpy(item->data, data + sizeof(scan_comp),
 			data_len - sizeof(scan_comp));
-		fdata->prints = g_slist_prepend(fdata->prints, item);
+		fpi_print_data_add_item(fdata, item);
 
 		result = FP_ENROLL_COMPLETE;
 	}
@@ -1204,7 +1204,7 @@ static void verify_start_sm_run_state(fpi_ssm *ssm, struct fp_dev *dev, void *us
 		break;
 	case VERIFY_INIT: ;
 		struct fp_print_data *print = fpi_dev_get_verify_data(dev);
-		struct fp_print_data_item *item = print->prints->data;
+		struct fp_print_data_item *item = fpi_print_data_get_item(print);
 		size_t data_len = sizeof(verify_hdr) + item->length;
 		unsigned char *data = g_malloc(data_len);
 		struct libusb_transfer *transfer;

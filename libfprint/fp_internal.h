@@ -39,6 +39,19 @@
 extern libusb_context *fpi_usb_ctx;
 extern GSList *opened_devices;
 
+/* fp_print_data structure definition */
+enum fp_print_data_type {
+	PRINT_DATA_RAW = 0, /* memset-imposed default */
+	PRINT_DATA_NBIS_MINUTIAE
+};
+
+struct fp_print_data {
+	uint16_t driver_id;
+	uint32_t devtype;
+	enum fp_print_data_type type;
+	GSList *prints;
+};
+
 /* fp_dev structure definition */
 enum fp_dev_state {
 	DEV_STATE_INITIAL = 0,

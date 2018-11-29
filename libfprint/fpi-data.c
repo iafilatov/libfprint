@@ -149,6 +149,19 @@ struct fp_print_data *fpi_print_data_new(struct fp_dev *dev)
 		fpi_driver_get_data_type(dev->drv));
 }
 
+struct fp_print_data_item *
+fpi_print_data_get_item(struct fp_print_data *data)
+{
+	return data->prints->data;
+}
+
+void
+fpi_print_data_add_item(struct fp_print_data      *data,
+			struct fp_print_data_item *item)
+{
+	data->prints = g_slist_prepend(data->prints, item);
+}
+
 /**
  * fp_print_data_get_data:
  * @data: the stored print
