@@ -23,6 +23,17 @@
 #include "fpi-dev.h"
 #include "fpi-img.h"
 
+/**
+ * fp_imgdev_action:
+ * @IMG_ACTION_NONE: no action
+ * @IMG_ACTION_ENROLL: device action is enrolling
+ * @IMG_ACTION_VERIFY: device action is verifying
+ * @IMG_ACTION_IDENTIFY: device action is identifying
+ * @IMG_ACTION_CAPTURE: device action is capturing
+ *
+ * The current action being performed by an imaging device. The current
+ * action can be gathered inside the driver using fpi_imgdev_get_action().
+ */
 enum fp_imgdev_action {
 	IMG_ACTION_NONE = 0,
 	IMG_ACTION_ENROLL,
@@ -31,6 +42,16 @@ enum fp_imgdev_action {
 	IMG_ACTION_CAPTURE,
 };
 
+/**
+ * fp_imgdev_state:
+ * @IMGDEV_STATE_INACTIVE: inactive
+ * @IMGDEV_STATE_AWAIT_FINGER_ON: waiting for the finger to be pressed or swiped
+ * @IMGDEV_STATE_CAPTURE: capturing an image
+ * @IMGDEV_STATE_AWAIT_FINGER_OFF: waiting for the finger to be removed
+ *
+ * The state of an imaging device while doing a capture. The state is
+ * passed through to the driver using the ::activate() or ::change_state() vfuncs.
+ */
 enum fp_imgdev_state {
 	IMGDEV_STATE_INACTIVE,
 	IMGDEV_STATE_AWAIT_FINGER_ON,
@@ -38,6 +59,20 @@ enum fp_imgdev_state {
 	IMGDEV_STATE_AWAIT_FINGER_OFF,
 };
 
+/**
+ * fp_imgdev_enroll_state:
+ * @IMG_ACQUIRE_STATE_NONE: doing nothing
+ * @IMG_ACQUIRE_STATE_ACTIVATING: activating the device
+ * @IMG_ACQUIRE_STATE_AWAIT_FINGER_ON: waiting for the finger to be pressed or swiped
+ * @IMG_ACQUIRE_STATE_AWAIT_IMAGE: waiting for the image to be captured
+ * @IMG_ACQUIRE_STATE_AWAIT_FINGER_OFF: waiting for the finger to be removed
+ * @IMG_ACQUIRE_STATE_DONE: enrollment has all the images it needs
+ * @IMG_ACQUIRE_STATE_DEACTIVATING: deactivating the device
+ *
+ * The state of an imaging device while enrolling a fingerprint. Given that enrollment
+ * requires multiple captures, a number of those states will be repeated before
+ * the state is @IMG_ACQUIRE_STATE_DONE.
+ */
 enum fp_imgdev_enroll_state {
 	IMG_ACQUIRE_STATE_NONE = 0,
 	IMG_ACQUIRE_STATE_ACTIVATING,
