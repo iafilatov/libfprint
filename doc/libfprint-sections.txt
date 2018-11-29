@@ -233,19 +233,6 @@ fp_img_driver
 </SECTION>
 
 <SECTION>
-<INCLUDE>fpi-async.h</INCLUDE>
-<FILE>fpi-async</FILE>
-fpi_drvcb_close_complete
-fpi_drvcb_enroll_stage_completed
-fpi_drvcb_enroll_started
-fpi_drvcb_enroll_stopped
-fpi_drvcb_open_complete
-fpi_drvcb_report_verify_result
-fpi_drvcb_verify_started
-fpi_drvcb_verify_stopped
-</SECTION>
-
-<SECTION>
 <INCLUDE>fpi-img.h</INCLUDE>
 <FILE>fpi-img</FILE>
 fp_minutiae
@@ -270,15 +257,6 @@ fpi_line_asmbl_ctx
 fpi_do_movement_estimation
 fpi_assemble_frames
 fpi_assemble_lines
-</SECTION>
-
-<SECTION>
-<INCLUDE>fpi-data.h</INCLUDE>
-<FILE>fpi-data</FILE>
-fp_print_data_item
-
-fpi_print_data_new
-fpi_print_data_item_new
 </SECTION>
 
 <SECTION>

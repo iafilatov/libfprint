@@ -26,7 +26,7 @@
 #include <errno.h>
 #include <glib.h>
 
-/**
+/*
  * SECTION:fpi-async
  * @title: Asynchronous operations reporting
  * @short_description: Asynchronous operations reporting functions

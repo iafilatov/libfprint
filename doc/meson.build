@@ -6,6 +6,8 @@ private_headers = [
   'aeslib.h',
   'assembling.h',
   'fp_internal.h',
+  'fpi-async.h',
+  'fpi-data.h',
 
   # Drivers
   'aes1660.h',

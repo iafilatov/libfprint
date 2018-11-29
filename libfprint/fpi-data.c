@@ -64,7 +64,7 @@ struct fpi_print_data_item_fp2 {
  * in any fashion that suits you.
  */
 
-/**
+/*
  * SECTION: fpi-data
  * @title: Stored prints creation
  * @short_description: Stored prints creation functions
