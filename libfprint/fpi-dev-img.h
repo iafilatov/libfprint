@@ -83,11 +83,6 @@ enum fp_imgdev_enroll_state {
 	IMG_ACQUIRE_STATE_DEACTIVATING,
 };
 
-enum fp_imgdev_verify_state {
-	IMG_VERIFY_STATE_NONE = 0,
-	IMG_VERIFY_STATE_ACTIVATING
-};
-
 void fpi_imgdev_open_complete(struct fp_img_dev *imgdev, int status);
 void fpi_imgdev_close_complete(struct fp_img_dev *imgdev);
 void fpi_imgdev_activate_complete(struct fp_img_dev *imgdev, int status);

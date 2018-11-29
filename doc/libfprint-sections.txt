@@ -203,7 +203,6 @@ fpi_dev_set_nr_enroll_stages
 fp_imgdev_action
 fp_imgdev_state
 fp_imgdev_enroll_state
-fp_imgdev_verify_state
 
 fpi_imgdev_abort_scan
 fpi_imgdev_activate_complete
