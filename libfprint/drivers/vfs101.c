@@ -767,6 +767,11 @@ img_extract(fpi_ssm           *ssm,
 	/* Notify image captured */
 	fpi_imgdev_image_captured(dev, img);
 
+	/* FIXME
+	 * What is this for? The action result, and the enroll stages should
+	 * already be handled in fpi_imgdev_image_captured()
+	 */
+
 	/* Check captured result */
 	if (fpi_imgdev_get_action_result(dev) >= 0 &&
 		fpi_imgdev_get_action_result(dev) != FP_ENROLL_RETRY &&
