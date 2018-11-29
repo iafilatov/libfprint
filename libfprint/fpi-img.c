@@ -615,31 +615,6 @@ API_EXPORTED int fp_minutia_get_coords(struct fp_minutia *minutia, int *coord_x,
 	return 0;
 }
 
-enum fp_imgdev_enroll_state
-fpi_imgdev_get_action_state(struct fp_img_dev *imgdev)
-{
-	return imgdev->action_state;
-}
-
-enum fp_imgdev_action
-fpi_imgdev_get_action(struct fp_img_dev *imgdev)
-{
-	return imgdev->action;
-}
-
-int
-fpi_imgdev_get_action_result(struct fp_img_dev *imgdev)
-{
-	return imgdev->action_result;
-}
-
-void
-fpi_imgdev_set_action_result(struct fp_img_dev *imgdev,
-	int action_result)
-{
-	imgdev->action_result = action_result;
-}
-
 /* Calculate squared standand deviation */
 int fpi_std_sq_dev(const unsigned char *buf, int size)
 {

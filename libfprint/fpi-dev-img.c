@@ -39,6 +39,31 @@
 #define BOZORTH3_DEFAULT_THRESHOLD 40
 #define IMG_ENROLL_STAGES 5
 
+enum fp_imgdev_enroll_state
+fpi_imgdev_get_action_state(struct fp_img_dev *imgdev)
+{
+	return imgdev->action_state;
+}
+
+enum fp_imgdev_action
+fpi_imgdev_get_action(struct fp_img_dev *imgdev)
+{
+	return imgdev->action;
+}
+
+int
+fpi_imgdev_get_action_result(struct fp_img_dev *imgdev)
+{
+	return imgdev->action_result;
+}
+
+void
+fpi_imgdev_set_action_result(struct fp_img_dev *imgdev,
+	int action_result)
+{
+	imgdev->action_result = action_result;
+}
+
 static int img_dev_open(struct fp_dev *dev, unsigned long driver_data)
 {
 	struct fp_img_dev *imgdev = g_malloc0(sizeof(*imgdev));
