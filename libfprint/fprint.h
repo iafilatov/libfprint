@@ -42,7 +42,7 @@ extern "C" {
  * fp_dscv_dev:
  *
  * #fp_dscv_dev is an opaque structure type.  You must access it using the
- * functions below.
+ * functions in this section.
  */
 struct fp_dscv_dev;
 
@@ -50,7 +50,7 @@ struct fp_dscv_dev;
  * fp_dscv_print:
  *
  * #fp_dscv_print is an opaque structure type.  You must access it using the
- * functions below.
+ * functions in this section.
  */
 struct fp_dscv_print;
 
@@ -58,7 +58,7 @@ struct fp_dscv_print;
  * fp_dev:
  *
  * #fp_dev is an opaque structure type.  You must access it using the
- * functions below.
+ * functions in this section.
  */
 struct fp_dev;
 
@@ -66,7 +66,7 @@ struct fp_dev;
  * fp_driver:
  *
  * #fp_driver is an opaque structure type.  You must access it using the
- * functions below.
+ * functions in this section.
  */
 struct fp_driver;
 
@@ -74,7 +74,7 @@ struct fp_driver;
  * fp_print_data:
  *
  * #fp_print_data is an opaque structure type.  You must access it using the
- * functions below.
+ * functions in this section.
  */
 struct fp_print_data;
 
@@ -82,7 +82,7 @@ struct fp_print_data;
  * fp_img:
  *
  * #fp_img is an opaque structure type.  You must access it using the
- * functions below.
+ * functions in this section.
  */
 struct fp_img;
 
@@ -293,7 +293,7 @@ uint32_t fp_print_data_get_devtype(struct fp_print_data *data);
  * fp_minutia:
  *
  * #fp_minutia is an opaque structure type.  You must access it using the
- * functions below.
+ * functions in this section.
  */
 struct fp_minutia;
 
