@@ -39,3 +39,13 @@ We include bozorth3 from the US export controlled distribution. We have
 determined that it is fine to ship bozorth3 in an open source project,
 see https://fprint.freedesktop.org/us-export-control.html
 
+## Historical links
+
+Older versions of libfprint are available at:
+https://sourceforge.net/projects/fprint/files/
+
+Historical mailing-list archives:
+http://www.reactivated.net/fprint_list_archives/
+
+Historical website:
+http://web.archive.org/web/*/https://www.freedesktop.org/wiki/Software/fprint/
