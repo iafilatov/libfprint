@@ -163,6 +163,22 @@ static unsigned int do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
 	return total_error / num_stripes;
 }
 
+/**
+ * fpi_do_movement_estimation:
+ * @ctx: #fpi_frame_asmbl_ctx - frame assembling context
+ * @stripes: a singly-linked list of #fpi_frame
+ * @num_stripes: number of items in @stripes to process
+ *
+ * fpi_do_movement_estimation() estimates the movement between adjacent
+ * frames, populating @delta_x and @delta_y values for each #fpi_frame.
+ *
+ * This function is used for devices that don't do movement estimation
+ * in hardware. If hardware movement estimation is supported, the driver
+ * should populate @delta_x and @delta_y instead.
+ *
+ * Note that @num_stripes might be shorter than the length of the list,
+ * if some stripes should be skipped.
+ */
 void fpi_do_movement_estimation(struct fpi_frame_asmbl_ctx *ctx,
 			    GSList *stripes, size_t num_stripes)
 {
@@ -236,8 +252,22 @@ static inline void aes_blit_stripe(struct fpi_frame_asmbl_ctx *ctx,
 	}
 }
 
+/**
+ * fpi_assemble_frames:
+ * @ctx: #fpi_frame_asmbl_ctx - frame assembling context
+ * @stripes: linked list of #fpi_frame
+ * @num_stripes: number of items in @stripes to process
+ *
+ * fpi_assemble_frames() assembles individual frames into a single image.
+ * It expects @delta_x and @delta_y of #fpi_frame to be populated.
+ *
+ * Note that @num_stripes might be shorter than the length of the list,
+ * if some stripes should be skipped.
+ *
+ * Returns: a newly allocated #fp_img.
+ */
 struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
-			    GSList *stripes, size_t stripes_len)
+			    GSList *stripes, size_t num_stripes)
 {
 	GSList *stripe;
 	struct fp_img *img;
@@ -246,7 +276,8 @@ struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 	gboolean reverse = FALSE;
 	struct fpi_frame *fpi_frame;
 
-	BUG_ON(stripes_len == 0);
+	//FIXME g_return_if_fail
+	BUG_ON(num_stripes == 0);
 	BUG_ON(ctx->image_width < ctx->frame_width);
 
 	/* Calculate height */
@@ -263,7 +294,7 @@ struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 		height += fpi_frame->delta_y;
 		i++;
 		stripe = g_slist_next(stripe);
-	} while (i < stripes_len);
+	} while (i < num_stripes);
 
 	fp_dbg("height is %d", height);
 
@@ -305,7 +336,7 @@ struct fp_img *fpi_assemble_frames(struct fpi_frame_asmbl_ctx *ctx,
 
 		stripe = g_slist_next(stripe);
 		i++;
-	} while (i < stripes_len);
+	} while (i < num_stripes);
 
 	return img;
 }
@@ -361,32 +392,45 @@ static void interpolate_lines(struct fpi_line_asmbl_ctx *ctx,
 	}
 }
 
-/* Rescale image to account for variable swiping speed */
+/**
+ * fpi_assemble_lines:
+ * @ctx: #fpi_frame_asmbl_ctx - frame assembling context
+ * @lines: linked list of lines
+ * @num_lines: number of items in @lines to process
+ *
+ * #fpi_assemble_lines assembles individual lines into a single image.
+ * It also rescales image to account variable swiping speed.
+ *
+ * Note that @num_lines might be shorter than the length of the list,
+ * if some lines should be skipped.
+ *
+ * Returns: a newly allocated #fp_img.
+ */
 struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
-				  GSList *lines, size_t lines_len)
+				  GSList *lines, size_t num_lines)
 {
 	/* Number of output lines per distance between two scanners */
 	int i;
 	GSList *row1, *row2;
 	float y = 0.0;
 	int line_ind = 0;
-	int *offsets = (int *)g_malloc0((lines_len / 2) * sizeof(int));
+	int *offsets = (int *)g_malloc0((num_lines / 2) * sizeof(int));
 	unsigned char *output = g_malloc0(ctx->line_width * ctx->max_height);
 	struct fp_img *img;
 
 	g_return_val_if_fail (lines != NULL, NULL);
-	g_return_val_if_fail (lines_len > 0, NULL);
+	g_return_val_if_fail (num_lines > 0, NULL);
 
 	fp_dbg("%"G_GINT64_FORMAT, g_get_real_time());
 
 	row1 = lines;
-	for (i = 0; (i < lines_len - 1) && row1; i += 2) {
+	for (i = 0; (i < num_lines - 1) && row1; i += 2) {
 		int bestmatch = i;
 		int bestdiff = 0;
 		int j, firstrow, lastrow;
 
 		firstrow = i + 1;
-		lastrow = MIN(i + ctx->max_search_offset, lines_len - 1);
+		lastrow = MIN(i + ctx->max_search_offset, num_lines - 1);
 
 		row2 = g_slist_next(row1);
 		for (j = firstrow; j <= lastrow; j++) {
@@ -406,13 +450,13 @@ struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
 			row1 = g_slist_next(row1);
 	}
 
-	median_filter(offsets, (lines_len / 2) - 1, ctx->median_filter_size);
+	median_filter(offsets, (num_lines / 2) - 1, ctx->median_filter_size);
 
 	fp_dbg("offsets_filtered: %"G_GINT64_FORMAT, g_get_real_time());
-	for (i = 0; i <= (lines_len / 2) - 1; i++)
+	for (i = 0; i <= (num_lines / 2) - 1; i++)
 		fp_dbg("%d", offsets[i]);
 	row1 = lines;
-	for (i = 0; i < lines_len - 1; i++, row1 = g_slist_next(row1)) {
+	for (i = 0; i < num_lines - 1; i++, row1 = g_slist_next(row1)) {
 		int offset = offsets[i/2];
 		if (offset > 0) {
 			float ynext = y + (float)ctx->resolution / offset;
