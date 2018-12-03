@@ -615,7 +615,22 @@ API_EXPORTED int fp_minutia_get_coords(struct fp_minutia *minutia, int *coord_x,
 	return 0;
 }
 
-/* Calculate squared standand deviation */
+/**
+ * fpi_std_sq_dev:
+ * @buf: buffer (usually bitmap, one byte per pixel)
+ * @size: size of @buffer
+ *
+ * Calculates the squared standard deviation of the individual
+ * pixels in the buffer, as per the following formula:
+ * |[<!-- -->
+ *    mean = sum (buf[0..size]) / size
+ *    sq_dev = sum ((buf[0.size] - mean) ^ 2)
+ * ]|
+ * This function is usually used to determine whether image
+ * is empty.
+ *
+ * Returns: the squared standard deviation for @buffer
+ */
 int fpi_std_sq_dev(const unsigned char *buf, int size)
 {
 	int res = 0, mean = 0, i;
@@ -638,7 +653,23 @@ int fpi_std_sq_dev(const unsigned char *buf, int size)
 	return res / size;
 }
 
-/* Calculate normalized mean square difference of two lines */
+/**
+ * fpi_mean_sq_diff_norm:
+ * @buf1: buffer (usually bitmap, one byte per pixel)
+ * @buf2: buffer (usually bitmap, one byte per pixel)
+ * @size: buffer size of smallest buffer
+ *
+ * This function calculates the normalized mean square difference of
+ * two buffers, usually two lines, as per the following formula:
+ * |[<!-- -->
+ *    sq_diff = sum ((buf1[0..size] - buf2[0..size]) ^ 2) / size
+ * ]|
+ *
+ * This functions is usually used to get numerical difference
+ * between two images.
+ *
+ * Returns: the normalized mean squared difference between @buf1 and @buf2
+ */
 int fpi_mean_sq_diff_norm(unsigned char *buf1, unsigned char *buf2, int size)
 {
 	int res = 0, i;
