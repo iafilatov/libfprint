@@ -52,7 +52,7 @@ build:
     <<: *flatpak_script
     <<: *flatpak_artifacts
 
-.flatpak master:
+flatpak master:
     image: registry.gitlab.gnome.org/gnome/gnome-runtime-images/gnome:master
     stage: test
     variables:
