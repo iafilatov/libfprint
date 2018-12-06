@@ -419,7 +419,7 @@ struct fp_img *fpi_assemble_lines(struct fpi_line_asmbl_ctx *ctx,
 	struct fp_img *img;
 
 	g_return_val_if_fail (lines != NULL, NULL);
-	g_return_val_if_fail (num_lines > 0, NULL);
+	g_return_val_if_fail (num_lines >= 2, NULL);
 
 	fp_dbg("%"G_GINT64_FORMAT, g_get_real_time());
 
