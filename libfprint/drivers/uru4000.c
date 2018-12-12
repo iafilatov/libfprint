@@ -545,16 +545,17 @@ static void sm_read_reg_cb(struct fp_img_dev *dev, int result,
 	}
 }
 
+#define member_size(type, member) sizeof(((type *)0)->member)
+
 static void
 sm_read_regs(fpi_ssm           *ssm,
 	     struct fp_img_dev *dev,
 	     uint16_t           reg,
 	     uint16_t           num_regs)
 {
-	struct uru4k_dev *urudev = FP_INSTANCE_DATA(FP_DEV(dev));
 	int r;
 
-	if (num_regs > sizeof(urudev->last_reg_rd)) {
+	if (num_regs > member_size(struct uru4k_dev, last_reg_rd)) {
 		fpi_ssm_mark_failed(ssm, -EIO);
 		return;
 	}
