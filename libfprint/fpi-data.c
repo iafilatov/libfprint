@@ -483,7 +483,7 @@ API_EXPORTED int fp_print_data_load(struct fp_dev *dev,
 	enum fp_finger finger, struct fp_print_data **data)
 {
 	gchar *path;
-	struct fp_print_data *fdata;
+	struct fp_print_data *fdata = NULL;
 	int r;
 
 	if (!base_store)
