@@ -734,9 +734,7 @@ API_EXPORTED struct fp_dscv_print **fp_discover_prints(void)
 	GError *err = NULL;
 	GSList *tmplist = NULL;
 	GSList *elem;
-	unsigned int tmplist_len;
-	struct fp_dscv_print **list;
-	unsigned int i;
+	GPtrArray *array;
 
 	if (!base_store)
 		storage_setup();
@@ -771,15 +769,17 @@ API_EXPORTED struct fp_dscv_print **fp_discover_prints(void)
 	}
 
 	g_dir_close(dir);
-	tmplist_len = g_slist_length(tmplist);
-	list = g_malloc(sizeof(*list) * (tmplist_len + 1));
-	elem = tmplist;
-	for (i = 0; i < tmplist_len; i++, elem = g_slist_next(elem))
-		list[i] = elem->data;
-	list[tmplist_len] = NULL; /* NULL-terminate */
+
+	if (tmplist == NULL)
+		return NULL;
+
+	array = g_ptr_array_new();
+	for (elem = tmplist; elem != NULL; elem = elem->next)
+		g_ptr_array_add(array, elem->data);
+	g_ptr_array_add(array, NULL);
 
 	g_slist_free(tmplist);
-	return list;
+	return (struct fp_dscv_print **) g_ptr_array_free(array, FALSE);
 }
 
 /**
