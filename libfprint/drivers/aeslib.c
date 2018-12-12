@@ -144,8 +144,10 @@ static void continue_write_regv(struct write_regv_data *wdata)
 void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
 	unsigned int num_regs, aes_write_regv_cb callback, void *user_data)
 {
-	struct write_regv_data *wdata = g_malloc(sizeof(*wdata));
+	struct write_regv_data *wdata;
+
 	fp_dbg("write %d regs", num_regs);
+	wdata = g_malloc(sizeof(*wdata));
 	wdata->imgdev = dev;
 	wdata->num_regs = num_regs;
 	wdata->regs = regs;
@@ -153,6 +155,8 @@ void aes_write_regv(struct fp_img_dev *dev, const struct aes_regwrite *regs,
 	wdata->callback = callback;
 	wdata->user_data = user_data;
 	continue_write_regv(wdata);
+
+	g_free(wdata);
 }
 
 unsigned char aes_get_pixel(struct fpi_frame_asmbl_ctx *ctx,
