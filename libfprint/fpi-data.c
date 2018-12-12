@@ -391,6 +391,7 @@ API_EXPORTED int fp_print_data_save(struct fp_print_data *data,
 	r = g_mkdir_with_parents(dirpath, DIR_PERMS);
 	if (r < 0) {
 		fp_err("couldn't create storage directory");
+		free(buf);
 		g_free(path);
 		g_free(dirpath);
 		return r;
