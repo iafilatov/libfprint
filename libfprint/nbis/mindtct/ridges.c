@@ -148,9 +148,11 @@ int count_minutia_ridges(const int first, MINUTIAE *minutiae,
    int i, ret, *nbr_list, *nbr_nridges, nnbrs;
 
    /* Find up to the maximum number of qualifying neighbors. */
+   nbr_list = NULL;
    if((ret = find_neighbors(&nbr_list, &nnbrs, lfsparms->max_nbrs,
                            first, minutiae))){
-      free(nbr_list);
+      if (nbr_list != NULL)
+         free(nbr_list);
       return(ret);
    }
 
