@@ -701,7 +701,6 @@ tp  = 0;
 p1  = 0;
 tot = 0;
 ftt = 0;
-kx  = 0;
 match_score = 0;
 
 for ( k = 0; k < np - 1; k++ ) {
@@ -817,7 +816,6 @@ for ( k = 0; k < np - 1; k++ ) {
 
 
 
-			l = 1;
 			t = np + 1;
 			b = kq;
 
