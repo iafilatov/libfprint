@@ -118,6 +118,7 @@ int dft_dir_powers(double **powers, unsigned char *pdata,
       fprintf(stderr, "ERROR : dft_dir_powers : malloc : rowsums\n");
       return(-91);
    }
+   memset(rowsums, 0, dftgrids->grid_w * sizeof(int));
 
    /* Foreach direction ... */
    for(dir = 0; dir < dftgrids->ngrids; dir++){
