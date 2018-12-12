@@ -112,6 +112,9 @@ static int upeksonly_get_deviation2(struct fpi_line_asmbl_ctx *ctx,
 {
 	unsigned char *buf1 = line1->data, *buf2 = line2->data;
 	int res = 0, mean = 0, i;
+
+	g_assert (ctx->line_width > 0);
+
 	for (i = 0; i < ctx->line_width; i+= 2)
 		mean += (int)buf1[i + 1] + (int)buf2[i];
 
