@@ -288,10 +288,10 @@ static int process_stripe_data(fpi_ssm *ssm, struct fp_img_dev *dev, unsigned ch
 		aesdev->strips = g_slist_prepend(aesdev->strips, stripe);
 		aesdev->strips_len++;
 		return (data[AESX660_LAST_FRAME_OFFSET] & AESX660_LAST_FRAME_BIT);
-	} else {
-		return 0;
 	}
 
+	g_free(stripe);
+	return 0;
 }
 
 static void capture_set_idle_cmd_cb(struct libusb_transfer *transfer)
