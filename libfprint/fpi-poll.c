@@ -373,8 +373,8 @@ API_EXPORTED int fp_handle_events(void)
  */
 API_EXPORTED int fp_get_next_timeout(struct timeval *tv)
 {
-	struct timeval fprint_timeout;
-	struct timeval libusb_timeout;
+	struct timeval fprint_timeout = { 0, 0 };
+	struct timeval libusb_timeout = { 0, 0 };
 	int r_fprint;
 	int r_libusb;
 
