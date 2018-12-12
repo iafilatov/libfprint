@@ -243,6 +243,8 @@ static void elan_process_frame_linear(unsigned short *raw_frame,
 			max = raw_frame[i];
 	}
 
+	g_assert(max != min);
+
 	unsigned short px;
 	for (int i = 0; i < frame_size; i++) {
 		px = raw_frame[i];
