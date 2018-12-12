@@ -106,7 +106,7 @@ struct sonly_dev {
 };
 
 
-/* Calculade squared standand deviation of sum of two lines */
+/* Calculate squared standard deviation of sum of two lines */
 static int upeksonly_get_deviation2(struct fpi_line_asmbl_ctx *ctx,
 			  GSList *line1, GSList *line2)
 {
