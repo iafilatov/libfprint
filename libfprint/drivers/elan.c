@@ -595,6 +595,8 @@ static int elan_need_calibration(struct elan_dev *elandev)
 	unsigned int bg_mean = 0, delta;
 	unsigned int frame_size = elandev->frame_width * elandev->frame_height;
 
+	g_assert(frame_size != 0);
+
 	for (int i = 0; i < frame_size; i++)
 		bg_mean += elandev->background[i];
 	bg_mean /= frame_size;
