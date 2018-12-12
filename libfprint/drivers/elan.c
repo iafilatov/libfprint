@@ -350,7 +350,7 @@ static void elan_cmd_cb(struct libusb_transfer *transfer,
 		} else if (transfer->endpoint & LIBUSB_ENDPOINT_IN) {
 			/* just finished receiving */
 			elandev->last_read = g_memdup(transfer->buffer, transfer->actual_length);
-			dbg_buf(elandev->last_read, transfer->actual_length);
+			dbg_buf(transfer->buffer, transfer->actual_length);
 			elan_cmd_done(ssm);
 		} else {
 			/* just finished sending */
