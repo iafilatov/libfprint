@@ -517,6 +517,8 @@ int get_centered_contour(int **ocontour_x, int **ocontour_y,
 
    /* If system error occurred on 2nd trace ... */
    if(ret < 0){
+      /* Deallocate loop's contour. */
+      free_contour(half1_x, half1_y, half1_ex, half1_ey);
       /* Return error code. */
       return(ret);
    }
