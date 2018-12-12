@@ -1348,6 +1348,8 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 
 	urudev = g_malloc0(sizeof(*urudev));
+	fp_dev_set_instance_data(FP_DEV(dev), urudev);
+
 	urudev->profile = &uru4k_dev_info[driver_data];
 	urudev->interface = iface_desc->bInterfaceNumber;
 
@@ -1374,7 +1376,6 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	}
 	urudev->param = PK11_ParamFromIV(urudev->cipher, NULL);
 
-	fp_dev_set_instance_data(FP_DEV(dev), urudev);
 	fpi_imgdev_open_complete(dev, 0);
 
 out:
