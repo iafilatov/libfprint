@@ -241,6 +241,8 @@ void fpi_ssm_mark_failed(fpi_ssm *machine, int error)
  */
 void fpi_ssm_next_state(fpi_ssm *machine)
 {
+	g_return_if_fail (machine != NULL);
+
 	BUG_ON(machine->completed);
 	machine->cur_state++;
 	if (machine->cur_state == machine->nr_states) {
