@@ -677,6 +677,7 @@ int morph_TF_map(int *tfmap, const int mw, const int mh,
    int *mptr;
    int i;
 
+   ASSERT_INT_MUL(mw, mh);
 
    /* Convert TRUE/FALSE map into a binary byte image. */
    cimage = (unsigned char *)malloc(mw*mh);
