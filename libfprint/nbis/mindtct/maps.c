@@ -502,6 +502,8 @@ int interpolate_direction_map(int *direction_map, int *low_contrast_map,
    print2log("INTERPOLATE DIRECTION MAP\n");
 
    /* Allocate output (interpolated) Direction Map. */
+   ASSERT_SIZE_MUL(mw, mh);
+   ASSERT_SIZE_MUL(mw * mh, sizeof(int));
    omap = (int *)malloc(mw*mh*sizeof(int));
    if(omap == (int *)NULL){
       fprintf(stderr,
