@@ -693,6 +693,9 @@ int alloc_power_stats(int **owis, double **opowmaxs, int **opowmax_dirs,
    int *wis, *powmax_dirs;
    double *powmaxs, *pownorms;
 
+   ASSERT_SIZE_MUL(nstats, sizeof(int));
+   ASSERT_SIZE_MUL(nstats, sizeof(double));
+
    /* Allocate DFT wave index vector */
    wis = (int *)malloc(nstats * sizeof(int));
    if(wis == (int *)NULL){
