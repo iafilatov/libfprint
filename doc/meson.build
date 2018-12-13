@@ -6,6 +6,7 @@ private_headers = [
   'aeslib.h',
   'assembling.h',
   'fp_internal.h',
+  'nbis-helpers.h',
   'fpi-async.h',
   'fpi-data.h',
 

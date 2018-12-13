@@ -27,6 +27,7 @@
 #include <glib.h>
 #include <libusb.h>
 
+#include "nbis-helpers.h"
 #include "fprint.h"
 #include "fpi-dev.h"
 #include "fpi-core.h"
