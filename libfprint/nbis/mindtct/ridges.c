@@ -281,6 +281,7 @@ int find_neighbors(int **onbr_list, int *onnbrs, const int max_nbrs,
          if((ret = update_nbr_dists(nbr_list, nbr_sqr_dists, &nnbrs, max_nbrs,
                           first, second, minutiae))){
             free(nbr_sqr_dists);
+            free(nbr_list);
             return(ret);
          }
       }
