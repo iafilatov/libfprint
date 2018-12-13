@@ -115,6 +115,9 @@ int gen_quality_map(int **oqmap, int *direction_map, int *low_contrast_map,
    int arrayPos, arrayPos2;
    int QualOffset;
 
+   ASSERT_SIZE_MUL(map_w, map_h);
+   ASSERT_SIZE_MUL(map_w * map_h, sizeof(int));
+
    QualMap = (int *)malloc(map_w * map_h * sizeof(int));
    if(QualMap == (int *)NULL){
       fprintf(stderr, "ERROR : gen_quality_map : malloc : QualMap\n");
