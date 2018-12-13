@@ -159,6 +159,9 @@ int gen_image_maps(int **odmap, int **olcmap, int **olfmap, int **ohcmap,
    }
 
    if((ret = morph_TF_map(low_flow_map, mw, mh, lfsparms))){
+      free(direction_map);
+      free(low_contrast_map);
+      free(low_flow_map);
       return(ret);
    }
 
@@ -173,6 +176,9 @@ int gen_image_maps(int **odmap, int **olcmap, int **olfmap, int **ohcmap,
    /* 5. Interpolate INVALID direction blocks with their valid neighbors. */
    if((ret = interpolate_direction_map(direction_map, low_contrast_map,
                                        mw, mh, lfsparms))){
+      free(direction_map);
+      free(low_contrast_map);
+      free(low_flow_map);
       return(ret);
    }
 
@@ -192,6 +198,9 @@ int gen_image_maps(int **odmap, int **olcmap, int **olfmap, int **ohcmap,
    /* 9. Generate High Curvature Map from interpolated Direction Map. */
    if((ret = gen_high_curve_map(&high_curve_map, direction_map, mw, mh,
                                 lfsparms))){
+      free(direction_map);
+      free(low_contrast_map);
+      free(low_flow_map);
       return(ret);
    }
 
