@@ -272,6 +272,7 @@ int gen_initial_maps(int **odmap, int **olcmap, int **olfmap,
    print2log("INITIAL MAP\n");
 
    /* Compute total number of blocks in map */
+   ASSERT_INT_MUL(mw, mh);
    bsize = mw * mh;
 
    /* Allocate Direction Map memory */
