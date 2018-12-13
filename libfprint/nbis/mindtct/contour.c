@@ -107,6 +107,8 @@ int allocate_contour(int **ocontour_x, int **ocontour_y,
 {
    int *contour_x, *contour_y, *contour_ex, *contour_ey;
 
+   ASSERT_SIZE_MUL(ncontour, sizeof(int));
+
    /* Allocate contour's x-coord list. */
    contour_x = (int *)malloc(ncontour*sizeof(int));
    /* If allocation error... */
