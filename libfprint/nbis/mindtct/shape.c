@@ -260,6 +260,7 @@ int shape_from_contour(SHAPE **oshape, const int *contour_x,
          if(row->npts >= row->alloc){
             /* This should never happen becuase we have allocated */
             /* based on shape bounding limits.                    */
+            free(shape);
             fprintf(stderr,
                     "ERROR : shape_from_contour : row overflow\n");
             return(-260);
