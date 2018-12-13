@@ -898,9 +898,11 @@ int gen_high_curve_map(int **ohcmap, int *direction_map,
    int bx, by;
    int nvalid, cmeasure, vmeasure;
 
+   ASSERT_INT_MUL(mw, mh);
    mapsize = mw*mh;
 
    /* Allocate High Curvature Map. */
+   ASSERT_SIZE_MUL(mapsize, sizeof(int));
    high_curve_map = (int *)malloc(mapsize * sizeof(int));
    if(high_curve_map == (int *)NULL){
       fprintf(stderr,
