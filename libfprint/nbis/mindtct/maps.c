@@ -742,6 +742,9 @@ int pixelize_map(int **omap, const int iw, const int ih,
    int *blkoffs, bw, bh, bi;
    int *spptr, *pptr;
 
+   ASSERT_SIZE_MUL(iw, ih);
+   ASSERT_SIZE_MUL(iw * ih, sizeof(int));
+
    pmap = (int *)malloc(iw*ih*sizeof(int));
    if(pmap == (int *)NULL){
       fprintf(stderr, "ERROR : pixelize_map : malloc : pmap\n");
