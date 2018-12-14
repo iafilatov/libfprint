@@ -1,6 +1,26 @@
 This file lists notable changes in each release. For the full history of all
 changes, see ChangeLog.
 
+2018-12-14: v0.99.0 release
+* Library:
+  - All the internal API for device driver writers is now covered by the
+    documentation and has been enhanced to make it easier to write drivers
+  - Update internal NBIS fingerprint data processing library to one that's
+    nearly 10 years newer
+  - Re-add accessor for minutia coordinates which was used in the very
+    old fprint_demo program, but also by our new GTK+ test program (see below)
+  - Fix a crash when too many minutiae were detected in a capture
+
+* Drivers:
+  - Support more devices in the Elan driver, stability improvements
+
+* Tools:
+  - Add a test GTK+ application that will eventually be used for testing
+    drivers without modifying the OS installed version. Note that this
+    application currently requires manually changing permissions of USB
+    devices, this will be fixed when the infrastructure exists to access
+    those devices without additional permissions, as a normal user.
+
 2018-07-15: v0.8.2 release
 * Drivers:
   - Add USB ID for TNP Nano USB Fingerprint Reader
