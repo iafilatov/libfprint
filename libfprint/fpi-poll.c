@@ -91,8 +91,6 @@ struct fpi_timeout {
 	char *name;
 };
 
-static gboolean fpi_poll_is_setup(void);
-
 static int timeout_sort_fn(gconstpointer _a, gconstpointer _b)
 {
 	fpi_timeout *a = (fpi_timeout *) _a;
@@ -167,7 +165,6 @@ fpi_timeout *fpi_timeout_add(unsigned int    msec,
 	int r;
 
 	g_return_val_if_fail (dev != NULL, NULL);
-	g_return_val_if_fail (fpi_poll_is_setup(), NULL);
 
 	fp_dbg("in %dms", msec);
 
@@ -485,12 +482,6 @@ void fpi_poll_exit(void)
 	fd_added_cb = NULL;
 	fd_removed_cb = NULL;
 	libusb_set_pollfd_notifiers(fpi_usb_ctx, NULL, NULL, NULL);
-}
-
-static gboolean
-fpi_poll_is_setup(void)
-{
-	return (fd_added_cb != NULL && fd_removed_cb != NULL);
 }
 
 void
