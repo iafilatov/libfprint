@@ -473,8 +473,17 @@ libfprint_demo_window_init (LibfprintDemoWindow *window)
 	setup_pollfds ();
 
 	discovered_devs = fp_discover_devs();
-	if (!discovered_devs)
+	if (!discovered_devs) {
+		libfprint_demo_set_mode (window, ERROR_MODE);
 		return;
+	}
+
+	/* Empty list? */
+	if (discovered_devs[0] == NULL) {
+		fp_dscv_devs_free (discovered_devs);
+		libfprint_demo_set_mode (window, EMPTY_MODE);
+		return;
+	}
 
 	if (!fp_driver_supports_imaging(fp_dscv_dev_get_driver(discovered_devs[0]))) {
 		libfprint_demo_set_mode (window, NOIMAGING_MODE);
