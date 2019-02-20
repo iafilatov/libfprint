@@ -710,7 +710,7 @@ static void imaging_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 	uint32_t key;
 	uint8_t flags, num_lines;
 	int i, r, to, dev2;
-	char buf[5];
+	unsigned char buf[5];
 
 	switch (fpi_ssm_get_cur_state(ssm)) {
 	case IMAGING_CAPTURE:
