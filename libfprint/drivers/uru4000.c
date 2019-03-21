@@ -1340,6 +1340,9 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 		goto out;
 	}
 
+	/* Disable loading p11-kit's user configuration */
+	g_setenv ("P11_KIT_NO_USER_CONFIG", "1", TRUE);
+
 	/* Initialise NSS early */
 	rv = NSS_NoDB_Init(".");
 	if (rv != SECSuccess) {
