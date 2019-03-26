@@ -80,7 +80,7 @@ Last enrolled image is stored in `enrolled.pgm`, last one used for verification 
 [Install fprint_demo.](https://www.freedesktop.org/wiki/Software/fprint/Download/)
 
 ```
-LD_LIBRARY_PATH=./libfprint/.libs/ fprint_demo
+LD_LIBRARY_PATH=libfprint fprint_demo
 ```
 
 ### Unrecognized devices
