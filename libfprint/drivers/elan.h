@@ -32,9 +32,6 @@
 #define ELAN_0907 (1 << 0)
 #define ELAN_0C03 (1 << 1)
 
-/* devices which don't require frame rotation before assembling */
-#define ELAN_NOT_ROTATED ELAN_0C03
-
 /* min FW version that supports calibration */
 #define ELAN_MIN_CALIBRATION_FW 0x0138
 
@@ -46,16 +43,8 @@
  * generally prevents calibration from looping indefinitely */
 #define ELAN_CALIBRATION_ATTEMPTS 10
 
-/* min and max frames in a capture */
-#define ELAN_MIN_FRAMES 7
-#define ELAN_MAX_FRAMES 30
-
-/* crop frames to this height to improve stitching */
-#define ELAN_MAX_FRAME_HEIGHT 50
-
-/* number of frames to drop at the end of capture because frames captured
- * while the finger is being lifted can be bad */
-#define ELAN_SKIP_LAST_FRAMES 1
+/* max number of frames to capture for averaging */
+#define ELAN_TOUCH_FRAMES 3
 
 #define ELAN_CMD_LEN 0x2
 #define ELAN_EP_CMD_OUT (0x1 | LIBUSB_ENDPOINT_OUT)

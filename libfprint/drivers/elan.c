@@ -56,18 +56,12 @@ unsigned char elan_get_pixel(struct fpi_frame_asmbl_ctx *ctx,
 	return frame->data[x + y * ctx->frame_width];
 }
 
-static struct fpi_frame_asmbl_ctx assembling_ctx = {
-	.frame_width = 0,
-	.frame_height = 0,
-	.image_width = 0,
-	.get_pixel = elan_get_pixel,
-};
-
 struct elan_dev {
 	/* device config */
 	unsigned short dev_type;
 	unsigned short fw_ver;
-	void (*process_frame) (unsigned short *raw_frame, GSList ** frames);
+	void (*process_frame) (struct elan_dev * elandev,
+			       unsigned char *processed);
 	/* end device config */
 
 	/* commands */
@@ -85,15 +79,14 @@ struct elan_dev {
 	unsigned short *background;
 	unsigned char frame_width;
 	unsigned char frame_height;
-	unsigned char raw_frame_height;
-	int num_frames;
-	GSList *frames;
+	unsigned int num_frames;
+	unsigned int *raw_img;
 	/* end state */
 };
 
-int cmp_short(const void *a, const void *b)
+int cmp_int(const void *a, const void *b)
 {
-	return (int)(*(short *)a - *(short *)b);
+	return (int)(*(int *)a - *(int *)b);
 }
 
 static void elan_dev_reset(struct elan_dev *elandev)
@@ -107,64 +100,54 @@ static void elan_dev_reset(struct elan_dev *elandev)
 
 	elandev->calib_status = 0;
 
-	g_free(elandev->last_read);
-	elandev->last_read = NULL;
+	g_clear_pointer(&elandev->last_read, g_free);
 
-	g_slist_free_full(elandev->frames, g_free);
-	elandev->frames = NULL;
+	g_clear_pointer(&elandev->raw_img, g_free);
 	elandev->num_frames = 0;
-}
-
-static void elan_save_frame(struct elan_dev *elandev, unsigned short *frame)
-{
-	G_DEBUG_HERE();
-
-	/* so far 3 types of readers by sensor dimensions and orientation have been
-	 * seen in the wild:
-	 * 1. 144x64. Raw images are in portrait orientation while readers themselves
-	 *    are placed (e.g. built into a touchpad) in landscape orientation. These
-	 *    need to be rotated before assembling.
-	 * 2. 96x96 rotated. Like the first type but square. Likewise, need to be
-	 *    rotated before assembling.
-	 * 3. 96x96 normal. Square and need NOT be rotated. So far there's only been
-	 *    1 report of a 0c03 of this type. Hopefully this type can be identified
-	 *    by device id (and manufacturers don't just install the readers as they
-	 *    please).
-	 * we also discard stripes of 'frame_margin' from bottom and top because
-	 * assembling works bad for tall frames */
-
-	unsigned char frame_width = elandev->frame_width;
-	unsigned char frame_height = elandev->frame_height;
-	unsigned char raw_height = elandev->raw_frame_height;
-	unsigned char frame_margin = (raw_height - elandev->frame_height) / 2;
-	int frame_idx, raw_idx;
-
-	for (int y = 0; y < frame_height; y++)
-		for (int x = 0; x < frame_width; x++) {
-			if (elandev->dev_type & ELAN_NOT_ROTATED)
-				raw_idx = x + (y + frame_margin) * frame_width;
-			else
-				raw_idx = frame_margin + y + x * raw_height;
-			frame_idx = x + y * frame_width;
-			frame[frame_idx] =
-			    ((unsigned short *)elandev->last_read)[raw_idx];
-		}
 }
 
 static void elan_save_background(struct elan_dev *elandev)
 {
 	G_DEBUG_HERE();
 
+	int bg_size = elandev->frame_width * elandev->frame_height * 2;
+
 	g_free(elandev->background);
-	elandev->background =
-	    g_malloc(elandev->frame_width * elandev->frame_height *
-		     sizeof(short));
-	elan_save_frame(elandev, elandev->background);
+	elandev->background = g_malloc(bg_size);
+	memcpy(elandev->background, elandev->last_read, bg_size);
 }
 
-/* save a frame as part of the fingerprint image
- * background needs to have been captured for this routine to work
- * Elantech recommends 2-step non-linear normalization in order to reduce
+/* background needs to have been captured for this routine to work */
+static int elan_save_img_frame(struct elan_dev *elandev)
+{
+	G_DEBUG_HERE();
+
+	unsigned int frame_size = elandev->frame_width * elandev->frame_height;
+
+	if (elandev->num_frames == 0)
+		elandev->raw_img = g_malloc0(frame_size * sizeof(int));
+
+	int px, sum = 0;
+	for (int i = 0; i < frame_size; i++) {
+		px = ((unsigned short *)elandev->last_read)[i];
+		px -= elandev->background[i];
+		if (px < 0)
+			px = 0;
+		elandev->raw_img[i] += px;
+		sum += px;
+	}
+
+	if (sum == 0) {
+		fp_dbg
+		    ("frame darker than background; finger present during calibration?");
+		return -1;
+	}
+
+	elandev->num_frames += 1;
+	return 0;
+}
+
+/* Elantech recommends 2-step non-linear normalization in order to reduce
  * 2^14 ADC resolution to 2^8 image:
  *
  * 1. background is subtracted (done here)
@@ -185,133 +168,53 @@ static void elan_save_background(struct elan_dev *elandev)
  *    ----- lvl0 __
  *                 \
  *    ======== 0    \____> ======== 0
- *
- * For some devices we don't do 2. but instead do a simple linear mapping
- * because it seems to produce better results (or at least as good):
- *    ==== 16383      ___> ======== 255
- *                   /
- *    ------ max  __/
- *
- *
- *    ------ min  __
- *                  \
- *    ======== 0     \___> ======== 0
  */
-static int elan_save_img_frame(struct elan_dev *elandev)
+static void elan_process_frame_thirds(struct elan_dev *elandev,
+				      unsigned char *processed)
 {
 	G_DEBUG_HERE();
 
-	unsigned int frame_size = elandev->frame_width * elandev->frame_height;
-	unsigned short *frame = g_malloc(frame_size * sizeof(short));
-	elan_save_frame(elandev, frame);
-	unsigned int sum = 0;
+	int frame_size = elandev->frame_width * elandev->frame_height;
 
-	for (int i = 0; i < frame_size; i++) {
-		if (elandev->background[i] > frame[i])
-			frame[i] = 0;
-		else
-			frame[i] -= elandev->background[i];
-		sum += frame[i];
-	}
-
-	if (sum == 0) {
-		fp_dbg
-		    ("frame darker than background; finger present during calibration?");
-		return -1;
-	}
-
-	elandev->frames = g_slist_prepend(elandev->frames, frame);
-	elandev->num_frames += 1;
-	return 0;
-}
-
-static void elan_process_frame_linear(unsigned short *raw_frame,
-				      GSList ** frames)
-{
-	unsigned int frame_size =
-	    assembling_ctx.frame_width * assembling_ctx.frame_height;
-	struct fpi_frame *frame =
-	    g_malloc(frame_size + sizeof(struct fpi_frame));
-
-	G_DEBUG_HERE();
-
-	unsigned short min = 0xffff, max = 0;
-	for (int i = 0; i < frame_size; i++) {
-		if (raw_frame[i] < min)
-			min = raw_frame[i];
-		if (raw_frame[i] > max)
-			max = raw_frame[i];
-	}
-
-	g_assert(max != min);
-
-	unsigned short px;
-	for (int i = 0; i < frame_size; i++) {
-		px = raw_frame[i];
-		px = (px - min) * 0xff / (max - min);
-		frame->data[i] = (unsigned char)px;
-	}
-
-	*frames = g_slist_prepend(*frames, frame);
-}
-
-static void elan_process_frame_thirds(unsigned short *raw_frame,
-				      GSList ** frames)
-{
-	G_DEBUG_HERE();
-
-	unsigned int frame_size =
-	    assembling_ctx.frame_width * assembling_ctx.frame_height;
-	struct fpi_frame *frame =
-	    g_malloc(frame_size + sizeof(struct fpi_frame));
-
-	unsigned short lvl0, lvl1, lvl2, lvl3;
-	unsigned short *sorted = g_malloc(frame_size * sizeof(short));
-	memcpy(sorted, raw_frame, frame_size * sizeof(short));
-	qsort(sorted, frame_size, sizeof(short), cmp_short);
+	unsigned int lvl0, lvl1, lvl2, lvl3;
+	unsigned int *sorted = g_malloc(frame_size * sizeof(int));
+	memcpy(sorted, elandev->raw_img, frame_size * sizeof(int));
+	qsort(sorted, frame_size, sizeof(int), cmp_int);
 	lvl0 = sorted[0];
 	lvl1 = sorted[frame_size * 3 / 10];
 	lvl2 = sorted[frame_size * 65 / 100];
 	lvl3 = sorted[frame_size - 1];
 	g_free(sorted);
 
-	unsigned short px;
+	unsigned int px;
 	for (int i = 0; i < frame_size; i++) {
-		px = raw_frame[i];
+		px = elandev->raw_img[i];
 		if (lvl0 <= px && px < lvl1)
 			px = (px - lvl0) * 99 / (lvl1 - lvl0);
 		else if (lvl1 <= px && px < lvl2)
 			px = 99 + ((px - lvl1) * 56 / (lvl2 - lvl1));
 		else		// (lvl2 <= px && px <= lvl3)
 			px = 155 + ((px - lvl2) * 100 / (lvl3 - lvl2));
-		frame->data[i] = (unsigned char)px;
+		processed[i] = (unsigned char)px;
 	}
-
-	*frames = g_slist_prepend(*frames, frame);
 }
 
 static void elan_submit_image(struct fp_img_dev *dev)
 {
-	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
-	GSList *frames = NULL;
-	struct fp_img *img;
-
 	G_DEBUG_HERE();
 
-	for (int i = 0; i < ELAN_SKIP_LAST_FRAMES; i++)
-		elandev->frames = g_slist_next(elandev->frames);
-	elandev->num_frames -= ELAN_SKIP_LAST_FRAMES;
+	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
+	int img_size = elandev->frame_width * elandev->frame_height;
+	struct fp_img *img = fpi_img_new(img_size);
 
-	assembling_ctx.frame_width = elandev->frame_width;
-	assembling_ctx.frame_height = elandev->frame_height;
-	assembling_ctx.image_width = elandev->frame_width * 3 / 2;
-	g_slist_foreach(elandev->frames, (GFunc) elandev->process_frame,
-			&frames);
-	fpi_do_movement_estimation(&assembling_ctx, frames,
-				   elandev->num_frames);
-	img = fpi_assemble_frames(&assembling_ctx, frames, elandev->num_frames);
+	img->width = elandev->frame_width;
+	img->height = elandev->frame_height;
 
-	img->flags |= FP_IMG_PARTIAL;
+	for (int i = 0; i < img_size; i++)
+		elandev->raw_img[i] /= elandev->num_frames;
+	elandev->num_frames = 1;
+
+	elandev->process_frame(elandev, img->data);
 	fpi_imgdev_image_captured(dev, img);
 }
 
@@ -322,9 +225,7 @@ static void elan_cmd_done(fpi_ssm *ssm)
 }
 
 static void elan_cmd_cb(struct libusb_transfer *transfer,
-			struct fp_dev          *_dev,
-			fpi_ssm                *ssm,
-			void                   *user_data)
+			struct fp_dev *_dev, fpi_ssm *ssm, void *user_data)
 {
 	struct fp_img_dev *dev;
 	struct elan_dev *elandev;
@@ -385,19 +286,17 @@ static void elan_cmd_read(fpi_ssm *ssm, struct fp_img_dev *dev)
 
 	if (elandev->cmd->cmd == get_image_cmd.cmd)
 		/* raw data has 2-byte "pixels" and the frame is vertical */
-		response_len =
-		    elandev->raw_frame_height * elandev->frame_width * 2;
+		response_len = elandev->frame_height * elandev->frame_width * 2;
 
 	g_clear_pointer(&elandev->last_read, g_free);
 	buffer = g_malloc(response_len);
 
 	elandev->cur_transfer = fpi_usb_fill_bulk_transfer(FP_DEV(dev),
 							   ssm,
-							   elandev->cmd->response_in,
-							   buffer,
-							   response_len,
-							   elan_cmd_cb,
-							   NULL,
+							   elandev->
+							   cmd->response_in,
+							   buffer, response_len,
+							   elan_cmd_cb, NULL,
 							   elandev->cmd_timeout);
 	int r = fpi_usb_submit_transfer(elandev->cur_transfer);
 	if (r < 0)
@@ -405,10 +304,9 @@ static void elan_cmd_read(fpi_ssm *ssm, struct fp_img_dev *dev)
 }
 
 static void
-elan_run_cmd(fpi_ssm               *ssm,
-	     struct fp_img_dev     *dev,
-	     const struct elan_cmd *cmd,
-	     int                    cmd_timeout)
+elan_run_cmd(fpi_ssm *ssm,
+	     struct fp_img_dev *dev,
+	     const struct elan_cmd *cmd, int cmd_timeout)
 {
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 
@@ -429,8 +327,7 @@ elan_run_cmd(fpi_ssm               *ssm,
 							   ELAN_EP_CMD_OUT,
 							   g_memdup((char *) cmd->cmd, ELAN_CMD_LEN),
 							   ELAN_CMD_LEN,
-							   elan_cmd_cb,
-							   NULL,
+							   elan_cmd_cb, NULL,
 							   elandev->cmd_timeout);
 	int r = fpi_usb_submit_transfer(elandev->cur_transfer);
 	if (r < 0)
@@ -487,9 +384,8 @@ static void elan_stop_capture(struct fp_img_dev *dev)
 
 	elan_dev_reset(elandev);
 
-	fpi_ssm *ssm =
-	    fpi_ssm_new(FP_DEV(dev), stop_capture_run_state,
-			STOP_CAPTURE_NUM_STATES, dev);
+	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(dev), stop_capture_run_state,
+				   STOP_CAPTURE_NUM_STATES, dev);
 	fpi_ssm_start(ssm, stop_capture_complete);
 }
 
@@ -528,7 +424,7 @@ static void capture_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data
 		r = elan_save_img_frame(elandev);
 		if (r < 0)
 			fpi_ssm_mark_failed(ssm, r);
-		else if (elandev->num_frames < ELAN_MAX_FRAMES) {
+		else if (elandev->num_frames < ELAN_TOUCH_FRAMES) {
 			/* quickly stop if finger is removed */
 			elandev->cmd_timeout = ELAN_FINGER_TIMEOUT;
 			fpi_ssm_jump_to_state(ssm, CAPTURE_WAIT_FINGER);
@@ -551,16 +447,18 @@ static void capture_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_data)
 		return;
 	}
 
-	/* either max frames captured or timed out waiting for the next frame */
+	/* either max frames captured or timed out waiting for the next frame
+	 * it's ok to proceed with less frames than expected because the final image
+	 * is the average of all frames; a few frames less should not be a problem
+	 */
 	if (!fpi_ssm_get_error(ssm)
 	    || (fpi_ssm_get_error(ssm) == -ETIMEDOUT
 		&& fpi_ssm_get_cur_state(ssm) == CAPTURE_WAIT_FINGER))
-		if (elandev->num_frames >= ELAN_MIN_FRAMES)
+		if (elandev->num_frames > 0)
 			elan_submit_image(dev);
 		else {
-			fp_dbg("swipe too short: want >= %d frames, got %d",
-			       ELAN_MIN_FRAMES, elandev->num_frames);
-			fpi_imgdev_abort_scan(dev, FP_VERIFY_RETRY_TOO_SHORT);
+			fp_dbg("did not capture any frames");
+			fpi_imgdev_abort_scan(dev, FP_VERIFY_RETRY);
 		}
 
 	/* other error
@@ -694,7 +592,6 @@ static void calibrate_complete(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 
 	G_DEBUG_HERE();
 
-
 	if (fpi_ssm_get_error(ssm) != -ECANCELED)
 		elan_capture(dev);
 
@@ -711,7 +608,7 @@ static void elan_calibrate(struct fp_img_dev *dev)
 	elandev->calib_atts_left = ELAN_CALIBRATION_ATTEMPTS;
 
 	fpi_ssm *ssm = fpi_ssm_new(FP_DEV(dev), calibrate_run_state,
-					  CALIBRATE_NUM_STATES, dev);
+				   CALIBRATE_NUM_STATES, dev);
 	fpi_ssm_start(ssm, calibrate_complete);
 }
 
@@ -745,20 +642,20 @@ static void activate_run_state(fpi_ssm *ssm, struct fp_dev *_dev, void *user_dat
 		elan_run_cmd(ssm, dev, &get_sensor_dim_cmd, ELAN_CMD_TIMEOUT);
 		break;
 	case ACTIVATE_SET_SENSOR_DIM:
-		/* see elan_save_frame for details */
-		if (elandev->dev_type & ELAN_NOT_ROTATED) {
-			elandev->frame_width = elandev->last_read[0];
-			elandev->frame_height = elandev->raw_frame_height =
-			    elandev->last_read[2];
-		} else {
-			elandev->frame_width = elandev->last_read[2];
-			elandev->frame_height = elandev->raw_frame_height =
-			    elandev->last_read[0];
+		elandev->frame_width = elandev->last_read[0];
+		elandev->frame_height = elandev->last_read[2];
+
+		/* some sensors dim return the maximum zero-based index rather than
+		 * the number of pixels
+		 * assuming every sensor has an even number of pixel is safe */
+		if ((elandev->frame_width % 2 == 1)
+		    && (elandev->frame_height % 2 == 1)) {
+			elandev->frame_width += 1;
+			elandev->frame_height += 1;
 		}
-		if (elandev->frame_height > ELAN_MAX_FRAME_HEIGHT)
-			elandev->frame_height = ELAN_MAX_FRAME_HEIGHT;
+
 		fp_dbg("sensor dimensions, WxH: %dx%d", elandev->frame_width,
-		       elandev->raw_frame_height);
+		       elandev->frame_height);
 		fpi_ssm_next_state(ssm);
 		break;
 	case ACTIVATE_CMD_1:
@@ -813,12 +710,6 @@ static int dev_init(struct fp_img_dev *dev, unsigned long driver_data)
 	elandev->dev_type = driver_data;
 	elandev->background = NULL;
 	elandev->process_frame = elan_process_frame_thirds;
-
-	switch (driver_data) {
-	case ELAN_0907:
-		elandev->process_frame = elan_process_frame_linear;
-		break;
-	}
 
 	fpi_imgdev_open_complete(dev, 0);
 	return 0;
@@ -884,43 +775,41 @@ static void elan_change_state(struct fp_img_dev *dev)
 	elandev->dev_state = next_state;
 }
 
-static void
-elan_change_state_async(struct fp_dev *dev,
-			void          *data)
+static void elan_change_state_async(struct fp_dev *dev, void *data)
 {
-	g_message ("state change dev: %p", dev);
-	elan_change_state(FP_IMG_DEV (dev));
+	g_message("state change dev: %p", dev);
+	elan_change_state(FP_IMG_DEV(dev));
 }
 
 static int dev_change_state(struct fp_img_dev *dev, enum fp_imgdev_state state)
 {
 	struct elan_dev *elandev = FP_INSTANCE_DATA(FP_DEV(dev));
 	fpi_timeout *timeout;
+  char *name;
 
 	G_DEBUG_HERE();
 
 	switch (state) {
 	case IMGDEV_STATE_INACTIVE:
 	case IMGDEV_STATE_AWAIT_FINGER_ON:
-	case IMGDEV_STATE_AWAIT_FINGER_OFF: {
-		char *name;
+	case IMGDEV_STATE_AWAIT_FINGER_OFF:
 
 		/* schedule state change instead of calling it directly to allow all actions
 		 * related to the previous state to complete */
 		elandev->dev_state_next = state;
 		timeout = fpi_timeout_add(10, elan_change_state_async, FP_DEV(dev), NULL);
 
-		name = g_strdup_printf ("dev_change_state to %d", state);
+		name = g_strdup_printf("dev_change_state to %d", state);
 		fpi_timeout_set_name(timeout, name);
-		g_free (name);
-
+		g_free(name);
 		break;
-		}
+
 	case IMGDEV_STATE_CAPTURE:
 		/* TODO MAYBE: split capture ssm into smaller ssms and use this state */
 		elandev->dev_state = state;
 		elandev->dev_state_next = state;
 		break;
+
 	default:
 		fp_err("unrecognized state %d", state);
 		fpi_imgdev_session_error(dev, -EINVAL);
@@ -944,7 +833,7 @@ struct fp_img_driver elan_driver = {
 		   .name = FP_COMPONENT,
 		   .full_name = "ElanTech Fingerprint Sensor",
 		   .id_table = elan_id_table,
-		   .scan_type = FP_SCAN_TYPE_SWIPE,
+		   .scan_type = FP_SCAN_TYPE_PRESS,
 		   },
 	.flags = 0,
 
