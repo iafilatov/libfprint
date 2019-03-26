@@ -141,6 +141,8 @@ To get bigger images the driver expects you to swipe the finger over the reader.
 
 *Most enrolling and verification problems are caused by bad quality of scans*. Check various `*.pgm` files to see what's wrong.
 
+If you still wish to try touch operation, use [elan-touch](https://github.com/iafilatov/libfprint/tree/elan-touch) branch. For me even enrolling is impossible with touch. YMMV.
+
 
 ### 0x0903
 
