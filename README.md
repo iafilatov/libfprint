@@ -124,7 +124,7 @@ sudo ninja install
 
 Now you can use it with [fprintd](https://www.freedesktop.org/wiki/Software/fprint/fprintd/). Don't forget to enroll: `fprintd-enroll`. If you want to use it for auth (login, sudo etc.) you also need PAM module: `apt install libpam-fprintd`.
 
-> `frpintd-enroll` and `fprintd-verify` are separate from `examples/enroll` and `examples/verify`.
+> `fprintd-enroll` and `fprintd-verify` are separate from `examples/enroll` and `examples/verify`.
 
 ## Uninstalling
 
