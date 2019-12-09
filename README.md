@@ -143,12 +143,6 @@ To get bigger images the driver expects you to swipe the finger over the reader.
 
 If you still wish to try touch operation, use [elan-touch](https://github.com/iafilatov/libfprint/tree/elan-touch) branch. For me even enrolling is impossible with touch. YMMV.
 
-
-### 0x0903
-
-Elan 0x0903 has a strange issue with this driver: it frequently locks up on enroll after having passed a number of steps. A power-cycle is needed to recover it (most likely a reboot because it's often bult into touchpad on laptops). I don't know what causes it. Logs don't indicate any specific command or conditions. And my options are very limited because I don't own 0x0903 and can't reproduce the problem in any way. So far my understanding is that some people face the problem pretty consistently while other don't. I have plenty of reports from those who do, so please **if you have 0x0903 and can enroll multiple times without problems**, make an issue here and paste some logs. Maybe I can see what's different. If you're willing to hack a bit and see if you can fix it, reach out and I'll help with whatever I can. Many people would appreciate it.
-
-
 ### Good image
 
 ![good image](img/good.png)
