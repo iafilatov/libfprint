@@ -2,6 +2,8 @@
 
 This driver went upstream. If you are about to clone and build this repo, better clone [the official libfprint repo](https://gitlab.freedesktop.org/libfprint/libfprint) instead. If your package manager ships libfprint >= 0.8.3, it's already there. Yay!
 
+**I'm not responding to issues and pull requests in this repo. Send them to [the official repo](https://gitlab.freedesktop.org/libfprint/libfprint). The code here is very old and I don't actively maintain it.**
+
 For help with this driver consider opening a ticket in the official repo or asking on the [mailing list](https://www.freedesktop.org/wiki/Software/fprint/Mailing_list/). I will keep this fork as a landing page for a while.
 
 
